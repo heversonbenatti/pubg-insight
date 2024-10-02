@@ -1,60 +1,116 @@
 body {
+    background-color: #121212;
+    color: #E0E0E0;
     font-family: Arial, sans-serif;
-    background-color: #f4f4f4;
-    color: #333;
+    margin: 0;
+    padding: 0;
 }
 
 .container {
-    max-width: 900px;
-    margin: 50px auto;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
     padding: 20px;
-    background: white;
-    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-    text-align: center;
 }
 
-input, select, button {
+h1 {
+    text-align: center;
+    color: #E0E0E0;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+input[type="text"], select {
     padding: 10px;
-    margin: 10px;
-    font-size: 1em;
+    border: 1px solid #333;
+    border-radius: 5px;
+    background-color: #333;
+    color: #E0E0E0;
+    margin-bottom: 10px;
+    width: 80%;
+}
+
+button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    background-color: #1f1f1f;
+    color: #E0E0E0;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #333;
+}
+
+label {
+    color: #E0E0E0;
+}
+
+input[type="checkbox"] {
+    margin-right: 5px;
+}
+
+#stats-section {
+    margin-top: 20px;
+    display: block;
+    background-color: #1f1f1f;
+    border-radius: 10px;
+    padding: 20px;
+    color: #E0E0E0;
 }
 
 .mode-container {
     display: flex;
-    justify-content: space-around;
-    margin-top: 20px;
+    justify-content: space-between;
+    gap: 20px;
 }
 
 .mode-box {
     width: 30%;
-    padding: 20px;
-    border: 1px solid #ddd;
-    background-color: #f9f9f9;
-    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.1);
+    height: 300px;
+    background-color: #333;
+    padding: 15px;
+    border-radius: 10px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.mode-box h3 {
+    color: #E0E0E0;
+    margin-bottom: 15px;
+}
+
+.stats {
+    color: #E0E0E0;
+    text-align: left;
 }
 
 .hidden {
     display: none !important;
 }
 
-.stats {
-    display: block;
+.no-data {
+    color: #E0E0E0;
+    margin-top: 10px;
 }
 
-#solo-info h3 {
-    background-color: #f39c12;
-    color: white;
-    padding: 10px;
-}
+@media (max-width: 768px) {
+    .mode-container {
+        flex-direction: column;
+        gap: 20px;
+    }
 
-#duo-info h3 {
-    background-color: #1abc9c;
-    color: white;
-    padding: 10px;
-}
-
-#squad-info h3 {
-    background-color: #9b59b6;
-    color: white;
-    padding: 10px;
+    .mode-box {
+        width: 100%;
+        height: auto;
+    }
 }

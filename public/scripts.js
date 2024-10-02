@@ -1,6 +1,9 @@
 document.addEventListener('DOMContentLoaded', async function() {
     const seasonSelect = document.getElementById('season-select');
+    const statsSection = document.getElementById('stats-section');
     
+    statsSection.classList.add('hidden');
+
     try {
         const response = await fetch('/api/seasons');
         const seasons = await response.json();
@@ -50,7 +53,7 @@ function clearStats() {
 
 function displayStats(mode, stats) {
     const modeInfo = document.getElementById(`${mode}-info`);
-    
+
     if (stats.roundsPlayed === 0) {
         modeInfo.querySelector('.no-data').classList.remove('hidden');
         modeInfo.querySelector('.stats').classList.add('hidden');
@@ -99,9 +102,3 @@ document.getElementById('player-form').addEventListener('submit', async function
 
     displayAllStats(data);
 });
-
-function formatTime(seconds) {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}m ${remainingSeconds}s`;
-}
