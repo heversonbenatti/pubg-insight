@@ -1,0 +1,60 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    color: #333;
+}
+
+.container {
+    max-width: 900px;
+    margin: 50px auto;
+    padding: 20px;
+    background: white;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+input, select, button {
+    padding: 10px;
+    margin: 10px;
+    font-size: 1em;
+}
+
+.mode-container {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 20px;
+}
+
+.mode-box {
+    width: 30%;
+    padding: 20px;
+    border: 1px solid #ddd;
+    background-color: #f9f9f9;
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.1);
+}
+
+.hidden {
+    display: none !important;
+}
+
+.stats {
+    display: block;
+}
+
+#solo-info h3 {
+    background-color: #f39c12;
+    color: white;
+    padding: 10px;
+}
+
+#duo-info h3 {
+    background-color: #1abc9c;
+    color: white;
+    padding: 10px;
+}
+
+#squad-info h3 {
+    background-color: #9b59b6;
+    color: white;
+    padding: 10px;
+}
