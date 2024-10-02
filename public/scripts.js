@@ -1,9 +1,7 @@
-// Função para carregar as temporadas ao carregar a página
 document.addEventListener('DOMContentLoaded', async function() {
     const seasonSelect = document.getElementById('season-select');
     
     try {
-        // Requisição para obter as temporadas
         const response = await fetch('/api/seasons');
         const seasons = await response.json();
 
@@ -13,8 +11,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         let currentSeasonId = null;
-
-        // Filtrar apenas as temporadas de PC
         const pcSeasons = seasons.filter(season => season.id.includes('pc'));
 
         if (pcSeasons.length === 0) {
@@ -22,31 +18,26 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
 
-        // Popula o dropdown com as temporadas de PC e identifica a temporada atual
         pcSeasons.forEach(season => {
             const option = document.createElement('option');
             option.value = season.id;
             option.textContent = season.id;
             seasonSelect.appendChild(option);
 
-            // Verifica se é a temporada atual
             if (season.attributes.isCurrentSeason) {
                 currentSeasonId = season.id;
             }
         });
 
-        // Seleciona automaticamente a temporada atual
         if (currentSeasonId) {
             seasonSelect.value = currentSeasonId;
         }
 
     } catch (error) {
-        console.error('Error loading seasons:', error);
         alert('Failed to load seasons.');
     }
 });
 
-// Função para limpar os dados anteriores
 function clearStats() {
     document.getElementById('stats-section').classList.add('hidden');
     
@@ -57,16 +48,13 @@ function clearStats() {
     });
 }
 
-// Função para exibir as estatísticas de um modo específico (solo, duo, squad)
 function displayStats(mode, stats) {
     const modeInfo = document.getElementById(`${mode}-info`);
     
     if (stats.roundsPlayed === 0) {
-        // Exibe "No data available" e oculta todas as estatísticas
         modeInfo.querySelector('.no-data').classList.remove('hidden');
-        modeInfo.querySelector('.stats').classList.add('hidden');  // Esconder as estatísticas
+        modeInfo.querySelector('.stats').classList.add('hidden');
     } else {
-        // Preenche as estatísticas e oculta "No data available"
         modeInfo.querySelector('.no-data').classList.add('hidden');
         const statsDiv = modeInfo.querySelector('.stats');
         statsDiv.classList.remove('hidden');
@@ -82,7 +70,6 @@ function displayStats(mode, stats) {
     }
 }
 
-// Função para exibir todas as estatísticas de Solo, Duo e Squad
 function displayAllStats(data) {
     const modes = ['solo', 'duo', 'squad'];
     
@@ -91,7 +78,6 @@ function displayAllStats(data) {
         displayStats(mode, modeStats);
     });
 
-    // Exibir a seção de estatísticas
     document.getElementById('stats-section').classList.remove('hidden');
 }
 
@@ -101,10 +87,8 @@ document.getElementById('player-form').addEventListener('submit', async function
     const seasonId = document.getElementById('season-select').value;
     const isFPP = document.getElementById('is-fpp').checked ? 'true' : 'false';
 
-    // Limpar os dados antigos
     clearStats();
 
-    // Requisitar estatísticas do jogador
     const response = await fetch(`/api/player/${playerName}?season=${seasonId}&isFPP=${isFPP}`);
     const data = await response.json();
 
@@ -113,11 +97,9 @@ document.getElementById('player-form').addEventListener('submit', async function
         return;
     }
 
-    // Exibir as estatísticas do jogador
     displayAllStats(data);
 });
 
-// Função para formatar o tempo em minutos e segundos
 function formatTime(seconds) {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = Math.floor(seconds % 60);
