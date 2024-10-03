@@ -1,9 +1,7 @@
 document.addEventListener('DOMContentLoaded', async function() {
     const seasonSelect = document.getElementById('season-select');
-    const statsSection = document.getElementById('stats-section');
-    
-    statsSection.classList.add('hidden');
 
+    // Fetch seasons and populate the select element
     try {
         const response = await fetch('/api/seasons');
         const seasons = await response.json();
@@ -13,92 +11,81 @@ document.addEventListener('DOMContentLoaded', async function() {
             return;
         }
 
-        let currentSeasonId = null;
         const pcSeasons = seasons.filter(season => season.id.includes('pc'));
-
-        if (pcSeasons.length === 0) {
-            alert('No PC seasons found');
-            return;
-        }
-
         pcSeasons.forEach(season => {
             const option = document.createElement('option');
+            const seasonNumber = season.id.match(/-(\d{2})$/);
             option.value = season.id;
-            option.textContent = season.id;
+            option.textContent = `Season ${seasonNumber[1]}`;
             seasonSelect.appendChild(option);
-
-            if (season.attributes.isCurrentSeason) {
-                currentSeasonId = season.id;
-            }
         });
-
-        if (currentSeasonId) {
-            seasonSelect.value = currentSeasonId;
-        }
-
     } catch (error) {
         alert('Failed to load seasons.');
     }
+
+    document.getElementById('player-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const playerName = document.getElementById('player-name').value;
+        const seasonId = document.getElementById('season-select').value;
+
+        // Fetch player stats for both FPP and TPP
+        try {
+            const response = await fetch(`/api/player/${playerName}?season=${seasonId}`);
+            const data = await response.json();
+
+            if (data.error) {
+                alert('Player not found');
+                return;
+            }
+
+            // Set player name
+            document.getElementById('player-name-display').textContent = playerName;
+
+            // Display stats for FPP and TPP in respective tabs
+            updateStats(data.stats.fpp, data.stats.tpp);
+        } catch (error) {
+            alert('Failed to load player stats.');
+        }
+    });
 });
 
-function clearStats() {
-    document.getElementById('stats-section').classList.add('hidden');
-    
-    ['solo', 'duo', 'squad'].forEach(mode => {
-        const modeInfo = document.getElementById(`${mode}-info`);
-        modeInfo.querySelector('.no-data').classList.remove('hidden');
-        modeInfo.querySelector('.stats').classList.add('hidden');
-    });
+function updateStats(fppStats, tppStats) {
+    const currentTab = document.querySelector('.w3-bar .w3-gray').textContent;
+    const stats = currentTab.includes('FPP') ? fppStats : tppStats;
+    const mode = currentTab.includes('SOLO') ? 'solo' : currentTab.includes('DUO') ? 'duo' : 'squad';
+
+    const selectedStats = stats[mode] || {};
+
+    document.getElementById('kd').textContent = selectedStats.kdRatio || 'N/A';
+    document.getElementById('win-percentage').textContent = selectedStats.winRate || 'N/A';
+    document.getElementById('top10-percentage').textContent = selectedStats.top10Rate || 'N/A';
+    document.getElementById('games').textContent = selectedStats.gamesPlayed || 'N/A';
+    document.getElementById('total-damage').textContent = selectedStats.damageDealt || 'N/A';
+    document.getElementById('avg-damage').textContent = selectedStats.damagePerGame || 'N/A';
+    document.getElementById('kda').textContent = selectedStats.kda || 'N/A';
+    document.getElementById('top10').textContent = selectedStats.top10s || 'N/A';
+    document.getElementById('wins').textContent = selectedStats.wins || 'N/A';
+    document.getElementById('most-kills').textContent = selectedStats.mostKills || 'N/A';
+    document.getElementById('assists').textContent = selectedStats.assists || 'N/A';
+    document.getElementById('headshot-percentage').textContent = selectedStats.headshotRate || 'N/A';
 }
 
-function displayStats(mode, stats) {
-    const modeInfo = document.getElementById(`${mode}-info`);
-
-    if (stats.roundsPlayed === 0) {
-        modeInfo.querySelector('.no-data').classList.remove('hidden');
-        modeInfo.querySelector('.stats').classList.add('hidden');
-    } else {
-        modeInfo.querySelector('.no-data').classList.add('hidden');
-        const statsDiv = modeInfo.querySelector('.stats');
-        statsDiv.classList.remove('hidden');
-
-        statsDiv.querySelector('.games').innerText = stats.roundsPlayed || 'N/A';
-        statsDiv.querySelector('.kd').innerText = stats.kills ? (stats.kills / Math.max(stats.roundsPlayed - stats.wins, 1)).toFixed(2) : 'N/A';
-        statsDiv.querySelector('.damage').innerText = stats.damageDealt ? (stats.damageDealt / stats.roundsPlayed).toFixed(0) : 'N/A';
-        statsDiv.querySelector('.winrate').innerText = stats.wins ? ((stats.wins / stats.roundsPlayed) * 100).toFixed(1) + '%' : 'N/A';
-        statsDiv.querySelector('.top10rate').innerText = stats.top10s ? (((stats.top10s - stats.wins) / stats.roundsPlayed) * 100).toFixed(1) + '%' : 'N/A';
-        statsDiv.querySelector('.longestkill').innerText = stats.longestKill ? stats.longestKill.toFixed(1) + 'm' : 'N/A';
-        statsDiv.querySelector('.headshot').innerText = stats.headshotKills ? ((stats.headshotKills / Math.max(stats.kills, 1)) * 100).toFixed(1) + '%' : 'N/A';
-        statsDiv.querySelector('.mostkills').innerText = stats.roundMostKills || 'N/A';
+// Tab navigation
+function openTab(evt, tabName) {
+    let i, x, tablinks;
+    x = document.getElementsByClassName("tab-content");
+    for (i = 0; i < x.length; i++) {
+        x[i].style.display = "none";
     }
-}
-
-function displayAllStats(data) {
-    const modes = ['solo', 'duo', 'squad'];
-    
-    modes.forEach(mode => {
-        const modeStats = data.stats[mode] || { roundsPlayed: 0 };
-        displayStats(mode, modeStats);
-    });
-
-    document.getElementById('stats-section').classList.remove('hidden');
-}
-
-document.getElementById('player-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const playerName = document.getElementById('player-name').value;
-    const seasonId = document.getElementById('season-select').value;
-    const isFPP = document.getElementById('is-fpp').checked ? 'true' : 'false';
-
-    clearStats();
-
-    const response = await fetch(`/api/player/${playerName}?season=${seasonId}&isFPP=${isFPP}`);
-    const data = await response.json();
-
-    if (data.error) {
-        alert('Player not found');
-        return;
+    tablinks = document.getElementsByClassName("tablink");
+    for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" w3-gray", "");
     }
+    document.getElementById(tabName).style.display = "block";
+    evt.currentTarget.className += " w3-gray";
 
-    displayAllStats(data);
-});
+    // Update stats based on the selected tab
+    const currentTab = evt.currentTarget.textContent;
+    const stats = currentTab.includes('FPP') ? 'fppStats' : 'tppStats';
+    updateStats(window[stats][currentTab.toLowerCase()]);
+}
