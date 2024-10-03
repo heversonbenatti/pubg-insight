@@ -64,25 +64,36 @@ h1 {
 }
 
 form {
+    width: 30%;
     display: flex;
     flex-direction: column;
     align-items: center;
+    margin: 0 auto;
 }
 
 .form-row {
     display: flex;
     align-items: center;
-    justify-content: center;
-    margin-bottom: 10px;
+    justify-content: space-between; /* Spacing between select and button */
+    gap: 10px; /* A small gap between the two */
+    width: 100%; /* Ensure full width of the input name */
 }
 
 #player-name, #season-select {
-    width: 300px;
-    padding: 10px;
+    padding: 7px;
     border: 1px solid #333;
     border-radius: 5px;
     background-color: #333;
     color: #E0E0E0;
+}
+
+#player-name {
+    width: 100%; /* Ensure this input uses the full width available */
+    margin-bottom: 10px;
+}
+
+#season-select {
+    flex: 3;
 }
 
 /* Remove o estilo padrão do autocomplete */
@@ -108,6 +119,7 @@ input:-webkit-autofill:active {
 }
 
 button {
+    flex: 1;
     padding: 10px 20px;
     border: none;
     border-radius: 5px;
