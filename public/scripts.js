@@ -1,52 +1,65 @@
 document.addEventListener('DOMContentLoaded', async function() {
     const seasonSelect = document.getElementById('season-select');
 
-    // Fetch seasons and populate the select element
     try {
         const response = await fetch('/api/seasons');
         const seasons = await response.json();
 
-        if (seasons.error) {
+        if (!seasons || seasons.error) {
             alert('Could not load seasons');
             return;
         }
 
-        const pcSeasons = seasons.filter(season => season.id.includes('pc'));
-        pcSeasons.forEach(season => {
-            const option = document.createElement('option');
-            const seasonNumber = season.id.match(/-(\d{2})$/);
-            option.value = season.id;
-            option.textContent = `Season ${seasonNumber[1]}`;
-            seasonSelect.appendChild(option);
+        // Inicializa a variável para armazenar o número da temporada atual
+        let currentSeasonNumber = null;
+
+        // Filtrar apenas as seasons de "pc" e que não sejam de "console"
+        const pcSeasons = seasons.filter(season => {
+            if (season.id.includes('pc') && !season.id.includes('console')) {
+                const seasonNumber = parseInt(season.id.split('-').pop(), 10);
+                if (season.attributes.isCurrentSeason) {
+                    currentSeasonNumber = seasonNumber; // Armazena o número da currentSeason
+                }
+                return true;
+            }
+            return false;
+        }).sort((a, b) => {
+            const seasonA = parseInt(a.id.split('-').pop(), 10);
+            const seasonB = parseInt(b.id.split('-').pop(), 10);
+            return seasonB - seasonA; // Ordena da maior para a menor
         });
-    } catch (error) {
-        alert('Failed to load seasons.');
-    }
 
-    document.getElementById('player-form').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const playerName = document.getElementById('player-name').value;
-        const seasonId = document.getElementById('season-select').value;
+        let currentSeasonId = '';
 
-        // Fetch player stats for both FPP and TPP
-        try {
-            const response = await fetch(`/api/player/${playerName}?season=${seasonId}`);
-            const data = await response.json();
+        // Preencher o select com as seasons, exceto as futuras
+        pcSeasons.forEach(season => {
+            const seasonNumber = parseInt(season.id.split('-').pop(), 10);
 
-            if (data.error) {
-                alert('Player not found');
+            // Ignora seasons maiores que a atual (futuras)
+            if (currentSeasonNumber && seasonNumber > currentSeasonNumber) {
                 return;
             }
 
-            // Set player name
-            document.getElementById('player-name-display').textContent = playerName;
+            const option = document.createElement('option');
+            option.value = season.id;
+            option.textContent = `Season ${seasonNumber}`;
 
-            // Display stats for FPP and TPP in respective tabs
-            updateStats(data.stats.fpp, data.stats.tpp);
-        } catch (error) {
-            alert('Failed to load player stats.');
+            // Define a season atual como selecionada
+            if (season.attributes.isCurrentSeason) {
+                currentSeasonId = season.id;
+                option.selected = true;
+            }
+
+            seasonSelect.appendChild(option);
+        });
+
+        // Caso não tenha sido encontrado currentSeasonId, selecionar a primeira temporada disponível
+        if (!currentSeasonId && pcSeasons.length > 0) {
+            seasonSelect.selectedIndex = 0; // Seleciona a primeira season
         }
-    });
+    } catch (error) {
+        alert('Failed to load seasons.');
+    }
 });
 
 function updateStats(fppStats, tppStats) {
