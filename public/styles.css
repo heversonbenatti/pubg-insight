@@ -100,6 +100,11 @@ h2 {
     z-index: 1; /* Garantir que as abas fiquem acima da div */
 }
 
+.tablink.active {
+    border-bottom: 3px solid red; /* Adiciona a linha vermelha ao botão ativo */
+    padding-bottom: 2px; /* Ajusta o padding para manter o alinhamento correto */
+}
+
 .w3-bar-item {
     padding: 15px 30px; /* Tamanho das abas */
     background-color: #444;
