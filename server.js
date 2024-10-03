@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const app = express();
@@ -23,8 +24,7 @@ app.get('/api/seasons', async (req, res) => {
 
 app.get('/api/player/:playerName', async (req, res) => {
     const { playerName } = req.params;
-    const { season, isFPP } = req.query;
-    const mode = isFPP === 'true' ? 'fpp' : 'tpp';
+    const { season } = req.query;
 
     try {
         const playerResponse = await axios.get(`${BASE_URL}/players?filter[playerNames]=${playerName}`, {
@@ -43,10 +43,19 @@ app.get('/api/player/:playerName', async (req, res) => {
         });
 
         const stats = seasonStatsResponse.data.data.attributes.gameModeStats;
+
+        // Garante que as estatísticas FPP e TPP sejam retornadas, mesmo que vazias
         const playerStats = {
-            solo: stats[`solo-${mode}`] || { gamesPlayed: 0, kdRatio: 0 },
-            duo: stats[`duo-${mode}`] || { gamesPlayed: 0, kdRatio: 0 },
-            squad: stats[`squad-${mode}`] || { gamesPlayed: 0, kdRatio: 0 }
+            fpp: {
+                solo: stats['solo-fpp'] || { kills: 0, deaths: 0, assists: 0, knockdowns: 0, damageDealt: 0, killsPerMatch: 0 },
+                duo: stats['duo-fpp'] || { kills: 0, deaths: 0, assists: 0, knockdowns: 0, damageDealt: 0, killsPerMatch: 0 },
+                squad: stats['squad-fpp'] || { kills: 0, deaths: 0, assists: 0, knockdowns: 0, damageDealt: 0, killsPerMatch: 0 }
+            },
+            tpp: {
+                solo: stats['solo-tpp'] || { kills: 0, deaths: 0, assists: 0, knockdowns: 0, damageDealt: 0, killsPerMatch: 0 },
+                duo: stats['duo-tpp'] || { kills: 0, deaths: 0, assists: 0, knockdowns: 0, damageDealt: 0, killsPerMatch: 0 },
+                squad: stats['squad-tpp'] || { kills: 0, deaths: 0, assists: 0, knockdowns: 0, damageDealt: 0, killsPerMatch: 0 }
+            }
         };
 
         res.json({ player: { name: playerName }, stats: playerStats });
