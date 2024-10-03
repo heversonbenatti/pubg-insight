@@ -85,9 +85,8 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
         });
 
         const matchesData = playerResponse.data.data[0].relationships.matches.data;
-        
-        // Fetch the latest 5 matches
-        const matchDetails = await Promise.all(matchesData.slice(0, 5).map(async match => {
+
+        const matchDetails = await Promise.all(matchesData.map(async match => {
             const matchId = match.id;
             const matchResponse = await axios.get(`${BASE_URL}/matches/${matchId}`, {
                 headers: {
