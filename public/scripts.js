@@ -141,7 +141,7 @@ function updateStats(fppStats, tppStats) {
         const totalGames = statObj.roundsPlayed || 1;
         const wins = statObj.wins || 0;
         const kills = (statObj.kills || 0) - (statObj.teamKills || 0);
-        const deaths = totalGames - wins;
+        const deaths = statObj.losses;
         const top10s = statObj.top10s || statObj.top10 || 0;
         const damageDealt = statObj.damageDealt || 0;
         const assists = statObj.assists || 0;
