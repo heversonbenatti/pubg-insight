@@ -8,7 +8,7 @@ const app = express();
 const API_KEY = process.env.API_KEY;
 const BASE_URL = 'https://api.pubg.com/shards/steam';
 
-// Serve static files
+// Serve static files from the 'public' folder
 app.use(express.static('public'));
 
 // Path to save seasons.json file
@@ -141,8 +141,10 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
     }
 });
 
-// Start the server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+// Serve index.html for the root route
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
+// Export the app for Vercel to use as a serverless function
+module.exports = app;
