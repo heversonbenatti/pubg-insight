@@ -71,6 +71,10 @@ form {
     margin: 0 auto;
 }
 
+#player-form, #player-form * {
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
 .form-row {
     display: flex;
     align-items: center;
@@ -94,6 +98,48 @@ form {
 
 #season-select {
     flex: 3;
+    background-color: #333; /* Dark background */
+    color: #E0E0E0; /* Light text color */
+    border: 1px solid #444; /* Dark border */
+    border-radius: 5px; /* Rounded corners */
+    padding: 10px;
+    appearance: none; /* Removes the default browser styling */
+    scrollbar-color: #555 #333; /* Thumb color #555, track color #333 */
+    scrollbar-width: thin; /* Slimmer scrollbar */
+    -webkit-appearance: none; /* For WebKit browsers */
+    -moz-appearance: none; /* For Firefox */
+}
+
+#season-select option {
+    background-color: #333; /* Ensure options are also dark */
+    color: #E0E0E0; /* Light text in options */
+}
+
+#season-select::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid #E0E0E0; /* Custom arrow color */
+    pointer-events: none;
+}
+
+/* WebKit browsers (Chrome, Safari, Edge) */
+#season-select::-webkit-scrollbar {
+    width: 10px;
+}
+
+#season-select::-webkit-scrollbar-thumb {
+    background-color: #555; /* Dark color for scrollbar thumb */
+    border-radius: 10px;
+}
+
+#season-select::-webkit-scrollbar-track {
+    background-color: #333; /* Dark background for scrollbar track */
 }
 
 /* Remove o estilo padrão do autocomplete */
