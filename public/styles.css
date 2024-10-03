@@ -59,6 +59,7 @@ input:-webkit-autofill:active {
     margin-top: 50px; /* Ajuste para espaço inferior maior */
     position: relative;
     z-index: 0; /* Div da Steam atrás das abas */
+    display: none; /* Initially hidden */
 }
 
 button {
