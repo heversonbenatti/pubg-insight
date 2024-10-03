@@ -71,13 +71,17 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const response = await fetch(`/api/player/${playerName}?season=${seasonId}`);
                 const data = await response.json();
 
-                if (data.error) {
-                    alert('Player not found');
+                if (!data.stats) {
+                    alert('No stats available for this player');
                     return;
                 }
 
-                // Atualiza as estatísticas do jogador
-                updateStats(data.stats.fpp, data.stats.tpp);
+                // Armazena as estatísticas de FPP e TPP globalmente
+                window.fppStats = data.stats.fpp;
+                window.tppStats = data.stats.tpp;
+
+                // Atualiza as estatísticas para a aba ativa
+                updateStats(window.fppStats, window.tppStats);
                 document.getElementById('player-name-display').textContent = playerName;
             } catch (error) {
                 alert('Failed to load player stats.');
@@ -89,43 +93,55 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 });
 
+function openTab(evt, tabName) {
+    var i, tablinks;
+
+    // Remove a classe "active" de todas as abas
+    tablinks = document.getElementsByClassName("tablink");
+    for (i = 0; i < tablinks.length; i++) {
+        tablinks[i].classList.remove("w3-gray", "active");
+    }
+
+    // Adiciona a classe "active" à aba clicada
+    evt.currentTarget.classList.add("w3-gray", "active");
+
+    // Chame a função updateStats sempre que uma aba for clicada
+    const fppStats = window.fppStats || {}; // Garantindo que os dados de FPP estejam disponíveis
+    const tppStats = window.tppStats || {}; // Garantindo que os dados de TPP estejam disponíveis
+
+    // Atualiza os dados com base na aba ativa
+    updateStats(fppStats, tppStats);
+}
+
 function updateStats(fppStats, tppStats) {
-    const currentTab = document.querySelector('.w3-bar .w3-gray').textContent;
+    const currentTab = document.querySelector('.tablink.active')?.textContent;
+
+    if (!currentTab) {
+        return;
+    }
+
     const stats = currentTab.includes('FPP') ? fppStats : tppStats;
     const mode = currentTab.includes('SOLO') ? 'solo' : currentTab.includes('DUO') ? 'duo' : 'squad';
 
     const selectedStats = stats[mode] || {};
 
-    document.getElementById('kd').textContent = selectedStats.kdRatio || 'N/A';
-    document.getElementById('win-percentage').textContent = selectedStats.winRate || 'N/A';
-    document.getElementById('top10-percentage').textContent = selectedStats.top10Rate || 'N/A';
-    document.getElementById('games').textContent = selectedStats.gamesPlayed || 'N/A';
-    document.getElementById('total-damage').textContent = selectedStats.damageDealt || 'N/A';
-    document.getElementById('avg-damage').textContent = selectedStats.damagePerGame || 'N/A';
-    document.getElementById('kda').textContent = selectedStats.kda || 'N/A';
-    document.getElementById('top10').textContent = selectedStats.top10s || 'N/A';
-    document.getElementById('wins').textContent = selectedStats.wins || 'N/A';
-    document.getElementById('most-kills').textContent = selectedStats.mostKills || 'N/A';
-    document.getElementById('assists').textContent = selectedStats.assists || 'N/A';
-    document.getElementById('headshot-percentage').textContent = selectedStats.headshotRate || 'N/A';
-}
-
-// Tab navigation
-function openTab(evt, tabName) {
-    let i, x, tablinks;
-    x = document.getElementsByClassName("tab-content");
-    for (i = 0; i < x.length; i++) {
-        x[i].style.display = "none";
+    function updateElement(id, value) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value || 'N/A';
+        }
     }
-    tablinks = document.getElementsByClassName("tablink");
-    for (i = 0; i < tablinks.length; i++) {
-        tablinks[i].className = tablinks[i].className.replace(" w3-gray", "");
-    }
-    document.getElementById(tabName).style.display = "block";
-    evt.currentTarget.className += " w3-gray";
 
-    // Update stats based on the selected tab
-    const currentTab = evt.currentTarget.textContent;
-    const stats = currentTab.includes('FPP') ? 'fppStats' : 'tppStats';
-    updateStats(window[stats][currentTab.toLowerCase()]);
+    updateElement('kd', selectedStats.kdRatio);
+    updateElement('win-percentage', selectedStats.winRate);
+    updateElement('top10-percentage', selectedStats.top10Rate);
+    updateElement('games', selectedStats.gamesPlayed);
+    updateElement('total-damage', selectedStats.damageDealt);
+    updateElement('avg-damage', selectedStats.damagePerGame);
+    updateElement('kda', selectedStats.kda);
+    updateElement('top10', selectedStats.top10s);
+    updateElement('wins', selectedStats.wins);
+    updateElement('most-kills', selectedStats.mostKills);
+    updateElement('assists', selectedStats.assists);
+    updateElement('headshot-percentage', selectedStats.headshotRate);
 }
