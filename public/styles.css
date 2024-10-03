@@ -1,3 +1,17 @@
+@font-face {
+    font-family: 'Akashi';
+    src: url('akashi.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'PantonNarrow';
+    src: url('panton-narrow-black.otf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
 body {
     background-color: #121212;
     color: #E0E0E0;
@@ -10,48 +24,102 @@ body {
     width: 100%;
     max-width: 900px;
     margin: 0 auto;
-    padding: 20px;
+    padding-top: 20px;
+    padding-bottom: 20px;
 }
 
 h1 {
-    text-align: center;
-    color: #E0E0E0;
+    font-family: 'Akashi', sans-serif;
+    font-size: 4rem;
+    font-weight: bold;
+    color: black;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-align: center; /* Centraliza horizontalmente */
+    position: relative;
+    margin: 0 auto;
+}
+
+h1 .insight {
+    display: block;
+    font-size: 2.7rem;
+    margin-top: -10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-align: left; /* Mantém o texto alinhado à esquerda */
+    width: fit-content;
+    margin: 0 auto; /* Centraliza horizontalmente */
+}
+
+h1 {
+    text-shadow: 
+        1px 1px 0 white,  
+        -1px -1px 0 white, 
+        1px -1px 0 white,  
+        -1px 1px 0 white,  
+        1px 0 0 white,    
+        -1px 0 0 white,   
+        0 1px 0 white,    
+        0 -1px 0 white;   
 }
 
 form {
+    width: 30%;
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-bottom: 30px;
+    margin: 0 auto;
 }
 
 .form-row {
     display: flex;
     align-items: center;
-    justify-content: center;
-    margin-bottom: 10px;
+    justify-content: space-between; /* Spacing between select and button */
+    gap: 10px; /* A small gap between the two */
+    width: 100%; /* Ensure full width of the input name */
 }
 
 #player-name, #season-select {
-    width: 300px;
-    padding: 10px;
+    padding: 7px;
     border: 1px solid #333;
     border-radius: 5px;
     background-color: #333;
     color: #E0E0E0;
 }
 
+#player-name {
+    width: 100%; /* Ensure this input uses the full width available */
+    margin-bottom: 10px;
+}
+
+#season-select {
+    flex: 3;
+}
+
+/* Remove o estilo padrão do autocomplete */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #333 inset !important; /* Cor de fundo */
+    -webkit-text-fill-color: #ffffff !important; /* Cor do texto */
+    transition: background-color 5000s ease-in-out 0s;
+}
+
 #player-stats {
+    font-family: 'PantonNarrow', sans-serif;
     background-color: #1d1d1d; /* Cor de fundo igual ao site */
     border: 1px solid #222222; /* Borda suave */
     border-radius: 10px;
     padding: 0px;
-    margin-top: 50px; /* Ajuste para espaço inferior maior */
+    margin-top: 20px; /* Ajuste para espaço inferior maior */
     position: relative;
     z-index: 0; /* Div da Steam atrás das abas */
+    display: none; /* Initially hidden */
 }
 
 button {
+    flex: 1;
     padding: 10px 20px;
     border: none;
     border-radius: 5px;
@@ -70,6 +138,7 @@ button:hover {
     align-items: center;
     gap: 10px;
     padding: 20px;
+    padding-top: 13px;
     background: linear-gradient(90deg, #333333 0%, #1d1d1d 100%);
     border-top-left-radius: 10px; /* Mantém as bordas arredondadas para alinhar com o contêiner */
     border-top-right-radius: 10px; /* Mantém as bordas arredondadas */
@@ -83,9 +152,13 @@ button:hover {
     border-radius: 50%;
 }
 
+#player-name-display {
+    font-family: inherit; /* Mantém a fonte que estava antes */
+}
+
 h2 {
     margin: 0;
-    color: #7F7F7F;
+    color: #afafaf;
     font-size: 120%;
 }
 
@@ -101,11 +174,12 @@ h2 {
 }
 
 .tablink.active {
-    border-bottom: 3px solid red; /* Adiciona a linha vermelha ao botão ativo */
+    border-bottom: 3px solid #c9c9c9; /* Adiciona a linha vermelha ao botão ativo */
     padding-bottom: 2px; /* Ajusta o padding para manter o alinhamento correto */
 }
 
 .w3-bar-item {
+    font-family: 'PantonNarrow', sans-serif;
     padding: 15px 30px; /* Tamanho das abas */
     background-color: #444;
     color: #fff;
@@ -127,8 +201,29 @@ h2 {
     margin-top: 20px;
 }
 
+#stats-container {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr); /* Define 6 colunas de tamanho igual */
+    grid-template-rows: auto auto; /* Define 2 linhas automáticas */
+    gap: 20px; /* Define um espaçamento entre as colunas e as linhas */
+    justify-items: center; /* Centraliza o conteúdo dentro das colunas */
+    align-items: center; /* Alinha o conteúdo no centro verticalmente */
+    height: 150px; /* Mantém a altura fixa para o container */
+    padding-bottom: 20px;
+}
+
+.no-data-message {
+    font-size: 24px; /* Fonte maior */
+    color: #7F7F7F; /* Cinza 127 */
+    text-align: center; /* Centraliza o texto */
+    grid-column: span 6; /* Garante que ocupe toda a largura das colunas */
+    line-height: 85px; /* Centraliza verticalmente */
+    white-space: nowrap; /* Impede quebra de linha */
+}
+
 .stat-item {
-    padding: 10px; /* Reduzindo o espaçamento interno */
+    width: 100%;
+    padding-left: 30px;
     text-align: left;
     border-radius: 10px;
     color: #E0E0E0;
@@ -142,7 +237,7 @@ h2 {
 }
 
 .stat-item p {
-    font-size: 22px; /* Um pouco menor para ajustar ao layout */
+    font-size: 20px; /* Um pouco menor para ajustar ao layout */
     margin: 0; /* Remover margem extra */
     color: #fff;
 }

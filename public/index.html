@@ -1,30 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PUBG Insight</title>
+    <title>PUBG INSIGHT</title>
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div class="container">
-        <h1>PUBG Insight</h1>
+        <div class="container">
+            <h1>pubg<span class="insight">insight</span></h1>
+        </div>
         <form id="player-form">
             <div class="form-row">
                 <input type="text" id="player-name" placeholder="Enter player name" required>
             </div>
             <div class="form-row">
                 <select id="season-select"></select>
-            </div>
-            <div class="form-row">
                 <button type="submit">Search</button>
             </div>
         </form>
 
         <!-- Player Info Section -->
-        <div id="player-stats">
+        <div id="player-stats" style="display: none;">
             <div class="player-info">
-                <img src="./imgs/steam-logo-transparent.png" alt="Steam Icon" class="player-icon">
+                <img src="steam-logo-transparent.png" alt="Steam Icon" class="player-icon">
                 <h2 id="player-name-display"></h2>
             </div>
 
@@ -32,7 +34,8 @@
             <div class="w3-bar w3-black tab-bar">
                 <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'soloFpp')">SOLO FPP</button>
                 <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'duoFpp')">DUO FPP</button>
-                <button class="w3-bar-item w3-button tablink active" onclick="openTab(event, 'squadFpp')">SQUAD FPP</button>
+                <button class="w3-bar-item w3-button tablink active" onclick="openTab(event, 'squadFpp')">SQUAD
+                    FPP</button>
                 <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'soloTpp')">SOLO TPP</button>
                 <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'duoTpp')">DUO TPP</button>
                 <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'squadTpp')">SQUAD TPP</button>
@@ -40,58 +43,11 @@
 
             <!-- Statistics display area -->
             <div id="stats-container" class="stats-grid">
-                <div class="stat-item">
-                    <h2>K/D</h2>
-                    <p id="kd">N/A</p>
-                </div>
-                <div class="stat-item">
-                    <h2>Win %</h2>
-                    <p id="win-percentage">N/A</p>
-                </div>
-                <div class="stat-item">
-                    <h2>Top 10 %</h2>
-                    <p id="top10-percentage">N/A</p>
-                </div>
-                <div class="stat-item">
-                    <h2>Games</h2>
-                    <p id="games">N/A</p>
-                </div>
-                <div class="stat-item">
-                    <h2>Total Damage</h2>
-                    <p id="total-damage">N/A</p>
-                </div>
-                <div class="stat-item">
-                    <h2>Avg. Damage</h2>
-                    <p id="avg-damage">N/A</p>
-                </div>
-                <div class="stat-item">
-                    <h2>KDA</h2>
-                    <p id="kda">N/A</p>
-                </div>
-                <div class="stat-item">
-                    <h2>Top 10</h2>
-                    <p id="top10">N/A</p>
-                </div>
-                <div class="stat-item">
-                    <h2>Wins</h2>
-                    <p id="wins">N/A</p>
-                </div>
-                <div class="stat-item">
-                    <h2>Most Kills</h2>
-                    <p id="most-kills">N/A</p>
-                </div>
-                <div class="stat-item">
-                    <h2>Assist</h2>
-                    <p id="assists">N/A</p>
-                </div>
-                <div class="stat-item">
-                    <h2>Headshot %</h2>
-                    <p id="headshot-percentage">N/A</p>
-                </div>
             </div>
         </div>
     </div>
 
     <script src="scripts.js"></script>
 </body>
+
 </html>
