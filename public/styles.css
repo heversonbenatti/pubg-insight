@@ -35,9 +35,18 @@ h1 {
     color: black;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    text-align: center; /* Centraliza horizontalmente */
+    text-align: center;
     position: relative;
     margin: 0 auto;
+    text-shadow: 
+        1px 1px 0 white,  
+        -1px -1px 0 white, 
+        1px -1px 0 white,  
+        -1px 1px 0 white,  
+        1px 0 0 white,    
+        -1px 0 0 white,   
+        0 1px 0 white,    
+        0 -1px 0 white;   
 }
 
 h1 .insight {
@@ -49,18 +58,6 @@ h1 .insight {
     text-align: left; /* Mantém o texto alinhado à esquerda */
     width: fit-content;
     margin: 0 auto; /* Centraliza horizontalmente */
-}
-
-h1 {
-    text-shadow: 
-        1px 1px 0 white,  
-        -1px -1px 0 white, 
-        1px -1px 0 white,  
-        -1px 1px 0 white,  
-        1px 0 0 white,    
-        -1px 0 0 white,   
-        0 1px 0 white,    
-        0 -1px 0 white;   
 }
 
 form {

@@ -34,6 +34,11 @@ app.get('/api/player/:playerName', async (req, res) => {
             }
         });
 
+        if (!playerResponse.data.data.length) {
+            console.error(`Player ${playerName} not found`);
+            return res.json({ error: 'Player not found' });
+        }
+
         const playerId = playerResponse.data.data[0].id;
         const seasonStatsResponse = await axios.get(`${BASE_URL}/players/${playerId}/seasons/${season}`, {
             headers: {
@@ -42,34 +47,36 @@ app.get('/api/player/:playerName', async (req, res) => {
             }
         });
 
-        const stats = seasonStatsResponse.data.data.attributes.gameModeStats;
+        if (!seasonStatsResponse.data.data) {
+            console.error('No season stats found for this player');
+            return res.json({ error: 'No stats available for this player' });
+        }
 
-        // Garante que as estatísticas FPP e TPP sejam retornadas, mesmo que vazias
+        const stats = seasonStatsResponse.data.data.attributes.gameModeStats;
+        
         const playerStats = {
             fpp: {
-                solo: stats['solo-fpp'] || { kills: 0, deaths: 0, assists: 0, knockdowns: 0, damageDealt: 0, killsPerMatch: 0 },
-                duo: stats['duo-fpp'] || { kills: 0, deaths: 0, assists: 0, knockdowns: 0, damageDealt: 0, killsPerMatch: 0 },
-                squad: stats['squad-fpp'] || { kills: 0, deaths: 0, assists: 0, knockdowns: 0, damageDealt: 0, killsPerMatch: 0 }
+                solo: stats['solo-fpp'] || {},
+                duo: stats['duo-fpp'] || {},
+                squad: stats['squad-fpp'] || {}
             },
             tpp: {
-                solo: stats['solo-tpp'] || { kills: 0, deaths: 0, assists: 0, knockdowns: 0, damageDealt: 0, killsPerMatch: 0 },
-                duo: stats['duo-tpp'] || { kills: 0, deaths: 0, assists: 0, knockdowns: 0, damageDealt: 0, killsPerMatch: 0 },
-                squad: stats['squad-tpp'] || { kills: 0, deaths: 0, assists: 0, knockdowns: 0, damageDealt: 0, killsPerMatch: 0 }
+                solo: stats['solo-tpp'] || {},
+                duo: stats['duo-tpp'] || {},
+                squad: stats['squad-tpp'] || {}
             }
         };
 
         res.json({ player: { name: playerName }, stats: playerStats });
     } catch (error) {
-        res.json({ error: 'Player not found or API error' });
+        console.error('Error fetching player stats:', error.message); // Log the error message
+        res.status(500).json({ error: 'Player not found or API error' });
     }
 });
-
-const fs = require('fs'); // Require the filesystem module
 
 app.get('/api/player/:playerName/matches', async (req, res) => {
     const { playerName } = req.params;
     try {
-        // Fetch player data (including matches)
         const playerResponse = await axios.get(`${BASE_URL}/players?filter[playerNames]=${playerName}`, {
             headers: {
                 'Authorization': `Bearer ${API_KEY}`,
@@ -78,12 +85,9 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
         });
 
         const matchesData = playerResponse.data.data[0].relationships.matches.data;
-
-        // Limit to the first 3 matches
-        const limitedMatches = matchesData.slice(0, 3);
-
-        const matchDetails = [];
-        for (const match of limitedMatches) {
+        
+        // Fetch the latest 5 matches
+        const matchDetails = await Promise.all(matchesData.slice(0, 5).map(async match => {
             const matchId = match.id;
             const matchResponse = await axios.get(`${BASE_URL}/matches/${matchId}`, {
                 headers: {
@@ -91,12 +95,8 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
                     'Accept': 'application/vnd.api+json'
                 }
             });
-            matchDetails.push(matchResponse.data);
-        }
-
-        // Save the matches JSON to a file
-        const jsonData = JSON.stringify(matchDetails, null, 2); // Convert to JSON
-        fs.writeFileSync('matches.json', jsonData); // Save the JSON to a file
+            return matchResponse.data;
+        }));
 
         res.json({ matches: matchDetails });
     } catch (error) {
