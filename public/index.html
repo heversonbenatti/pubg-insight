@@ -5,14 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PUBG INSIGHT</title>
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
     <div class="container">
-        <div class="container">
-            <h1>pubg<span class="insight">insight</span></h1>
-        </div>
+        <h1>pubg<span class="insight">insight</span></h1>
         <form id="player-form">
             <div class="form-row">
                 <input type="text" id="player-name" placeholder="Enter player name" required>
@@ -42,7 +41,11 @@
             </div>
 
             <!-- Statistics display area -->
-            <div id="stats-container" class="stats-grid">
+            <div id="stats-container" class="stats-grid"></div>
+
+            <!-- Matches display area -->
+            <div id="matches-container">
+                <div id="match-list" class="match-list"></div>
             </div>
         </div>
     </div>
