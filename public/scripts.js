@@ -123,8 +123,44 @@ function updateStats(fppStats, tppStats) {
     const stats = currentTab.includes('FPP') ? fppStats : tppStats;
     const mode = currentTab.includes('SOLO') ? 'solo' : currentTab.includes('DUO') ? 'duo' : 'squad';
 
-    const selectedStats = stats[mode] || {};
+    const selectedStats = stats && stats[mode] ? stats[mode] : {};
 
+    // Função para calcular K/D, Win %, etc.
+    function calculateStats(statObj) {
+        const totalGames = statObj.roundsPlayed || 1;  // Total de jogos
+        const wins = statObj.wins || 0;  // Total de vitórias
+        const kills = (statObj.kills || 0) - (statObj.teamKills || 0);  // Kills - Team Kills
+        const deaths = totalGames - wins;  // Deaths = Total de jogos - Vitórias
+        const top10s = statObj.top10s || statObj.top10 || 0;  // Top 10s
+        const damageDealt = statObj.damageDealt || 0;  // Dano causado
+        const assists = statObj.assists || 0;  // Assistências
+        const headshotKills = statObj.headshotKills || 0;  // Headshots
+        const mostKills = statObj.roundMostKills || 'N/A';  // Most Kills
+        const longestKill = statObj.longestKill ? statObj.longestKill.toFixed(2) + 'm' : 'N/A';  // Longest Kill
+
+        // Calculando estatísticas
+        const kdRatio = kills && deaths ? (kills / deaths).toFixed(2) : 'N/A';  // K/D Ratio
+        const kda = (kills + assists) && deaths ? ((kills + assists) / deaths).toFixed(2) : 'N/A';  // KDA
+        const winPercentage = totalGames > 0 ? ((wins / totalGames) * 100).toFixed(2) + '%' : 'N/A';  // Win %
+        const top10Percentage = totalGames > 0 ? ((top10s / totalGames) * 100).toFixed(2) + '%' : 'N/A';  // Top 10 %
+        const avgDamage = damageDealt ? (damageDealt / totalGames).toFixed(2) : 'N/A';  // Avg Damage
+        const headshotPercentage = kills ? ((headshotKills / kills) * 100).toFixed(2) + '%' : 'N/A';  // Headshot %
+
+        return {
+            kdRatio,
+            winPercentage,
+            top10Percentage,
+            avgDamage,
+            kda,
+            headshotPercentage,
+            mostKills,
+            longestKill
+        };
+    }
+
+    const statsToDisplay = calculateStats(selectedStats);
+
+    // Atualiza os elementos na página
     function updateElement(id, value) {
         const element = document.getElementById(id);
         if (element) {
@@ -132,16 +168,17 @@ function updateStats(fppStats, tppStats) {
         }
     }
 
-    updateElement('kd', selectedStats.kdRatio);
-    updateElement('win-percentage', selectedStats.winRate);
-    updateElement('top10-percentage', selectedStats.top10Rate);
-    updateElement('games', selectedStats.gamesPlayed);
-    updateElement('total-damage', selectedStats.damageDealt);
-    updateElement('avg-damage', selectedStats.damagePerGame);
-    updateElement('kda', selectedStats.kda);
-    updateElement('top10', selectedStats.top10s);
-    updateElement('wins', selectedStats.wins);
-    updateElement('most-kills', selectedStats.mostKills);
-    updateElement('assists', selectedStats.assists);
-    updateElement('headshot-percentage', selectedStats.headshotRate);
+    updateElement('kd', statsToDisplay.kdRatio);
+    updateElement('win-percentage', statsToDisplay.winPercentage);
+    updateElement('top10-percentage', statsToDisplay.top10Percentage);
+    updateElement('games', selectedStats.roundsPlayed || 'N/A');
+    updateElement('total-damage', selectedStats.damageDealt || 'N/A');
+    updateElement('avg-damage', statsToDisplay.avgDamage);
+    updateElement('kda', statsToDisplay.kda);
+    updateElement('top10', selectedStats.top10s || selectedStats.top10 || 'N/A');
+    updateElement('wins', selectedStats.wins || 'N/A');
+    updateElement('most-kills', statsToDisplay.mostKills);
+    updateElement('assists', selectedStats.assists || 'N/A');
+    updateElement('headshot-percentage', statsToDisplay.headshotPercentage);
+    updateElement('longest-kill', statsToDisplay.longestKill);
 }
