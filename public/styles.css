@@ -41,6 +41,16 @@ form {
     color: #E0E0E0;
 }
 
+/* Remove o estilo padrão do autocomplete */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px #333 inset !important; /* Cor de fundo */
+    -webkit-text-fill-color: #ffffff !important; /* Cor do texto */
+    transition: background-color 5000s ease-in-out 0s;
+}
+
 #player-stats {
     background-color: #1d1d1d; /* Cor de fundo igual ao site */
     border: 1px solid #222222; /* Borda suave */
@@ -125,6 +135,30 @@ h2 {
     grid-template-columns: repeat(6, 1fr); /* 6 colunas */
     gap: 10px; /* Reduzindo o espaçamento entre os itens */
     margin-top: 20px;
+}
+
+#stats-container {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr); /* Define 6 colunas de tamanho igual */
+    grid-template-rows: auto auto; /* Define 2 linhas automáticas */
+    gap: 20px; /* Define um espaçamento entre as colunas e as linhas */
+    justify-items: center; /* Centraliza o conteúdo dentro das colunas */
+    align-items: center; /* Alinha o conteúdo no centro verticalmente */
+    height: 150px; /* Mantém a altura fixa para o container */
+    padding-bottom: 20px;
+}
+
+.stat-item {
+    text-align: center; /* Centraliza o texto em cada item */
+}
+
+.no-data-message {
+    font-size: 24px; /* Fonte maior */
+    color: #7F7F7F; /* Cinza 127 */
+    text-align: center; /* Centraliza o texto */
+    grid-column: span 6; /* Garante que ocupe toda a largura das colunas */
+    line-height: 85px; /* Centraliza verticalmente */
+    white-space: nowrap; /* Impede quebra de linha */
 }
 
 .stat-item {
