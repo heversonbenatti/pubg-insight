@@ -8,14 +8,17 @@ const app = express();
 const API_KEY = process.env.API_KEY;
 const BASE_URL = 'https://api.pubg.com/shards/steam';
 
+// Serve static files
 app.use(express.static('public'));
 
+// Path to save seasons.json file
 const seasonsFilePath = path.join(__dirname, 'public', 'seasons.json');
 
+// API to fetch and cache seasons
 app.get('/api/seasons', async (req, res) => {
-    // Check if the seasons.json file exists
+    // Check if seasons.json exists
     if (fs.existsSync(seasonsFilePath)) {
-        // Read the saved seasons.json file and return its contents
+        // Read cached seasons.json
         fs.readFile(seasonsFilePath, 'utf8', (err, data) => {
             if (err) {
                 console.error('Error reading seasons.json:', err);
@@ -24,7 +27,7 @@ app.get('/api/seasons', async (req, res) => {
             res.json(JSON.parse(data));
         });
     } else {
-        // If the file doesn't exist, fetch from the API and save the result
+        // Fetch from API and save to seasons.json
         try {
             const response = await axios.get(`${BASE_URL}/seasons`, {
                 headers: {
@@ -33,14 +36,14 @@ app.get('/api/seasons', async (req, res) => {
                 }
             });
 
-            // Save the API response to seasons.json
+            // Write to seasons.json
             fs.writeFile(seasonsFilePath, JSON.stringify(response.data.data), 'utf8', (err) => {
                 if (err) {
                     console.error('Error writing seasons.json:', err);
                 }
             });
 
-            // Send the API response to the client
+            // Respond with API data
             res.json(response.data.data);
         } catch (error) {
             console.error('Error fetching seasons from API:', error);
@@ -49,11 +52,13 @@ app.get('/api/seasons', async (req, res) => {
     }
 });
 
+// API to get player stats for a specific season
 app.get('/api/player/:playerName', async (req, res) => {
     const { playerName } = req.params;
     const { season } = req.query;
 
     try {
+        // Fetch player ID
         const playerResponse = await axios.get(`${BASE_URL}/players?filter[playerNames]=${playerName}`, {
             headers: {
                 'Authorization': `Bearer ${API_KEY}`,
@@ -67,6 +72,8 @@ app.get('/api/player/:playerName', async (req, res) => {
         }
 
         const playerId = playerResponse.data.data[0].id;
+
+        // Fetch season stats for player
         const seasonStatsResponse = await axios.get(`${BASE_URL}/players/${playerId}/seasons/${season}`, {
             headers: {
                 'Authorization': `Bearer ${API_KEY}`,
@@ -80,7 +87,7 @@ app.get('/api/player/:playerName', async (req, res) => {
         }
 
         const stats = seasonStatsResponse.data.data.attributes.gameModeStats;
-        
+
         const playerStats = {
             fpp: {
                 solo: stats['solo-fpp'] || {},
@@ -96,14 +103,16 @@ app.get('/api/player/:playerName', async (req, res) => {
 
         res.json({ player: { name: playerName }, stats: playerStats });
     } catch (error) {
-        console.error('Error fetching player stats:', error.message); // Log the error message
+        console.error('Error fetching player stats:', error.message);
         res.status(500).json({ error: 'Player not found or API error' });
     }
 });
 
+// API to fetch matches for a player
 app.get('/api/player/:playerName/matches', async (req, res) => {
     const { playerName } = req.params;
     try {
+        // Fetch player ID
         const playerResponse = await axios.get(`${BASE_URL}/players?filter[playerNames]=${playerName}`, {
             headers: {
                 'Authorization': `Bearer ${API_KEY}`,
@@ -113,6 +122,7 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
 
         const matchesData = playerResponse.data.data[0].relationships.matches.data;
 
+        // Fetch match details for each match
         const matchDetails = await Promise.all(matchesData.map(async match => {
             const matchId = match.id;
             const matchResponse = await axios.get(`${BASE_URL}/matches/${matchId}`, {
@@ -131,6 +141,7 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
     }
 });
 
+// Start the server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
