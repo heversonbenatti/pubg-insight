@@ -10,65 +10,88 @@
     <div class="container">
         <h1>PUBG Insight</h1>
         <form id="player-form">
-            <input type="text" id="player-name" placeholder="Enter player name" required>
-            <select id="season-select"></select>
-            <div>
-                <label>
-                    <input type="checkbox" id="is-fpp" checked> FPP
-                </label>
+            <div class="form-row">
+                <input type="text" id="player-name" placeholder="Enter player name" required>
             </div>
-            <button type="submit">Search</button>
+            <div class="form-row">
+                <select id="season-select"></select>
+            </div>
+            <div class="form-row">
+                <button type="submit">Search</button>
+            </div>
         </form>
 
-        <div id="stats-section" class="hidden">
-            <div class="mode-container">
-                <div id="solo-info" class="mode-box">
-                    <div class="table-header">Solo FPP</div>
-                    <div class="no-data">No data available</div>
-                    <div class="stats hidden">
-                        <p><strong>Games:</strong> <span class="games"></span></p>
-                        <p><strong>K/D Ratio:</strong> <span class="kd"></span></p>
-                        <p><strong>Avg. Damage:</strong> <span class="damage"></span></p>
-                        <p><strong>Win %:</strong> <span class="winrate"></span></p>
-                        <p><strong>Top 10 %:</strong> <span class="top10rate"></span></p>
-                        <p><strong>Longest Kill:</strong> <span class="longestkill"></span></p>
-                        <p><strong>Headshot %:</strong> <span class="headshot"></span></p>
-                        <p><strong>Most Kills:</strong> <span class="mostkills"></span></p>
-                    </div>
-                </div>
+        <!-- Player Info Section -->
+        <div id="player-stats">
+            <div class="player-info">
+                <img src="./imgs/steam-logo-transparent.png" alt="Steam Icon" class="player-icon">
+                <h2 id="player-name-display"></h2>
+            </div>
 
-                <div id="duo-info" class="mode-box">
-                    <div class="table-header">Duo FPP</div>
-                    <div class="no-data">No data available</div>
-                    <div class="stats hidden">
-                        <p><strong>Games:</strong> <span class="games"></span></p>
-                        <p><strong>K/D Ratio:</strong> <span class="kd"></span></p>
-                        <p><strong>Avg. Damage:</strong> <span class="damage"></span></p>
-                        <p><strong>Win %:</strong> <span class="winrate"></span></p>
-                        <p><strong>Top 10 %:</strong> <span class="top10rate"></span></p>
-                        <p><strong>Longest Kill:</strong> <span class="longestkill"></span></p>
-                        <p><strong>Headshot %:</strong> <span class="headshot"></span></p>
-                        <p><strong>Most Kills:</strong> <span class="mostkills"></span></p>
-                    </div>
-                </div>
+            <!-- Tabbed navigation -->
+            <div class="w3-bar w3-black tab-bar">
+                <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'soloFpp')">SOLO FPP</button>
+                <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'duoFpp')">DUO FPP</button>
+                <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'squadFpp')">SQUAD FPP</button>
+                <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'soloTpp')">SOLO TPP</button>
+                <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'duoTpp')">DUO TPP</button>
+                <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'squadTpp')">SQUAD TPP</button>
+            </div>
 
-                <div id="squad-info" class="mode-box">
-                    <div class="table-header">Squad FPP</div>
-                    <div class="no-data">No data available</div>
-                    <div class="stats hidden">
-                        <p><strong>Games:</strong> <span class="games"></span></p>
-                        <p><strong>K/D Ratio:</strong> <span class="kd"></span></p>
-                        <p><strong>Avg. Damage:</strong> <span class="damage"></span></p>
-                        <p><strong>Win %:</strong> <span class="winrate"></span></p>
-                        <p><strong>Top 10 %:</strong> <span class="top10rate"></span></p>
-                        <p><strong>Longest Kill:</strong> <span class="longestkill"></span></p>
-                        <p><strong>Headshot %:</strong> <span class="headshot"></span></p>
-                        <p><strong>Most Kills:</strong> <span class="mostkills"></span></p>
-                    </div>
+            <!-- Statistics display area -->
+            <div id="stats-container" class="stats-grid">
+                <div class="stat-item">
+                    <h2>K/D</h2>
+                    <p id="kd">N/A</p>
+                </div>
+                <div class="stat-item">
+                    <h2>Win %</h2>
+                    <p id="win-percentage">N/A</p>
+                </div>
+                <div class="stat-item">
+                    <h2>Top 10 %</h2>
+                    <p id="top10-percentage">N/A</p>
+                </div>
+                <div class="stat-item">
+                    <h2>Games</h2>
+                    <p id="games">N/A</p>
+                </div>
+                <div class="stat-item">
+                    <h2>Total Damage</h2>
+                    <p id="total-damage">N/A</p>
+                </div>
+                <div class="stat-item">
+                    <h2>Avg. Damage</h2>
+                    <p id="avg-damage">N/A</p>
+                </div>
+                <div class="stat-item">
+                    <h2>KDA</h2>
+                    <p id="kda">N/A</p>
+                </div>
+                <div class="stat-item">
+                    <h2>Top 10</h2>
+                    <p id="top10">N/A</p>
+                </div>
+                <div class="stat-item">
+                    <h2>Wins</h2>
+                    <p id="wins">N/A</p>
+                </div>
+                <div class="stat-item">
+                    <h2>Most Kills</h2>
+                    <p id="most-kills">N/A</p>
+                </div>
+                <div class="stat-item">
+                    <h2>Assist</h2>
+                    <p id="assists">N/A</p>
+                </div>
+                <div class="stat-item">
+                    <h2>Headshot %</h2>
+                    <p id="headshot-percentage">N/A</p>
                 </div>
             </div>
         </div>
     </div>
+
     <script src="scripts.js"></script>
 </body>
 </html>
