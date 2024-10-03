@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', async function() {
     const seasonSelect = document.getElementById('season-select');
+    const playerForm = document.getElementById('player-form');
 
     try {
         const response = await fetch('/api/seasons');
@@ -57,6 +58,32 @@ document.addEventListener('DOMContentLoaded', async function() {
         if (!currentSeasonId && pcSeasons.length > 0) {
             seasonSelect.selectedIndex = 0; // Seleciona a primeira season
         }
+
+        // Prevenir comportamento padrão do formulário
+        playerForm.addEventListener('submit', async function(e) {
+            e.preventDefault(); // Previne o reload da página
+
+            const playerName = document.getElementById('player-name').value;
+            const seasonId = seasonSelect.value;
+
+            // Fetch player stats
+            try {
+                const response = await fetch(`/api/player/${playerName}?season=${seasonId}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    alert('Player not found');
+                    return;
+                }
+
+                // Atualiza as estatísticas do jogador
+                updateStats(data.stats.fpp, data.stats.tpp);
+                document.getElementById('player-name-display').textContent = playerName;
+            } catch (error) {
+                alert('Failed to load player stats.');
+            }
+        });
+
     } catch (error) {
         alert('Failed to load seasons.');
     }
