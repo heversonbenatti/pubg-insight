@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     const seasonSelect = document.getElementById('season-select');
     const playerForm = document.getElementById('player-form');
     const playerStatsContainer = document.getElementById('player-stats');
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         // Prevenir comportamento padrão do formulário
-        playerForm.addEventListener('submit', async function(e) {
+        playerForm.addEventListener('submit', async function (e) {
             e.preventDefault();
 
             const playerName = document.getElementById('player-name').value;
@@ -85,15 +85,111 @@ document.addEventListener('DOMContentLoaded', async function() {
                 // Atualiza as estatísticas para a aba ativa
                 updateStats(window.fppStats, window.tppStats);
                 playerNameDisplay.textContent = playerName;
+
+                // Fetch and display the last 20 matches
+                await fetchPlayerMatches(playerName);
             } catch (error) {
                 alert('Failed to load player stats.');
             }
         });
-
     } catch (error) {
         alert('Failed to load seasons.');
     }
 });
+
+function translateMapName(mapName) {
+    const mapNames = {
+        'Erangel_Main': 'Erangel',
+        'Desert_Main': 'Miramar',
+        'Savage_Main': 'Sanhok',
+        'DihorOtok_Main': 'Vikendi',
+        'Summerland_Main': 'Karakin',
+        'Tiger_Main': 'Taego',
+        'Kiki_Main': 'Deston'
+    };
+    
+    return mapNames[mapName] || mapName; // Return translated name or fallback to original
+}
+
+async function fetchPlayerMatches(playerName) {
+    try {
+        const response = await fetch(`/api/player/${playerName}/matches`);
+        const data = await response.json();
+        const matches = data.matches;
+
+        const matchListContainer = document.getElementById('match-list');
+        matchListContainer.innerHTML = ''; // Clear previous matches
+
+        if (matches.length === 0) {
+            matchListContainer.innerHTML = '<p>No matches found.</p>';
+            return;
+        }
+
+        matches.forEach((match) => {
+            const matchItem = document.createElement('div');
+            matchItem.classList.add('match-info');
+
+            // Translate the map name using the function
+            const mapName = translateMapName(match.data.attributes.mapName);
+            const gameMode = match.data.attributes.gameMode;
+
+            const participants = match.included.filter(item => item.type === 'participant');
+            const participant = participants.find(p => p.attributes.stats.name === playerName);
+
+            if (participant) {
+                const { kills, damageDealt, winPlace } = participant.attributes.stats;
+
+                matchItem.innerHTML = `
+                    <h4>Mapa: ${mapName}</h4>
+                    <p>Modo de Jogo: ${gameMode}</p>
+                    <p>Posição do Squad: #${winPlace}</p>
+                    <p>Kills: ${kills}</p>
+                    <p>Dano: ${damageDealt.toFixed(2)}</p>
+                `;
+            } else {
+                matchItem.innerHTML = `<p>Player not found in this match</p>`;
+            }
+
+            matchListContainer.appendChild(matchItem);
+        });
+
+        matchListContainer.style.display = 'block'; // Ensure it's visible
+    } catch (error) {
+        console.error('Error fetching matches:', error);
+        alert('Failed to load matches');
+    }
+}
+
+// Função para exibir as informações das últimas partidas
+function displayMatches(matchesData, playerName) {
+    const matchesContainer = document.getElementById('match-list'); // Target #match-list
+    matchesContainer.innerHTML = ''; // Clear previous matches
+
+    matchesData.forEach(match => {
+        const matchInfo = document.createElement('div');
+        matchInfo.classList.add('match-info');
+
+        const mapName = match.mapName;
+        const gameMode = match.gameMode;
+        
+        // Filtra para encontrar o participante que corresponde ao jogador buscado
+        const participant = match.participants.find(p => p.name === playerName);
+
+        if (participant) {
+            const { kills, damageDealt, winPlace } = participant.stats;
+
+            // Criação dos elementos HTML para exibir as informações
+            matchInfo.innerHTML = `
+                <h4>Mapa: ${mapName}</h4>
+                <p>Modo de Jogo: ${gameMode}</p>
+                <p>Posição do Squad: #${winPlace}</p>
+                <p>Kills: ${kills}</p>
+                <p>Dano: ${damageDealt.toFixed(2)}</p>
+            `;
+            matchesContainer.appendChild(matchInfo);
+        }
+    });
+}
 
 function openTab(evt, tabName) {
     var i, tablinks;

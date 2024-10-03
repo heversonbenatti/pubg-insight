@@ -64,6 +64,47 @@ app.get('/api/player/:playerName', async (req, res) => {
     }
 });
 
+const fs = require('fs'); // Require the filesystem module
+
+app.get('/api/player/:playerName/matches', async (req, res) => {
+    const { playerName } = req.params;
+    try {
+        // Fetch player data (including matches)
+        const playerResponse = await axios.get(`${BASE_URL}/players?filter[playerNames]=${playerName}`, {
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Accept': 'application/vnd.api+json'
+            }
+        });
+
+        const matchesData = playerResponse.data.data[0].relationships.matches.data;
+
+        // Limit to the first 3 matches
+        const limitedMatches = matchesData.slice(0, 3);
+
+        const matchDetails = [];
+        for (const match of limitedMatches) {
+            const matchId = match.id;
+            const matchResponse = await axios.get(`${BASE_URL}/matches/${matchId}`, {
+                headers: {
+                    'Authorization': `Bearer ${API_KEY}`,
+                    'Accept': 'application/vnd.api+json'
+                }
+            });
+            matchDetails.push(matchResponse.data);
+        }
+
+        // Save the matches JSON to a file
+        const jsonData = JSON.stringify(matchDetails, null, 2); // Convert to JSON
+        fs.writeFileSync('matches.json', jsonData); // Save the JSON to a file
+
+        res.json({ matches: matchDetails });
+    } catch (error) {
+        console.error('Error fetching matches:', error.message);
+        res.status(500).json({ error: 'Failed to fetch matches' });
+    }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

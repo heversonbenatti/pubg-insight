@@ -287,3 +287,32 @@ h2 {
     margin: 0; /* Remover margem extra */
     color: #fff;
 }
+
+.match-list {
+    margin-top: 20px;
+    background-color: #1d1d1d;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.match-item {
+    padding: 5px 0;
+    border-bottom: 1px solid #333;
+    color: #E0E0E0;
+}
+
+.match-item:last-child {
+    border-bottom: none; /* Remove border for the last item */
+}
+
+#matches-container {
+    margin-top: 20px;
+}
+
+.match-info {
+    background-color: #222;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    color: white;
+}
