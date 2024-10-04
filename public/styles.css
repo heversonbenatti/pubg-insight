@@ -300,6 +300,15 @@ button:hover {
     margin-top: 20px;
 }
 
+.match-list h2 {
+    font-family: 'PantonNarrow', sans-serif;
+    color: #afafaf;
+    margin-bottom: 2%;
+    font-size: xx-large;
+    margin-top: 1%;
+    margin-left: 2%;
+}
+
 /* Apply the font to all match-related text */
 .match-info, 
 .match-map-mode, 
