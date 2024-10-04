@@ -292,15 +292,15 @@ function updateStats(fppStats, tppStats) {
         const damageDealt = Math.round(statObj.damageDealt) || 0;
         const assists = statObj.assists || 0;
         const headshotKills = statObj.headshotKills || 0;
-        const mostKills = statObj.roundMostKills || 'N/A';
-        const longestKill = statObj.longestKill ? Math.round(statObj.longestKill) + 'm' : 'N/A';
+        const mostKills = statObj.roundMostKills || 0;
+        const longestKill = statObj.longestKill ? Math.round(statObj.longestKill) + 'm' : 0;
 
-        const kdRatio = kills && deaths ? (kills / deaths).toFixed(2) : 'N/A';
-        const kda = (kills + assists) && deaths ? ((kills + assists) / deaths).toFixed(2) : 'N/A';
-        const winPercentage = totalGames > 0 ? ((wins / totalGames) * 100).toFixed(2) + '%' : 'N/A';
-        const top10Percentage = totalGames > 0 ? ((top10s / totalGames) * 100).toFixed(2) + '%' : 'N/A';
-        const avgDamage = damageDealt ? Math.round((damageDealt / totalGames)) : 'N/A';
-        const headshotPercentage = kills ? ((headshotKills / kills) * 100).toFixed(2) + '%' : 'N/A';
+        const kdRatio = kills && deaths ? (kills / deaths).toFixed(2) : 0;
+        const kda = (kills + assists) && deaths ? ((kills + assists) / deaths).toFixed(2) : 0;
+        const winPercentage = totalGames > 0 ? ((wins / totalGames) * 100).toFixed(2) + '%' : 0;
+        const top10Percentage = totalGames > 0 ? ((top10s / totalGames) * 100).toFixed(2) + '%' : 0;
+        const avgDamage = damageDealt ? Math.round((damageDealt / totalGames)) : 0;
+        const headshotPercentage = kills ? ((headshotKills / kills) * 100).toFixed(2) + '%' : 0;
 
         return {
             kdRatio,
@@ -333,14 +333,14 @@ function updateStats(fppStats, tppStats) {
 
     createStatElement('K/D', statsToDisplay.kdRatio);
     createStatElement('Avg. Damage', statsToDisplay.avgDamage);
-    createStatElement('Assist', selectedStats.assists || 'N/A');
-    createStatElement('Games', selectedStats.roundsPlayed || 'N/A');
+    createStatElement('Assist', selectedStats.assists || 0);
+    createStatElement('Games', selectedStats.roundsPlayed || 0);
     createStatElement('Win %', statsToDisplay.winPercentage);
-    createStatElement('Wins', selectedStats.wins || 'N/A');
+    createStatElement('Wins', selectedStats.wins || 0);
     createStatElement('KDA', statsToDisplay.kda);
     createStatElement('Headshot %', statsToDisplay.headshotPercentage);
     createStatElement('Most Kills', statsToDisplay.mostKills);
     createStatElement('Longest Kill', statsToDisplay.longestKill);
     createStatElement('Top 10 %', statsToDisplay.top10Percentage);
-    createStatElement('Top 10', selectedStats.top10s || selectedStats.top10 || 'N/A');
+    createStatElement('Top 10', selectedStats.top10s || selectedStats.top10 || 0);
 }

@@ -103,9 +103,9 @@ app.get('/api/player/:playerName', async (req, res) => {
                     squad: stats['squad-fpp'] || {}
                 },
                 tpp: {
-                    solo: stats['solo-tpp'] || {},
-                    duo: stats['duo-tpp'] || {},
-                    squad: stats['squad-tpp'] || {}
+                    solo: stats['solo'] || {},
+                    duo: stats['duo'] || {},
+                    squad: stats['squad'] || {}
                 }
             };
 
