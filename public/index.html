@@ -33,8 +33,7 @@
             <div class="w3-bar w3-black tab-bar">
                 <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'soloFpp')">SOLO FPP</button>
                 <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'duoFpp')">DUO FPP</button>
-                <button class="w3-bar-item w3-button tablink active" onclick="openTab(event, 'squadFpp')">SQUAD
-                    FPP</button>
+                <button class="w3-bar-item w3-button tablink active" onclick="openTab(event, 'squadFpp')">SQUAD FPP</button>
                 <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'soloTpp')">SOLO TPP</button>
                 <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'duoTpp')">DUO TPP</button>
                 <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'squadTpp')">SQUAD TPP</button>
@@ -42,10 +41,12 @@
 
             <!-- Statistics display area -->
             <div id="stats-container" class="stats-grid"></div>
+        </div>
 
-            <!-- Matches display area -->
-            <div id="matches-container">
-                <div id="match-list" class="match-list"></div>
+        <!-- Separate Last Matches display area (outside of #player-stats) -->
+        <div id="matches-container" style="display: none;">
+            <div id="match-list" class="match-list">
+                <h2>Last Matches</h2>
             </div>
         </div>
     </div>

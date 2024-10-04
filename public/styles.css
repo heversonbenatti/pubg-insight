@@ -206,7 +206,7 @@ button:hover {
     font-family: inherit; /* Mantém a fonte que estava antes */
 }
 
-h2 {
+.player-info h2 {
     margin: 0;
     color: #afafaf;
     font-size: 120%;
