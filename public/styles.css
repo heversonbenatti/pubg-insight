@@ -45,15 +45,15 @@ h1 {
     text-align: center;
     position: relative;
     margin: 0 auto;
-    text-shadow: 
-        1px 1px 0 white,  
-        -1px -1px 0 white, 
-        1px -1px 0 white,  
-        -1px 1px 0 white,  
-        1px 0 0 white,    
-        -1px 0 0 white,   
-        0 1px 0 white,    
-        0 -1px 0 white;   
+    text-shadow:
+        1px 1px 0 white,
+        -1px -1px 0 white,
+        1px -1px 0 white,
+        -1px 1px 0 white,
+        1px 0 0 white,
+        -1px 0 0 white,
+        0 1px 0 white,
+        0 -1px 0 white;
 }
 
 h1 .insight {
@@ -62,9 +62,11 @@ h1 .insight {
     margin-top: -10px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    text-align: left; /* Mantém o texto alinhado à esquerda */
+    text-align: left;
+    /* Mantém o texto alinhado à esquerda */
     width: fit-content;
-    margin: 0 auto; /* Centraliza horizontalmente */
+    margin: 0 auto;
+    /* Centraliza horizontalmente */
 }
 
 form {
@@ -75,19 +77,24 @@ form {
     margin: 0 auto;
 }
 
-#player-form, #player-form * {
+#player-form,
+#player-form * {
     font-family: Verdana, Geneva, Tahoma, sans-serif;
 }
 
 .form-row {
     display: flex;
     align-items: center;
-    justify-content: space-between; /* Spacing between select and button */
-    gap: 10px; /* A small gap between the two */
-    width: 100%; /* Ensure full width of the input name */
+    justify-content: space-between;
+    /* Spacing between select and button */
+    gap: 10px;
+    /* A small gap between the two */
+    width: 100%;
+    /* Ensure full width of the input name */
 }
 
-#player-name, #season-select {
+#player-name,
+#season-select {
     padding: 7px;
     border: 1px solid #333;
     border-radius: 5px;
@@ -96,27 +103,39 @@ form {
 }
 
 #player-name {
-    width: 100%; /* Ensure this input uses the full width available */
+    width: 100%;
+    /* Ensure this input uses the full width available */
     margin-bottom: 10px;
 }
 
 #season-select {
     flex: 3;
-    background-color: #333; /* Dark background */
-    color: #E0E0E0; /* Light text color */
-    border: 1px solid #444; /* Dark border */
-    border-radius: 5px; /* Rounded corners */
+    background-color: #333;
+    /* Dark background */
+    color: #E0E0E0;
+    /* Light text color */
+    border: 1px solid #444;
+    /* Dark border */
+    border-radius: 5px;
+    /* Rounded corners */
     padding: 10px;
-    appearance: none; /* Removes the default browser styling */
-    scrollbar-color: #555 #333; /* Thumb color #555, track color #333 */
-    scrollbar-width: thin; /* Slimmer scrollbar */
-    -webkit-appearance: none; /* For WebKit browsers */
-    -moz-appearance: none; /* For Firefox */
+    appearance: none;
+    /* Removes the default browser styling */
+    scrollbar-color: #555 #333;
+    /* Thumb color #555, track color #333 */
+    scrollbar-width: thin;
+    /* Slimmer scrollbar */
+    -webkit-appearance: none;
+    /* For WebKit browsers */
+    -moz-appearance: none;
+    /* For Firefox */
 }
 
 #season-select option {
-    background-color: #333; /* Ensure options are also dark */
-    color: #E0E0E0; /* Light text in options */
+    background-color: #333;
+    /* Ensure options are also dark */
+    color: #E0E0E0;
+    /* Light text in options */
 }
 
 #season-select::after {
@@ -128,7 +147,8 @@ form {
     height: 0;
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
-    border-top: 5px solid #E0E0E0; /* Custom arrow color */
+    border-top: 5px solid #E0E0E0;
+    /* Custom arrow color */
     pointer-events: none;
 }
 
@@ -138,12 +158,14 @@ form {
 }
 
 #season-select::-webkit-scrollbar-thumb {
-    background-color: #555; /* Dark color for scrollbar thumb */
+    background-color: #555;
+    /* Dark color for scrollbar thumb */
     border-radius: 10px;
 }
 
 #season-select::-webkit-scrollbar-track {
-    background-color: #333; /* Dark background for scrollbar track */
+    background-color: #333;
+    /* Dark background for scrollbar track */
 }
 
 /* Remove o estilo padrão do autocomplete */
@@ -151,21 +173,28 @@ input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
-    -webkit-box-shadow: 0 0 0 30px #333 inset !important; /* Cor de fundo */
-    -webkit-text-fill-color: #ffffff !important; /* Cor do texto */
+    -webkit-box-shadow: 0 0 0 30px #333 inset !important;
+    /* Cor de fundo */
+    -webkit-text-fill-color: #ffffff !important;
+    /* Cor do texto */
     transition: background-color 5000s ease-in-out 0s;
 }
 
 #player-stats {
     font-family: 'PantonNarrow', sans-serif;
-    background-color: #1d1d1d; /* Cor de fundo igual ao site */
-    border: 1px solid #222222; /* Borda suave */
+    background-color: #1d1d1d;
+    /* Cor de fundo igual ao site */
+    border: 1px solid #222222;
+    /* Borda suave */
     border-radius: 10px;
     padding: 0px;
-    margin-top: 20px; /* Ajuste para espaço inferior maior */
+    margin-top: 20px;
+    /* Ajuste para espaço inferior maior */
     position: relative;
-    z-index: 0; /* Div da Steam atrás das abas */
-    display: none; /* Initially hidden */
+    z-index: 0;
+    /* Div da Steam atrás das abas */
+    display: none;
+    /* Initially hidden */
 }
 
 button {
@@ -190,10 +219,13 @@ button:hover {
     padding: 20px;
     padding-top: 13px;
     background: linear-gradient(90deg, #333333 0%, #1d1d1d 100%);
-    border-top-left-radius: 10px; /* Mantém as bordas arredondadas para alinhar com o contêiner */
-    border-top-right-radius: 10px; /* Mantém as bordas arredondadas */
+    border-top-left-radius: 10px;
+    /* Mantém as bordas arredondadas para alinhar com o contêiner */
+    border-top-right-radius: 10px;
+    /* Mantém as bordas arredondadas */
     position: relative;
-    z-index: 1; /* Certifica-se de que fique no topo sem sobrepor o contêiner */
+    z-index: 1;
+    /* Certifica-se de que fique no topo sem sobrepor o contêiner */
 }
 
 .player-icon {
@@ -203,7 +235,8 @@ button:hover {
 }
 
 #player-name-display {
-    font-family: inherit; /* Mantém a fonte que estava antes */
+    font-family: inherit;
+    /* Mantém a fonte que estava antes */
 }
 
 .player-info h2 {
@@ -215,60 +248,86 @@ button:hover {
 .tab-bar {
     display: flex;
     justify-content: center;
-    margin-top: -12px; /* Ajuste para que as abas sobreponham 20% da div da Steam */
-    gap: 20px; /* Espaçamento de 25px entre os botões */
-    padding-left: 25px; /* Adiciona mais espaço entre as abas e a borda lateral esquerda */
-    padding-right: 25px; /* Adiciona mais espaço entre as abas e a borda lateral direita */
-    position: relative; /* Para ajustar a sobreposição */
-    z-index: 1; /* Garantir que as abas fiquem acima da div */
+    margin-top: -12px;
+    /* Ajuste para que as abas sobreponham 20% da div da Steam */
+    gap: 20px;
+    /* Espaçamento de 25px entre os botões */
+    padding-left: 25px;
+    /* Adiciona mais espaço entre as abas e a borda lateral esquerda */
+    padding-right: 25px;
+    /* Adiciona mais espaço entre as abas e a borda lateral direita */
+    position: relative;
+    /* Para ajustar a sobreposição */
+    z-index: 1;
+    /* Garantir que as abas fiquem acima da div */
 }
 
 .tablink.active {
-    border-bottom: 3px solid #c9c9c9; /* Adiciona a linha vermelha ao botão ativo */
-    padding-bottom: 2px; /* Ajusta o padding para manter o alinhamento correto */
+    border-bottom: 3px solid #c9c9c9;
+    /* Adiciona a linha vermelha ao botão ativo */
+    padding-bottom: 2px;
+    /* Ajusta o padding para manter o alinhamento correto */
 }
 
 .w3-bar-item {
     font-family: 'PantonNarrow', sans-serif;
-    padding: 15px 30px; /* Tamanho das abas */
+    padding: 15px 30px;
+    /* Tamanho das abas */
     background-color: #444;
     color: #fff;
     border-radius: 10px;
     cursor: pointer;
     transition: background-color 0.3s ease;
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2); /* Efeito de elevação */
-    white-space: nowrap; /* Impede a quebra de linha dentro dos botões */
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+    /* Efeito de elevação */
+    white-space: nowrap;
+    /* Impede a quebra de linha dentro dos botões */
 }
 
-.w3-bar-item:hover, .w3-bar-item.w3-gray {
+.w3-bar-item:hover,
+.w3-bar-item.w3-gray {
     background-color: #666;
 }
 
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(6, 1fr); /* 6 colunas */
-    gap: 10px; /* Reduzindo o espaçamento entre os itens */
+    grid-template-columns: repeat(6, 1fr);
+    /* 6 colunas */
+    gap: 10px;
+    /* Reduzindo o espaçamento entre os itens */
     margin-top: 20px;
 }
 
 #stats-container {
     display: grid;
-    grid-template-columns: repeat(6, 1fr); /* Define 6 colunas de tamanho igual */
-    grid-template-rows: auto auto; /* Define 2 linhas automáticas */
-    gap: 20px; /* Define um espaçamento entre as colunas e as linhas */
-    justify-items: center; /* Centraliza o conteúdo dentro das colunas */
-    align-items: center; /* Alinha o conteúdo no centro verticalmente */
-    height: 150px; /* Mantém a altura fixa para o container */
+    grid-template-columns: repeat(6, 1fr);
+    /* Define 6 colunas de tamanho igual */
+    grid-template-rows: auto auto;
+    /* Define 2 linhas automáticas */
+    gap: 20px;
+    /* Define um espaçamento entre as colunas e as linhas */
+    justify-items: center;
+    /* Centraliza o conteúdo dentro das colunas */
+    align-items: center;
+    /* Alinha o conteúdo no centro verticalmente */
+    height: 150px;
+    /* Mantém a altura fixa para o container */
     padding-bottom: 20px;
 }
 
 .no-data-message {
-    font-size: 24px; /* Fonte maior */
-    color: #7F7F7F; /* Cinza 127 */
-    text-align: center; /* Centraliza o texto */
-    grid-column: span 6; /* Garante que ocupe toda a largura das colunas */
-    line-height: 85px; /* Centraliza verticalmente */
-    white-space: nowrap; /* Impede quebra de linha */
+    font-size: 24px;
+    /* Fonte maior */
+    color: #7F7F7F;
+    /* Cinza 127 */
+    text-align: center;
+    /* Centraliza o texto */
+    grid-column: span 6;
+    /* Garante que ocupe toda a largura das colunas */
+    line-height: 85px;
+    /* Centraliza verticalmente */
+    white-space: nowrap;
+    /* Impede quebra de linha */
 }
 
 .stat-item {
@@ -277,18 +336,22 @@ button:hover {
     text-align: left;
     border-radius: 10px;
     color: #E0E0E0;
-    gap: 5px; /* Menor espaçamento interno */
+    gap: 5px;
+    /* Menor espaçamento interno */
 }
 
 .stat-item h2 {
     font-size: 14px;
-    margin-bottom: 5px; /* Reduzir o espaço entre h2 e p */
+    margin-bottom: 5px;
+    /* Reduzir o espaço entre h2 e p */
     color: #5a5a5a;
 }
 
 .stat-item p {
-    font-size: 20px; /* Um pouco menor para ajustar ao layout */
-    margin: 0; /* Remover margem extra */
+    font-size: 20px;
+    /* Um pouco menor para ajustar ao layout */
+    margin: 0;
+    /* Remover margem extra */
     color: #fff;
 }
 
@@ -309,17 +372,49 @@ button:hover {
     margin-left: 2%;
 }
 
+.arrow {
+    cursor: pointer;
+    width: 20px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    margin-right: 10px;
+    margin-left: -30px;
+}
+
+.arrow-top,
+.arrow-bottom {
+    position: absolute;
+    background-color: #fff;
+    height: 2px;
+    width: 100%;
+}
+
+.arrow-top {
+    top: 50%;
+    transform: translateY(-50%) rotate(45deg);
+    transform-origin: bottom right;
+}
+
+.arrow-bottom {
+    top: 50%;
+    transform: translateY(-50%) rotate(-45deg);
+    transform-origin: top right;
+}
+
 /* Apply the font to all match-related text */
-.match-info, 
-.match-map-mode, 
-.match-stats, 
-.match-photo-rank, 
-.match-rank-overlay, 
-.match-map, 
-.match-mode, 
-.match-kills, 
-.match-assists, 
-.match-damage, 
+.match-info,
+.match-map-mode,
+.match-stats,
+.match-photo-rank,
+.match-rank-overlay,
+.match-map,
+.match-mode,
+.match-kills,
+.match-assists,
+.match-damage,
 .match-time {
     font-family: 'Leg-Hug', sans-serif;
 }
@@ -327,21 +422,23 @@ button:hover {
 /* Main match display container */
 .match-info {
     display: flex;
-    justify-content: flex-start;
-    align-items: center;
+    justify-content: space-between; /* Ensure even spacing */
+    align-items: center; /* Align vertically in the center */
     background-color: #282828;
-    border-radius: 10px;  /* Rounded borders */
+    border-radius: 10px;
     margin-bottom: 15px;
     color: #fff;
-    overflow: hidden;  /* Prevent overflow issues */
-    width: 100%;  /* Full width */
-    height: 90px;  /* Set height for the container */
+    overflow: hidden;
+    width: 100%;
+    height: 90px;
 }
 
 /* Photo and rank overlay section */
 .match-photo-rank {
-    width: 25%;  /* 1/4th of the total container width */
-    height: 100%;  /* Ensure proper height */
+    width: 25%;
+    /* 1/4th of the total container width */
+    height: 100%;
+    /* Ensure proper height */
     position: relative;
 }
 
@@ -362,37 +459,46 @@ button:hover {
 /* Overlay for the rank on top of the image */
 .match-rank-overlay {
     position: absolute;
-    top: 50%;                  /* Vertically centered */
-    left: 20%;                 /* Horizontally centered */
+    top: 50%;
+    /* Vertically centered */
+    left: 20%;
+    /* Horizontally centered */
     transform: translate(-50%, -50%);
-    z-index: 1;                /* Ensure it's on top of the background */
-    text-shadow: 2px 2px 4px rgba(0, 0, 0); 
+    z-index: 1;
+    /* Ensure it's on top of the background */
+    text-shadow: 2px 2px 4px rgba(0, 0, 0);
 }
 
 .rank-large {
-    font-size: 3rem;  /* Larger size for the rank before '/' */
-    color: #ffff00;     /* Yellow color */
-    vertical-align: bottom;  /* Aligns with the smaller part */
+    font-size: 3rem;
+    /* Larger size for the rank before '/' */
+    color: #ffff00;
+    /* Yellow color */
+    vertical-align: bottom;
+    /* Aligns with the smaller part */
 }
 
 .rank-small {
-    font-size: 2.4rem;  /* Smaller size for the part after '/' */
-    color: #ffffff;     /* White color */
-    vertical-align: bottom;  /* Ensures both parts align at the bottom */
+    font-size: 2.4rem;
+    /* Smaller size for the part after '/' */
+    color: #ffffff;
+    /* White color */
+    vertical-align: bottom;
+    /* Ensures both parts align at the bottom */
 }
 
 .first-place {
-    border-left: 5px solid #ffff00;  /* Yellow border on the left */
+    border-left: 5px solid #ffff00;
+    /* Yellow border on the left */
 }
 
 /* Map name and game mode section */
 .match-map-mode {
     flex-direction: column;
-    justify-content: space-around;  /* Space the map and mode vertically */
+    justify-content: space-around;
+    /* Space the map and mode vertically */
     text-align: left;
     padding-left: 10px;
-    margin-left: 5%;
-    margin-right: 7%;
 }
 
 .match-map {
@@ -407,47 +513,42 @@ button:hover {
     letter-spacing: 0.05rem;
 }
 
-/* Stats section for kills, assists, damage, and time */
 .match-stats {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 100px 100px 100px 100px;
+    /* Ajuste os valores conforme necessário para obter o alinhamento desejado */
     align-items: center;
-    text-align: center;
+    justify-items: start;
     height: 100%;
-    position: relative;  /* Ensure the pseudo-elements are positioned correctly */
     margin-left: 5%;
 }
 
-/* Each stat block inside match-stats */
 .match-stats div {
     display: flex;
     justify-content: center;
     align-items: center;
-    padding: 0 10px;
-    position: relative;  /* Ensure the ::after elements are positioned relative to this */
     height: 100%;
+    position: relative;
 }
 
-/* Add dividers between stats and before each stat block */
 .match-stats div::before {
     content: '';
     position: absolute;
-    top: 10%;
-    bottom: 10%;
+    top: 0;
+    bottom: 0;
     left: 0;
     width: 1px;
-    background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 1) 30%, rgba(255, 255, 255, 1) 70%, rgba(255, 255, 255, 0) 100%);
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0) 15%, rgb(255 255 255) 50%, rgba(255, 255, 255, 0) 85%);
     opacity: 0.5;
     transform: translateX(-50%);
 }
 
-.match-kills, 
-.match-assists, 
-.match-damage, 
-.match-time {
-    font-size: 1.5rem;
+.match-kills, .match-assists, .match-damage, .match-time {
+    font-size: 1.3rem;
     color: #fff;
     letter-spacing: 0.1rem;
+    text-align: left;
+    width: 100%; /* Para garantir que eles ocupem o espaço total da célula */
 }
 
 .match-time {
@@ -469,4 +570,3 @@ button:hover {
 #load-more:hover {
     background-color: #555;
 }
-

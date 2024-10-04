@@ -184,22 +184,28 @@ function displayNextMatches(playerName) {
         
             // Inserir o HTML com os dados da partida
             matchItem.innerHTML = `
-            <div class="match-section match-photo-rank">
+            <div class="match-photo-rank">
                 <div class="match-background ${firstPlaceClass}" style="background-image: url('/images/${translatedMapName.toLowerCase()}.jpg');">
                     <div class="match-rank-overlay">
                         <span class="rank-large">#${winPlace}</span><span class="rank-small">/${totalRosters}</span>
                     </div>
                 </div>
             </div>
-            <div class="match-section match-map-mode">
+            <div class="match-map-mode">
                 <div class="match-map">${matchCategory}</div>
                 <div class="match-mode">${gameMode}</div>
             </div>
-            <div class="match-section match-stats">
+            <div class="match-stats">
                 <div class="match-kills">Kills: ${kills}</div>
                 <div class="match-assists">Assists: ${assists}</div>
                 <div class="match-damage">Damage: ${Math.round(damageDealt)}</div>
                 <div class="match-time">Time: ${formatTime(timeSurvived)}</div>
+            </div>
+            <div class="match-arrow">
+                <div class="arrow">
+                    <div class="arrow-top"></div>
+                    <div class="arrow-bottom"></div>
+                </div>
             </div>
             `;
         
@@ -214,6 +220,26 @@ function displayNextMatches(playerName) {
     if (currentIndex >= allMatches.length) {
         document.getElementById('load-more').style.display = 'none';
     }
+}
+
+function showPopup(element) {
+    // Verifica se já existe uma popup aberta e fecha
+    const existingPopup = document.querySelector('.popup');
+    if (existingPopup) {
+        existingPopup.remove();
+    }
+
+    // Cria a nova div de popup
+    const popup = document.createElement('div');
+    popup.classList.add('popup');
+    popup.textContent = "Nova Div com Informações";
+
+    // Adiciona a popup ao elemento pai (match-info)
+    const matchInfo = element.closest('.match-info');
+    matchInfo.appendChild(popup);
+
+    // Exibe a popup
+    popup.style.display = "flex";
 }
 
 function setupLoadMoreButton(playerName) {
