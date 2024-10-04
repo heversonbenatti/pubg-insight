@@ -125,15 +125,18 @@ async function fetchAndDisplayPlayerMatches(playerName) {
         const data = await response.json();
 
         if (!data.matches) {
-            throw new Error('No matches found');  // Gracefully handle missing matches
+            throw new Error('No matches found');
         }
 
-        allMatches = data.matches;  // Store all matches
-        currentIndex = 0;  // Reset the current index
+        allMatches = data.matches;
+        currentIndex = 0;
 
-        displayNextMatches(playerName);  // Pass playerName to the next function
-        setupLoadMoreButton(playerName);  // Pass playerName to the setup function
+        // Exibir a div de Last Matches quando as partidas forem carregadas
+        const matchesContainer = document.getElementById('matches-container');
+        matchesContainer.style.display = 'block';  // Mostra a div das partidas
 
+        displayNextMatches(playerName);
+        setupLoadMoreButton(playerName);
     } catch (error) {
         console.error('Error fetching matches:', error);
         alert('Failed to load matches');
