@@ -68,33 +68,33 @@ document.addEventListener('DOMContentLoaded', async function () {
         // Prevenir comportamento padrão do formulário
         playerForm.addEventListener('submit', async function (e) {
             e.preventDefault();
-
+        
             const playerName = document.getElementById('player-name').value;
             const seasonId = seasonSelect.value;
-
+        
             try {
                 const response = await fetch(`/api/player/${playerName}?season=${seasonId}`);
                 const data = await response.json();
-
+        
                 if (!data.stats) {
                     alert('No stats available for this player');
                     console.error('No stats data received:', data); // Log data for debugging
                     return;
                 }
-
+        
                 // Torna visível a seção de estatísticas após carregar os dados do jogador
-                playerStatsContainer.style.display = 'block';
-
+                playerStatsContainer.style.display = 'block'; 
+        
                 // Salvar as estatísticas globalmente
                 window.fppStats = data.stats.fpp;
                 window.tppStats = data.stats.tpp;
-
+        
                 // Exibe o modo de jogo com mais partidas jogadas
                 displayStatsForModeWithMostRounds(window.fppStats, window.tppStats);
-
+        
                 // Exibe o nome do jogador
                 playerNameDisplay.textContent = playerName;
-
+        
                 // Carrega e exibe as últimas partidas
                 await fetchAndDisplayPlayerMatches(playerName);
             } catch (error) {
@@ -105,12 +105,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     } catch (error) {
         alert('Failed to load seasons.');
     }
-    document.querySelectorAll('.arrow').forEach((arrow) => {
-        arrow.addEventListener('click', function (e) {
-            const matchInfo = e.target.closest('.match-info');
-            showModal(matchInfo);
-        });
-    });
 });
 
 function showModal(matchInfo) {
@@ -186,7 +180,7 @@ function translateMapName(mapName) {
         'Neon_Main': 'Rondo',
         'Baltic_Main': 'Erangel'
     };
-
+    
     return mapNames[mapName] || mapName; // Return translated name or fallback to original
 }
 
@@ -251,10 +245,10 @@ function displayNextMatches(playerName) {
             // Criar o elemento de exibição de partida somente se o participante for encontrado
             const matchItem = document.createElement('div');
             matchItem.classList.add('match-info');
-
+        
             const { kills, assists, damageDealt, winPlace, timeSurvived } = participant.attributes.stats;
             const firstPlaceClass = winPlace === 1 ? 'first-place' : '';
-
+        
             // Inserir o HTML com os dados da partida
             matchItem.innerHTML = `
             <div class="match-photo-rank">
@@ -281,10 +275,10 @@ function displayNextMatches(playerName) {
                 </div>
             </div>
             `;
-
+        
             // Adiciona o elemento ao container de partidas
             matchListContainer.appendChild(matchItem);
-
+        
         } else {
             return;
         }
@@ -293,26 +287,6 @@ function displayNextMatches(playerName) {
     if (currentIndex >= allMatches.length) {
         document.getElementById('load-more').style.display = 'none';
     }
-}
-
-function showPopup(element) {
-    // Verifica se já existe uma popup aberta e fecha
-    const existingPopup = document.querySelector('.popup');
-    if (existingPopup) {
-        existingPopup.remove();
-    }
-
-    // Cria a nova div de popup
-    const popup = document.createElement('div');
-    popup.classList.add('popup');
-    popup.textContent = "Nova Div com Informações";
-
-    // Adiciona a popup ao elemento pai (match-info)
-    const matchInfo = element.closest('.match-info');
-    matchInfo.appendChild(popup);
-
-    // Exibe a popup
-    popup.style.display = "flex";
 }
 
 function setupLoadMoreButton(playerName) {
