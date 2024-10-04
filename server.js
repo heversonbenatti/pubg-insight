@@ -156,7 +156,6 @@ function writeCacheFile(filePath, data) {
 // Caminho para salvar as partidas no cache
 const playerMatchesFilePath = (playerName) => path.join(__dirname, 'public', 'jsons', `${playerName}_matches.json`);
 
-// API para buscar as partidas do jogador
 app.get('/api/player/:playerName/matches', async (req, res) => {
     const { playerName } = req.params;
     const matchesFile = playerMatchesFilePath(playerName);
@@ -184,6 +183,7 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
 
         const matchesData = playerResponse.data.data[0].relationships.matches.data;
 
+        // Buscar os detalhes das partidas
         const matchDetails = await Promise.all(matchesData.map(async match => {
             try {
                 const matchId = match.id;
@@ -206,10 +206,10 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
             throw new Error('Nenhuma partida encontrada');
         }
 
-        // Retornar os dados imediatamente ao cliente
+        // Retornar os dados imediatamente ao cliente (frontend)
         res.json({ matches: validMatches });
 
-        // Salvar os detalhes da partida no cache de forma assíncrona
+        // Salvar os detalhes da partida no cache de forma assíncrona, sem bloquear o frontend
         writeCacheFile(matchesFile, { matches: validMatches })
             .then(() => console.log(`Cache salvo para o jogador ${playerName}`))
             .catch((error) => console.error(`Erro ao salvar o cache para ${playerName}:`, error.message));
