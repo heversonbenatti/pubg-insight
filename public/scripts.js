@@ -123,6 +123,11 @@ async function fetchAndDisplayPlayerMatches(playerName) {
     try {
         const response = await fetch(`/api/player/${playerName}/matches`);
         const data = await response.json();
+
+        if (!data.matches) {
+            throw new Error('No matches found');  // Gracefully handle missing matches
+        }
+
         allMatches = data.matches;  // Store all matches
         currentIndex = 0;  // Reset the current index
 
@@ -136,8 +141,12 @@ async function fetchAndDisplayPlayerMatches(playerName) {
 }
 
 function displayNextMatches(playerName) {
+    if (!allMatches || allMatches.length === 0) {
+        alert('No matches to display');
+        return;
+    }
+
     const matchListContainer = document.getElementById('match-list');
-    
     const nextMatches = allMatches.slice(currentIndex, currentIndex + matchesPerPage);  // Get the next 20 matches
     currentIndex += nextMatches.length;  // Update currentIndex
 
@@ -171,7 +180,7 @@ function displayNextMatches(playerName) {
             // Create the HTML structure with three divs
             matchItem.innerHTML = `
             <div class="match-section match-photo-rank">
-                <div class="match-background ${firstPlaceClass}" style="background-image: url('${translatedMapName.toLowerCase()}.jpg');">
+                <div class="match-background ${firstPlaceClass}" style="background-image: url('/images/${translatedMapName.toLowerCase()}.jpg');">
                     <div class="match-rank-overlay">
                         <span class="rank-large">#${winPlace}</span><span class="rank-small">/${totalRosters}</span>
                     </div>
@@ -195,7 +204,6 @@ function displayNextMatches(playerName) {
         matchListContainer.appendChild(matchItem);
     });
 
-    // If we have displayed all matches, hide the Load More button
     if (currentIndex >= allMatches.length) {
         document.getElementById('load-more').style.display = 'none';
     }

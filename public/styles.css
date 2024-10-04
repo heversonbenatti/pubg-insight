@@ -1,20 +1,20 @@
 @font-face {
     font-family: 'Akashi';
-    src: url('akashi.ttf') format('truetype');
+    src: url('/fonts/akashi.ttf') format('truetype');
     font-weight: normal;
     font-style: normal;
 }
 
 @font-face {
     font-family: 'PantonNarrow';
-    src: url('panton-narrow-black.otf') format('opentype');
+    src: url('/fonts/panton-narrow-black.otf') format('opentype');
     font-weight: normal;
     font-style: normal;
 }
 
 @font-face {
     font-family: 'Leg-Hug';
-    src: url('Leg-Hug.otf') format('opentype');
+    src: url('/fonts/Leg-Hug.otf') format('opentype');
     font-weight: normal;
     font-style: normal;
 }
