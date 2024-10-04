@@ -1,3 +1,9 @@
+document.addEventListener('click', function (e) {
+    if (e.target.closest('.arrow')) {
+        const matchInfo = e.target.closest('.match-info');
+        showModal(matchInfo);
+    }
+});
 document.addEventListener('DOMContentLoaded', async function () {
     const seasonSelect = document.getElementById('season-select');
     const playerForm = document.getElementById('player-form');
@@ -62,33 +68,33 @@ document.addEventListener('DOMContentLoaded', async function () {
         // Prevenir comportamento padrão do formulário
         playerForm.addEventListener('submit', async function (e) {
             e.preventDefault();
-        
+
             const playerName = document.getElementById('player-name').value;
             const seasonId = seasonSelect.value;
-        
+
             try {
                 const response = await fetch(`/api/player/${playerName}?season=${seasonId}`);
                 const data = await response.json();
-        
+
                 if (!data.stats) {
                     alert('No stats available for this player');
                     console.error('No stats data received:', data); // Log data for debugging
                     return;
                 }
-        
+
                 // Torna visível a seção de estatísticas após carregar os dados do jogador
-                playerStatsContainer.style.display = 'block'; 
-        
+                playerStatsContainer.style.display = 'block';
+
                 // Salvar as estatísticas globalmente
                 window.fppStats = data.stats.fpp;
                 window.tppStats = data.stats.tpp;
-        
+
                 // Exibe o modo de jogo com mais partidas jogadas
                 displayStatsForModeWithMostRounds(window.fppStats, window.tppStats);
-        
+
                 // Exibe o nome do jogador
                 playerNameDisplay.textContent = playerName;
-        
+
                 // Carrega e exibe as últimas partidas
                 await fetchAndDisplayPlayerMatches(playerName);
             } catch (error) {
@@ -99,7 +105,42 @@ document.addEventListener('DOMContentLoaded', async function () {
     } catch (error) {
         alert('Failed to load seasons.');
     }
+    document.querySelectorAll('.arrow').forEach((arrow) => {
+        arrow.addEventListener('click', function (e) {
+            const matchInfo = e.target.closest('.match-info');
+            showModal(matchInfo);
+        });
+    });
 });
+
+function showModal(matchInfo) {
+    console.log('Modal sendo exibida'); // Verificar se a função está sendo chamada
+
+    // Remove qualquer modal existente
+    const existingModal = document.querySelector('.modal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // Cria a janela modal
+    const modal = document.createElement('div');
+    modal.classList.add('modal');
+    
+    const modalContent = document.createElement('div');
+    modalContent.classList.add('modal-content');
+    modalContent.textContent = "Detalhes da partida";
+
+    // Adiciona o conteúdo da modal
+    modal.appendChild(modalContent);
+    document.body.appendChild(modal);
+
+    // Fecha a modal ao clicar fora
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+}
 
 function translateMapName(mapName) {
     const mapNames = {
@@ -113,7 +154,7 @@ function translateMapName(mapName) {
         'Neon_Main': 'Rondo',
         'Baltic_Main': 'Erangel'
     };
-    
+
     return mapNames[mapName] || mapName; // Return translated name or fallback to original
 }
 
@@ -178,10 +219,10 @@ function displayNextMatches(playerName) {
             // Criar o elemento de exibição de partida somente se o participante for encontrado
             const matchItem = document.createElement('div');
             matchItem.classList.add('match-info');
-        
+
             const { kills, assists, damageDealt, winPlace, timeSurvived } = participant.attributes.stats;
             const firstPlaceClass = winPlace === 1 ? 'first-place' : '';
-        
+
             // Inserir o HTML com os dados da partida
             matchItem.innerHTML = `
             <div class="match-photo-rank">
@@ -208,10 +249,10 @@ function displayNextMatches(playerName) {
                 </div>
             </div>
             `;
-        
+
             // Adiciona o elemento ao container de partidas
             matchListContainer.appendChild(matchItem);
-        
+
         } else {
             return;
         }
