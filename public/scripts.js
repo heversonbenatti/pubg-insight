@@ -76,18 +76,20 @@ document.addEventListener('DOMContentLoaded', async function () {
                     return;
                 }
         
-                // Make player-stats visible once the player data is loaded
-                playerStatsContainer.style.display = 'block'; // Show the player stats div
+                // Torna visível a seção de estatísticas após carregar os dados do jogador
+                playerStatsContainer.style.display = 'block'; 
         
-                // Store FPP and TPP stats globally (if necessary)
+                // Salvar as estatísticas globalmente
                 window.fppStats = data.stats.fpp;
                 window.tppStats = data.stats.tpp;
         
-                // Update the stats for the active tab
-                updateStats(window.fppStats, window.tppStats);
+                // Exibe o modo de jogo com mais partidas jogadas
+                displayStatsForModeWithMostRounds(window.fppStats, window.tppStats);
+        
+                // Exibe o nome do jogador
                 playerNameDisplay.textContent = playerName;
         
-                // Fetch and display the last 5 matches
+                // Carrega e exibe as últimas partidas
                 await fetchAndDisplayPlayerMatches(playerName);
             } catch (error) {
                 alert('Failed to load player stats.');
@@ -260,6 +262,43 @@ function openTab(evt, tabName) {
     const tppStats = window.tppStats || {};
 
     updateStats(fppStats, tppStats);
+}
+
+function getGameModeWithMostRounds(fppStats, tppStats) {
+    const modes = ['solo', 'duo', 'squad'];
+
+    // Inicializa com valores de rounds jogados e seu modo correspondente
+    let maxRounds = 0;
+    let selectedMode = 'squadFpp'; // Default caso não tenha nenhum modo com partidas
+
+    modes.forEach(mode => {
+        const fppRounds = fppStats[mode]?.roundsPlayed || 0;
+        const tppRounds = tppStats[mode]?.roundsPlayed || 0;
+
+        // Verifica se o modo FPP tem mais rounds jogados
+        if (fppRounds > maxRounds) {
+            maxRounds = fppRounds;
+            selectedMode = `${mode}Fpp`;
+        }
+
+        // Verifica se o modo TPP tem mais rounds jogados
+        if (tppRounds > maxRounds) {
+            maxRounds = tppRounds;
+            selectedMode = `${mode}Tpp`;
+        }
+    });
+
+    return selectedMode;
+}
+
+function displayStatsForModeWithMostRounds(fppStats, tppStats) {
+    const gameMode = getGameModeWithMostRounds(fppStats, tppStats);
+
+    // Simula um clique no botão correspondente ao gameMode com mais rounds
+    const button = document.querySelector(`.tablink[onclick*="${gameMode}"]`);
+    if (button) {
+        button.click(); // Simula o clique para abrir a aba automaticamente
+    }
 }
 
 function updateStats(fppStats, tppStats) {
