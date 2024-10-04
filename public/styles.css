@@ -558,28 +558,56 @@ button:hover {
 .modal {
     display: flex;
     justify-content: center;
-    align-items: center;
+    align-items: flex-start; /* Alinha a modal ao topo */
     position: fixed;
-    top: 0;
+    top: 1px; /* Espaço no topo para evitar cortes */
     left: 0;
     width: 100vw;
     height: 100vh;
     background-color: rgba(0, 0, 0, 0.7);
     z-index: 1000;
+    overflow-y: auto; /* Permite rolar se o conteúdo for maior que a tela */
+    padding-top: 20px; /* Espaço adicional no topo */
 }
 
 .modal-content {
     background-color: #333;
-    color: #fff;
-    width: 900px;
-    height: 900px;
-    padding: 20px;
+    width: 500px;
     border-radius: 10px;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+}
+
+.modal-content {
+    background-color: #333;
+    width: 500px;
+    max-height: 100vh; /* Limita a altura máxima a 90% da viewport */
+    overflow-y: auto; /* Permite rolagem interna, se necessário */
+    border-radius: 10px;
+}
+
+.team-container {
     display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 24px;
+    width: 98%;
+    margin-bottom: 20px;
+    padding: 1%;
+    background-color: #fff;
+}
+
+.left-side, .right-side {
+    display: flex;
+    flex-direction: column;
+}
+
+.left-side {
+    width: 16.66%; /* 1/6 do total */
+}
+
+.right-side {
+    width: 83.33%; /* 5/6 do total */
+}
+
+.inner-div {
+    height: 50px;
+    border: 2px solid black;
 }
 
 #load-more {

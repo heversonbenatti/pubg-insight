@@ -114,8 +114,6 @@ document.addEventListener('DOMContentLoaded', async function () {
 });
 
 function showModal(matchInfo) {
-    console.log('Modal sendo exibida'); // Verificar se a função está sendo chamada
-
     // Remove qualquer modal existente
     const existingModal = document.querySelector('.modal');
     if (existingModal) {
@@ -128,9 +126,43 @@ function showModal(matchInfo) {
     
     const modalContent = document.createElement('div');
     modalContent.classList.add('modal-content');
-    modalContent.textContent = "Detalhes da partida";
 
-    // Adiciona o conteúdo da modal
+    // Cria 20 divs principais (verde)
+    for (let i = 0; i < 20; i++) {
+        const teamContainer = document.createElement('div');
+        teamContainer.classList.add('team-container');
+
+        const leftSide = document.createElement('div');
+        leftSide.classList.add('left-side');
+
+        const rightSide = document.createElement('div');
+        rightSide.classList.add('right-side');
+        
+        // Cria 3 divs na esquerda (1/6 do tamanho)
+        for (let j = 0; j < 3; j++) {
+            const leftDiv = document.createElement('div');
+            leftDiv.classList.add('inner-div', 'left-div');
+            leftDiv.style.backgroundColor = `hsl(${j * 60}, 100%, 50%)`; // Cores diferentes para visualização
+            leftSide.appendChild(leftDiv);
+        }
+
+        // Cria 3 divs na direita (5/6 do tamanho)
+        for (let j = 0; j < 3; j++) {
+            const rightDiv = document.createElement('div');
+            rightDiv.classList.add('inner-div', 'right-div');
+            rightDiv.style.backgroundColor = `hsl(${j * 60 + 180}, 100%, 50%)`; // Cores diferentes para visualização
+            rightSide.appendChild(rightDiv);
+        }
+
+        // Adiciona os lados esquerdo e direito à div principal
+        teamContainer.appendChild(leftSide);
+        teamContainer.appendChild(rightSide);
+
+        // Adiciona a div principal ao conteúdo da modal
+        modalContent.appendChild(teamContainer);
+    }
+
+    // Adiciona o conteúdo à modal
     modal.appendChild(modalContent);
     document.body.appendChild(modal);
 
