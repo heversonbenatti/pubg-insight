@@ -154,8 +154,6 @@ function displayNextMatches(playerName) {
     currentIndex += nextMatches.length;  // Update currentIndex
 
     nextMatches.forEach((match) => {
-        const matchItem = document.createElement('div');
-        matchItem.classList.add('match-info');
 
         const matchType = match.data.attributes.matchType;
         const gameMode = match.data.attributes.gameMode.toUpperCase().replace('-', ' ');
@@ -175,12 +173,14 @@ function displayNextMatches(playerName) {
         const participant = participants.find(p => p.attributes?.stats?.name === playerName);
 
         if (participant) {
+            // Criar o elemento de exibição de partida somente se o participante for encontrado
+            const matchItem = document.createElement('div');
+            matchItem.classList.add('match-info');
+        
             const { kills, assists, damageDealt, winPlace, timeSurvived } = participant.attributes.stats;
-
-            // Add the 'first-place' class if the team finished first
             const firstPlaceClass = winPlace === 1 ? 'first-place' : '';
-
-            // Create the HTML structure with three divs
+        
+            // Inserir o HTML com os dados da partida
             matchItem.innerHTML = `
             <div class="match-section match-photo-rank">
                 <div class="match-background ${firstPlaceClass}" style="background-image: url('/images/${translatedMapName.toLowerCase()}.jpg');">
@@ -199,12 +199,14 @@ function displayNextMatches(playerName) {
                 <div class="match-damage">Damage: ${Math.round(damageDealt)}</div>
                 <div class="match-time">Time: ${formatTime(timeSurvived)}</div>
             </div>
-        `;
+            `;
+        
+            // Adiciona o elemento ao container de partidas
+            matchListContainer.appendChild(matchItem);
+        
         } else {
-            matchItem.innerHTML = `<p>Player not found in this match or match data is incomplete</p>`;
+            return;
         }
-
-        matchListContainer.appendChild(matchItem);
     });
 
     if (currentIndex >= allMatches.length) {
