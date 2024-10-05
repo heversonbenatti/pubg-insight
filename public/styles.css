@@ -555,59 +555,70 @@ button:hover {
     margin-right: 10px;
 }
 
+/* Estilos para a modal */
 .modal {
     display: flex;
     justify-content: center;
-    align-items: flex-start; /* Alinha a modal ao topo */
+    align-items: flex-start;
     position: fixed;
-    top: 1px; /* Espaço no topo para evitar cortes */
+    top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.85); /* Fundo escuro com leve transparência */
     z-index: 1000;
     overflow-y: auto; /* Permite rolar se o conteúdo for maior que a tela */
-    padding-top: 20px; /* Espaço adicional no topo */
+    padding-top: 20px;
 }
 
+/* Estilo do conteúdo da modal */
 .modal-content {
-    background-color: #333;
-    width: 500px;
-    border-radius: 10px;
+    background-color: #222; /* Fundo escuro */
+    width: 90%;
+    max-width: 700px; /* Largura máxima para uma boa visualização */
+    border-radius: 8px; /* Bordas arredondadas para um toque suave */
+    padding-top: 20px;
+    padding-bottom: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); /* Sombra suave para dar profundidade */
+    color: #E0E0E0; /* Texto claro */
+    overflow-y: auto;
 }
 
-.modal-content {
-    background-color: #333;
-    width: 500px;
-    max-height: 100vh; /* Limita a altura máxima a 90% da viewport */
-    overflow-y: auto; /* Permite rolagem interna, se necessário */
-    border-radius: 10px;
+/* Estilo dos títulos dos times */
+.modal-content .title {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: #fff; /* Cor branca para se destacar no fundo escuro */
+    margin-bottom: 15px;
+    text-align: center; /* Centraliza o título */
 }
 
-.team-container {
-    display: flex;
-    width: 98%;
+/* Estilos das tabelas */
+.table-container {
+    width: 100%;
+    border-collapse: collapse; /* Remove o espaço entre as bordas */
     margin-bottom: 20px;
-    padding: 1%;
-    background-color: #fff;
 }
 
-.left-side, .right-side {
-    display: flex;
-    flex-direction: column;
+.table-container th,
+.table-container td {
+    border: 1px solid #333; /* Bordas suaves */
+    padding: 10px;
+    text-align: center;
+    color: #ddd; /* Cor clara para o texto */
+    font-family: 'PantonNarrow', sans-serif;
 }
 
-.left-side {
-    width: 16.66%; /* 1/6 do total */
+.table-container th {
+    background-color: #444; /* Fundo escuro para o cabeçalho */
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 14px;
 }
 
-.right-side {
-    width: 83.33%; /* 5/6 do total */
-}
-
-.inner-div {
-    height: 50px;
-    border: 2px solid black;
+.table-container td {
+    background-color: #2b2b2b; /* Cor de fundo para as células */
+    font-size: 14px;
 }
 
 #load-more {

@@ -1,7 +1,14 @@
 document.addEventListener('click', function (e) {
     if (e.target.closest('.arrow')) {
-        const matchInfo = e.target.closest('.match-info');
-        showModal(matchInfo);
+        const matchId = e.target.closest('.arrow').dataset.matchId;
+        
+        // Encontre os dados da partida correta com base no matchId
+        const matchData = allMatches.find(match => match.data.id === matchId);
+
+        // Abra a modal e passe os dados da partida específica
+        if (matchData) {
+            showModal(matchData);
+        }
     }
 });
 document.addEventListener('DOMContentLoaded', async function () {
@@ -107,7 +114,142 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 });
 
-function showModal(matchInfo) {
+// Função para criar a tabela dos times dentro da modal de acordo com o layout
+function createTeamTableInModal(rank, players, modalContent) {
+    const container = document.createElement('div');
+    container.className = 'stats-container';
+
+    // Cria a tabela
+    const table = document.createElement('table');
+    table.className = 'table-container';
+
+    // Cabeçalho da tabela com os nomes dos jogadores e a coluna "Total do Time"
+    const thead = document.createElement('thead');
+    const headerRow = document.createElement('tr');
+    
+    // Insere a colocação no primeiro cabeçalho
+    const rankHeader = document.createElement('th');
+    rankHeader.textContent = `#${rank}`;
+    headerRow.appendChild(rankHeader);
+
+    // Insere os nomes dos jogadores nos cabeçalhos
+    players.forEach(player => {
+        const th = document.createElement('td');
+        th.textContent = player.name; // Aqui inserimos o nome do jogador
+        headerRow.appendChild(th);
+    });
+
+    // Adiciona a célula de "Total do Time"
+    const teamTotalHeader = document.createElement('th');
+    teamTotalHeader.textContent = 'Team Total';
+    headerRow.appendChild(teamTotalHeader);
+    
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // Corpo da tabela com kills, damage, assists, e o total do time
+    const tbody = document.createElement('tbody');
+
+    // Linha de "Kills"
+    const killsRow = document.createElement('tr');
+    const killsLabel = document.createElement('th');
+    killsLabel.textContent = 'Kills';
+    killsRow.appendChild(killsLabel);
+    
+    let totalKills = 0;
+    players.forEach(player => {
+        const killsCell = document.createElement('td');
+        killsCell.textContent = player.kills;
+        killsRow.appendChild(killsCell);
+        totalKills += player.kills;
+    });
+    const totalKillsCell = document.createElement('td');
+    totalKillsCell.textContent = totalKills;
+    killsRow.appendChild(totalKillsCell);
+    tbody.appendChild(killsRow);
+
+    // Linha de "Damage"
+    const damageRow = document.createElement('tr');
+    const damageLabel = document.createElement('th');
+    damageLabel.textContent = 'Damage';
+    damageRow.appendChild(damageLabel);
+    
+    let totalDamage = 0;
+    players.forEach(player => {
+        const damageCell = document.createElement('td');
+        damageCell.textContent = player.damageDealt.toFixed(2);
+        damageRow.appendChild(damageCell);
+        totalDamage += player.damageDealt;
+    });
+    const totalDamageCell = document.createElement('td');
+    totalDamageCell.textContent = totalDamage.toFixed(2);
+    damageRow.appendChild(totalDamageCell);
+    tbody.appendChild(damageRow);
+
+    // Linha de "Assists"
+    const assistsRow = document.createElement('tr');
+    const assistsLabel = document.createElement('th');
+    assistsLabel.textContent = 'Assists';
+    assistsRow.appendChild(assistsLabel);
+    
+    let totalAssists = 0;
+    players.forEach(player => {
+        const assistsCell = document.createElement('td');
+        assistsCell.textContent = player.assists;
+        assistsRow.appendChild(assistsCell);
+        totalAssists += player.assists;
+    });
+    const totalAssistsCell = document.createElement('td');
+    totalAssistsCell.textContent = totalAssists;
+    assistsRow.appendChild(totalAssistsCell);
+    tbody.appendChild(assistsRow);
+
+    // Adiciona o corpo da tabela e a tabela ao conteúdo da modal
+    table.appendChild(tbody);
+    container.appendChild(table);
+    modalContent.appendChild(container);
+}
+
+// Função para organizar os times e mostrar dentro da modal
+function populateTeamsInModal(matchData, modalContent) {
+    const rosters = matchData.included.filter(item => item.type === 'roster');
+    const participants = matchData.included.filter(item => item.type === 'participant');
+    const teams = [];
+
+    // Organiza os jogadores por colocação através dos rosters
+    rosters.forEach(roster => {
+        const rank = roster.attributes.stats.rank;
+        const teamPlayers = [];
+
+        roster.relationships.participants.data.forEach(participantRef => {
+            const participant = participants.find(p => p.id === participantRef.id);
+            const stats = participant.attributes.stats;
+
+            teamPlayers.push({
+                name: stats.name,  // Insere o nome do jogador
+                kills: stats.kills,
+                damageDealt: stats.damageDealt,
+                assists: stats.assists
+            });
+        });
+
+        teams.push({
+            rank: rank,
+            players: teamPlayers
+        });
+    });
+
+    // Ordena os times pela colocação (rank) do primeiro ao último
+    teams.sort((a, b) => a.rank - b.rank);
+
+    // Cria uma tabela para cada time de acordo com sua colocação e adiciona à modal
+    teams.forEach(team => {
+        createTeamTableInModal(team.rank, team.players, modalContent);
+    });
+}
+
+// Função para abrir a modal e mostrar os times
+function showModal(matchData) {
     // Remove qualquer modal existente
     const existingModal = document.querySelector('.modal');
     if (existingModal) {
@@ -121,41 +263,6 @@ function showModal(matchInfo) {
     const modalContent = document.createElement('div');
     modalContent.classList.add('modal-content');
 
-    // Cria 20 divs principais (verde)
-    for (let i = 0; i < 20; i++) {
-        const teamContainer = document.createElement('div');
-        teamContainer.classList.add('team-container');
-
-        const leftSide = document.createElement('div');
-        leftSide.classList.add('left-side');
-
-        const rightSide = document.createElement('div');
-        rightSide.classList.add('right-side');
-        
-        // Cria 3 divs na esquerda (1/6 do tamanho)
-        for (let j = 0; j < 3; j++) {
-            const leftDiv = document.createElement('div');
-            leftDiv.classList.add('inner-div', 'left-div');
-            leftDiv.style.backgroundColor = `hsl(${j * 60}, 100%, 50%)`; // Cores diferentes para visualização
-            leftSide.appendChild(leftDiv);
-        }
-
-        // Cria 3 divs na direita (5/6 do tamanho)
-        for (let j = 0; j < 3; j++) {
-            const rightDiv = document.createElement('div');
-            rightDiv.classList.add('inner-div', 'right-div');
-            rightDiv.style.backgroundColor = `hsl(${j * 60 + 180}, 100%, 50%)`; // Cores diferentes para visualização
-            rightSide.appendChild(rightDiv);
-        }
-
-        // Adiciona os lados esquerdo e direito à div principal
-        teamContainer.appendChild(leftSide);
-        teamContainer.appendChild(rightSide);
-
-        // Adiciona a div principal ao conteúdo da modal
-        modalContent.appendChild(teamContainer);
-    }
-
     // Adiciona o conteúdo à modal
     modal.appendChild(modalContent);
     document.body.appendChild(modal);
@@ -166,6 +273,25 @@ function showModal(matchInfo) {
             modal.remove();
         }
     });
+
+    // Popula os times dentro da modal com os dados da partida específica
+    populateTeamsInModal(matchData, modalContent);
+}
+
+// Função para adicionar terminação ordinal ao número
+function getOrdinalSuffix(rank) {
+    const j = rank % 10,
+          k = rank % 100;
+    if (j == 1 && k != 11) {
+        return rank + "st";
+    }
+    if (j == 2 && k != 12) {
+        return rank + "nd";
+    }
+    if (j == 3 && k != 13) {
+        return rank + "rd";
+    }
+    return rank + "th";
 }
 
 function translateMapName(mapName) {
@@ -219,8 +345,8 @@ function displayNextMatches(playerName) {
     }
 
     const matchListContainer = document.getElementById('match-list');
-    const nextMatches = allMatches.slice(currentIndex, currentIndex + matchesPerPage);  // Get the next 20 matches
-    currentIndex += nextMatches.length;  // Update currentIndex
+    const nextMatches = allMatches.slice(currentIndex, currentIndex + matchesPerPage);  // Pega as próximas 20 partidas
+    currentIndex += nextMatches.length;  // Atualiza currentIndex
 
     nextMatches.forEach((match) => {
 
@@ -228,16 +354,16 @@ function displayNextMatches(playerName) {
         const gameMode = match.data.attributes.gameMode.toUpperCase().replace('-', ' ');
         const mapName = match.data.attributes.mapName;
 
-        // Translate the map name for the image URL
+        // Traduza o nome do mapa para a URL da imagem
         const translatedMapName = translateMapName(mapName);
 
-        // Determine if the match is Ranked or Normal
+        // Determine se a partida é Ranked ou Normal
         const matchCategory = matchType === "competitive" ? "Ranked" : "Normal";
 
-        // Count the number of rosters (teams) in the match
+        // Conta o número de rosters (times) na partida
         const totalRosters = match.data.relationships.rosters.data.length;
 
-        // Find the participant matching the player's name
+        // Encontre o participante que corresponde ao nome do jogador
         const participants = match.included.filter(item => item.type === 'participant');
         const participant = participants.find(p => p.attributes?.stats?.name === playerName);
 
@@ -269,7 +395,7 @@ function displayNextMatches(playerName) {
                 <div class="match-time">Time: ${formatTime(timeSurvived)}</div>
             </div>
             <div class="match-arrow">
-                <div class="arrow">
+                <div class="arrow" data-match-id="${match.data.id}">
                     <div class="arrow-top"></div>
                     <div class="arrow-bottom"></div>
                 </div>
@@ -278,7 +404,6 @@ function displayNextMatches(playerName) {
         
             // Adiciona o elemento ao container de partidas
             matchListContainer.appendChild(matchItem);
-        
         } else {
             return;
         }
