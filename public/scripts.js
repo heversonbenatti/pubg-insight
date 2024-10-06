@@ -114,141 +114,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 });
 
-// Função para criar a tabela dos times dentro da modal de acordo com o layout
-function createTeamTableInModal(rank, players, modalContent) {
-    const container = document.createElement('div');
-    container.className = 'stats-container';
-
-    // Cria a tabela
-    const table = document.createElement('table');
-    table.className = 'table-container';
-
-    // Cabeçalho da tabela com os nomes dos jogadores e a coluna "Total do Time"
-    const thead = document.createElement('thead');
-    const headerRow = document.createElement('tr');
-    
-    // Insere a colocação no primeiro cabeçalho
-    const rankHeader = document.createElement('th');
-    rankHeader.textContent = `#${rank}`;
-    headerRow.appendChild(rankHeader);
-
-    // Insere os nomes dos jogadores nos cabeçalhos
-    players.forEach(player => {
-        const th = document.createElement('td');
-        th.textContent = player.name; // Aqui inserimos o nome do jogador
-        headerRow.appendChild(th);
-    });
-
-    // Adiciona a célula de "Total do Time"
-    const teamTotalHeader = document.createElement('th');
-    teamTotalHeader.textContent = 'Team Total';
-    headerRow.appendChild(teamTotalHeader);
-    
-    thead.appendChild(headerRow);
-    table.appendChild(thead);
-
-    // Corpo da tabela com kills, damage, assists, e o total do time
-    const tbody = document.createElement('tbody');
-
-    // Linha de "Kills"
-    const killsRow = document.createElement('tr');
-    const killsLabel = document.createElement('th');
-    killsLabel.textContent = 'Kills';
-    killsRow.appendChild(killsLabel);
-    
-    let totalKills = 0;
-    players.forEach(player => {
-        const killsCell = document.createElement('td');
-        killsCell.textContent = player.kills;
-        killsRow.appendChild(killsCell);
-        totalKills += player.kills;
-    });
-    const totalKillsCell = document.createElement('td');
-    totalKillsCell.textContent = totalKills;
-    killsRow.appendChild(totalKillsCell);
-    tbody.appendChild(killsRow);
-
-    // Linha de "Damage"
-    const damageRow = document.createElement('tr');
-    const damageLabel = document.createElement('th');
-    damageLabel.textContent = 'Damage';
-    damageRow.appendChild(damageLabel);
-    
-    let totalDamage = 0;
-    players.forEach(player => {
-        const damageCell = document.createElement('td');
-        damageCell.textContent = player.damageDealt.toFixed(2);
-        damageRow.appendChild(damageCell);
-        totalDamage += player.damageDealt;
-    });
-    const totalDamageCell = document.createElement('td');
-    totalDamageCell.textContent = totalDamage.toFixed(2);
-    damageRow.appendChild(totalDamageCell);
-    tbody.appendChild(damageRow);
-
-    // Linha de "Assists"
-    const assistsRow = document.createElement('tr');
-    const assistsLabel = document.createElement('th');
-    assistsLabel.textContent = 'Assists';
-    assistsRow.appendChild(assistsLabel);
-    
-    let totalAssists = 0;
-    players.forEach(player => {
-        const assistsCell = document.createElement('td');
-        assistsCell.textContent = player.assists;
-        assistsRow.appendChild(assistsCell);
-        totalAssists += player.assists;
-    });
-    const totalAssistsCell = document.createElement('td');
-    totalAssistsCell.textContent = totalAssists;
-    assistsRow.appendChild(totalAssistsCell);
-    tbody.appendChild(assistsRow);
-
-    // Adiciona o corpo da tabela e a tabela ao conteúdo da modal
-    table.appendChild(tbody);
-    container.appendChild(table);
-    modalContent.appendChild(container);
-}
-
-// Função para organizar os times e mostrar dentro da modal
-function populateTeamsInModal(matchData, modalContent) {
-    const rosters = matchData.included.filter(item => item.type === 'roster');
-    const participants = matchData.included.filter(item => item.type === 'participant');
-    const teams = [];
-
-    // Organiza os jogadores por colocação através dos rosters
-    rosters.forEach(roster => {
-        const rank = roster.attributes.stats.rank;
-        const teamPlayers = [];
-
-        roster.relationships.participants.data.forEach(participantRef => {
-            const participant = participants.find(p => p.id === participantRef.id);
-            const stats = participant.attributes.stats;
-
-            teamPlayers.push({
-                name: stats.name,  // Insere o nome do jogador
-                kills: stats.kills,
-                damageDealt: stats.damageDealt,
-                assists: stats.assists
-            });
-        });
-
-        teams.push({
-            rank: rank,
-            players: teamPlayers
-        });
-    });
-
-    // Ordena os times pela colocação (rank) do primeiro ao último
-    teams.sort((a, b) => a.rank - b.rank);
-
-    // Cria uma tabela para cada time de acordo com sua colocação e adiciona à modal
-    teams.forEach(team => {
-        createTeamTableInModal(team.rank, team.players, modalContent);
-    });
-}
-
-// Função para abrir a modal e mostrar os times
 function showModal(matchData) {
     // Remove qualquer modal existente
     const existingModal = document.querySelector('.modal');
@@ -258,14 +123,45 @@ function showModal(matchData) {
 
     // Cria a janela modal
     const modal = document.createElement('div');
-    modal.classList.add('modal');
-    
-    const modalContent = document.createElement('div');
-    modalContent.classList.add('modal-content');
+    modal.classList.add('modal-custom');
 
-    // Adiciona o conteúdo à modal
+    const modalContent = document.createElement('div');
+    modalContent.classList.add('modal-content-custom');
+
+    const modalContainer = document.createElement('div');
+    modalContainer.classList.add('modal-container-custom');
+
+    // Div para a lista de times
+    const teamList = document.createElement('div');
+    teamList.id = 'team-list-custom';
+    teamList.classList.add('team-list-custom');
+
+    // Div para o mapa
+    const matchMap = document.createElement('div');
+    matchMap.id = 'match-map-custom';
+    matchMap.classList.add('match-map-custom');
+    const mapImage = document.createElement('img');
+    mapImage.id = 'map-image-custom';
+    matchMap.appendChild(mapImage);
+
+    // Div para os detalhes do time selecionado
+    const teamDetails = document.createElement('div');
+    teamDetails.id = 'team-details-custom';
+    teamDetails.classList.add('team-details-custom');
+
+    modalContainer.appendChild(teamList);
+    modalContainer.appendChild(matchMap);
+    modalContainer.appendChild(teamDetails);
+
+    modalContent.appendChild(modalContainer);
     modal.appendChild(modalContent);
     document.body.appendChild(modal);
+
+    // Popula os times na div da esquerda
+    populateTeams(matchData, teamList);
+
+    const mapName = matchData.data.attributes.mapName;
+    updateMap(mapName);
 
     // Fecha a modal ao clicar fora
     modal.addEventListener('click', function (e) {
@@ -273,9 +169,91 @@ function showModal(matchData) {
             modal.remove();
         }
     });
+}
 
-    // Popula os times dentro da modal com os dados da partida específica
-    populateTeamsInModal(matchData, modalContent);
+function populateTeams(matchData, teamList) {
+    // Limpa a lista de times
+    teamList.innerHTML = '';
+
+    // Filtra os rosters (times) no matchData
+    const rosters = matchData.included.filter(item => item.type === 'roster');
+    
+    // Para cada time (roster)
+    rosters.forEach((roster, index) => {
+        // Pega o número do time (rank ou teamNumber)
+        const teamNumber = roster.attributes.stats.rank || roster.attributes.stats.teamId;
+
+        // Cria a div do time
+        const teamDiv = document.createElement('div');
+        teamDiv.classList.add('team-custom');
+        teamDiv.style.cursor = 'pointer'; // Cursor de clique
+
+        // Cria o elemento para o número do time
+        const teamNumberDiv = document.createElement('div');
+        teamNumberDiv.classList.add('team-number-custom');
+        teamNumberDiv.textContent = teamNumber; // Exibe apenas o número do time
+
+        // Gera uma cor única para o quadrado do número
+        teamNumberDiv.style.backgroundColor = generateUniqueColor(index);
+
+        // Cria o container para os jogadores
+        const playersDiv = document.createElement('div');
+        playersDiv.classList.add('players-list-custom');
+
+        // Adiciona os jogadores dentro da div de jogadores
+        roster.relationships.participants.data.forEach(participantRef => {
+            const participant = matchData.included.find(p => p.id === participantRef.id);
+            const playerDiv = document.createElement('div');
+            playerDiv.textContent = participant.attributes.stats.name;
+            playersDiv.appendChild(playerDiv);
+        });
+
+        // Adiciona o número do time e a lista de jogadores
+        teamDiv.appendChild(teamNumberDiv);
+        teamDiv.appendChild(playersDiv);
+
+        // Adiciona o time na lista de times
+        teamList.appendChild(teamDiv);
+
+        // Torna a div clicável para mostrar os detalhes dos jogadores
+        teamDiv.addEventListener('click', function() {
+            displayTeamDetails(roster, matchData);
+        });
+    });
+}
+
+function generateUniqueColor(index) {
+    const hue = (index * 137.5) % 360; // Gera uma cor diferente baseado no índice
+    return `hsl(${hue}, 70%, 50%)`; // Retorna uma cor em formato HSL
+}
+
+// Função para exibir os detalhes dos jogadores do time na div da direita
+function displayTeamDetails(roster, matchData) {
+    const teamDetailsDiv = document.getElementById('team-details-custom');
+    
+    // Limpa os detalhes atuais
+    teamDetailsDiv.innerHTML = '';
+
+    // Adiciona os detalhes de cada jogador
+    roster.relationships.participants.data.forEach(participantRef => {
+        const participant = matchData.included.find(p => p.id === participantRef.id);
+        
+        // Criar uma div para cada jogador com detalhes
+        const playerDetailDiv = document.createElement('div');
+        playerDetailDiv.classList.add('player-detail-custom');
+        playerDetailDiv.textContent = `Player: ${participant.attributes.stats.name} - Kills: ${participant.attributes.stats.kills}, Damage: ${participant.attributes.stats.damageDealt.toFixed(2)}`;
+        
+        // Adiciona os detalhes do jogador à div de detalhes do time
+        teamDetailsDiv.appendChild(playerDetailDiv);
+    });
+}
+
+// Função para atualizar a imagem do mapa
+function updateMap(mapName) {
+    const translatedMapName = translateMapName(mapName); // Traduz o nome do mapa
+    const mapImage = document.getElementById('map-image-custom');
+    mapImage.src = `/images/${translatedMapName.toLowerCase()}map.png`; // Usa o nome traduzido
+    mapImage.alt = `${translatedMapName} map`; // Define o atributo alt
 }
 
 // Função para adicionar terminação ordinal ao número

@@ -19,6 +19,13 @@
     font-style: normal;
 }
 
+@font-face {
+    font-family: 'Universal-Knowledge';
+    src: url('/fonts/Universal-Knowledge.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
 body {
     background-color: #121212;
     color: #E0E0E0;
@@ -364,12 +371,13 @@ button:hover {
 }
 
 .match-list h2 {
-    font-family: 'PantonNarrow', sans-serif;
+    font-family: 'Leg-Hug', sans-serif;
     color: #afafaf;
     margin-bottom: 2%;
     font-size: xx-large;
     margin-top: 1%;
     margin-left: 2%;
+    letter-spacing: 3px;
 }
 
 .arrow {
@@ -425,7 +433,6 @@ button:hover {
     justify-content: space-between; /* Ensure even spacing */
     align-items: center; /* Align vertically in the center */
     background-color: #282828;
-    border-radius: 10px;
     margin-bottom: 15px;
     color: #fff;
     overflow: hidden;
@@ -555,11 +562,10 @@ button:hover {
     margin-right: 10px;
 }
 
-/* Estilos para a modal */
-.modal {
+.modal-custom {
     display: flex;
     justify-content: center;
-    align-items: flex-start;
+    align-items: center; /* Alinha ao centro verticalmente */
     position: fixed;
     top: 0;
     left: 0;
@@ -567,30 +573,138 @@ button:hover {
     height: 100vh;
     background-color: rgba(0, 0, 0, 0.85); /* Fundo escuro com leve transparência */
     z-index: 1000;
-    overflow-y: auto; /* Permite rolar se o conteúdo for maior que a tela */
-    padding-top: 20px;
+    padding: 20px;
+    box-sizing: border-box; /* Inclui padding no tamanho total */
 }
 
-/* Estilo do conteúdo da modal */
-.modal-content {
-    background-color: #222; /* Fundo escuro */
-    width: 90%;
-    max-width: 700px; /* Largura máxima para uma boa visualização */
-    border-radius: 8px; /* Bordas arredondadas para um toque suave */
-    padding-top: 20px;
-    padding-bottom: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); /* Sombra suave para dar profundidade */
+/* Ajuste do conteúdo da modal */
+.modal-content-custom {
+    background-color: #222;
+    width: 100%;
+    max-width: 1200px; /* Tamanho máximo para a largura */
+    border-radius: 8px; /* Bordas arredondadas */
+    padding: 20px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); /* Sombra suave */
     color: #E0E0E0; /* Texto claro */
-    overflow-y: auto;
+    display: flex;
+    justify-content: space-between; /* Espaçamento uniforme entre as divs */
+    gap: 20px; /* Espaço entre as divs */
+    box-sizing: border-box; /* Inclui padding no tamanho total */
+    max-height: 90vh; /* Limite a altura para não ultrapassar a tela */
+    overflow: hidden;
 }
 
-/* Estilo dos títulos dos times */
-.modal-content .title {
-    font-size: 1.8rem;
-    font-weight: 600;
-    color: #fff; /* Cor branca para se destacar no fundo escuro */
-    margin-bottom: 15px;
-    text-align: center; /* Centraliza o título */
+.modal-container-custom {
+    display: flex;
+    justify-content: space-between;
+    height: 100%; /* Garante que ocupe a altura total da modal */
+}
+
+.team-list-custom {
+    width: 25%;
+    background-color: #1d1d1d;
+    overflow-y: auto; /* Barra de rolagem para a lista de times */
+    max-height: 80vh; /* Altura máxima para a lista de times */
+    scrollbar-color: #555 #333; /* Cor da barra de rolagem */
+    scrollbar-width: thin; /* Largura fina da barra de rolagem */
+    border: 1px solid #3a3a3a; /* Borda fina cinza */
+    border-radius: 5px; /* Bordas levemente arredondadas */
+}
+/* WebKit browsers (Chrome, Safari, Edge) */
+.team-list-custom::-webkit-scrollbar {
+    width: 10px;
+}
+
+.team-list-custom::-webkit-scrollbar-thumb {
+    background-color: #555;
+    border-radius: 10px;
+}
+
+.team-list-custom::-webkit-scrollbar-track {
+    background-color: #333;
+}
+
+/* Div do mapa com tamanho fixo */
+.match-map-custom {
+    flex: 2; /* Garante que a div central tenha mais espaço */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    max-height: 100%; /* Garante que a altura da div não ultrapasse a altura da modal */
+}
+
+#map-image-custom {
+    max-width: 100%; /* A imagem ocupa no máximo a largura disponível */
+    max-height: 100%; /* A imagem ocupa no máximo a altura disponível */
+    width: auto; /* Deixa a largura ajustar-se automaticamente */
+    height: auto; /* Deixa a altura ajustar-se automaticamente */
+    object-fit: contain; /* Mantém a proporção da imagem sem cortar */
+}
+
+/* Detalhes do time */
+.team-details-custom {
+    flex: 1;
+    background-color: #1d1d1d;
+    padding: 20px;
+    overflow-y: auto; /* Barra de rolagem para a área de detalhes */
+    max-height: 100%;
+}
+
+/* Estilo para a div de cada time */
+.team-custom {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center; /* Alinha os elementos horizontalmente ao centro */
+    padding-top: 5px; /* Espaçamento vertical */
+    padding-left: 10px;
+    position: relative; /* Necessário para o ::before funcionar corretamente */
+}
+
+/* Estilo para adicionar uma linha separadora acima de cada time */
+.team-custom:not(:first-child)::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgb(255 255 255) 50%, rgba(255, 255, 255, 0) 100%);
+    opacity: 0.5;
+}
+
+/* Estilo para o número do time */
+.team-number-custom {
+    width: 25px;
+    height: 25px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    margin-right: 15px;
+    font-size: 15px;
+    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+    margin-bottom: 5px;
+    font-family: Universal-Knowledge;
+}
+
+/* Estilo para a lista de jogadores */
+.players-list-custom {
+    display: flex;
+    flex-direction: column; /* Organiza os jogadores em coluna */
+    text-align: left;
+    color: white;
+    font-size: 12px;
+}
+
+/* Estilo individual para cada nome de jogador */
+.players-list-custom div {
+    margin-bottom: 5px; /* Espaçamento entre os nomes dos jogadores */
+}
+
+.team-custom:hover {
+    background-color: #444;
 }
 
 /* Estilos das tabelas */
