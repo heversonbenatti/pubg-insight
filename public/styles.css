@@ -707,34 +707,6 @@ button:hover {
     background-color: #444;
 }
 
-/* Estilos das tabelas */
-.table-container {
-    width: 100%;
-    border-collapse: collapse; /* Remove o espaço entre as bordas */
-    margin-bottom: 20px;
-}
-
-.table-container th,
-.table-container td {
-    border: 1px solid #333; /* Bordas suaves */
-    padding: 10px;
-    text-align: center;
-    color: #ddd; /* Cor clara para o texto */
-    font-family: 'PantonNarrow', sans-serif;
-}
-
-.table-container th {
-    background-color: #444; /* Fundo escuro para o cabeçalho */
-    font-weight: bold;
-    text-transform: uppercase;
-    font-size: 14px;
-}
-
-.table-container td {
-    background-color: #2b2b2b; /* Cor de fundo para as células */
-    font-size: 14px;
-}
-
 #load-more {
     display: block;
     margin: 20px auto;
