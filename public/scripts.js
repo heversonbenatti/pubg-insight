@@ -4,6 +4,7 @@ document.addEventListener('click', function (e) {
         
         // Encontre os dados da partida correta com base no matchId
         const matchData = allMatches.find(match => match.data.id === matchId);
+        window.globalMatchData = matchData;
 
         // Abra a modal e passe os dados da partida específica
         if (matchData) {
@@ -217,6 +218,9 @@ function populateTeams(matchData, teamList) {
         // Pega o número do time (rank ou teamNumber)
         const teamNumber = roster.attributes.stats.rank || roster.attributes.stats.teamId;
 
+        let uniqueColor = generateUniqueColor(index);
+        roster.color = uniqueColor;
+
         // Cria a div do time
         const teamDiv = document.createElement('div');
         teamDiv.classList.add('team-custom');
@@ -225,10 +229,8 @@ function populateTeams(matchData, teamList) {
         // Cria o elemento para o número do time
         const teamNumberDiv = document.createElement('div');
         teamNumberDiv.classList.add('team-number-custom');
-        teamNumberDiv.textContent = teamNumber; // Exibe apenas o número do time
-
-        // Gera uma cor única para o quadrado do número
-        teamNumberDiv.style.backgroundColor = generateUniqueColor(index);
+        teamNumberDiv.textContent = teamNumber;
+        teamNumberDiv.style.backgroundColor = uniqueColor;
 
         // Cria o container para os jogadores
         const playersDiv = document.createElement('div');
@@ -258,7 +260,7 @@ function populateTeams(matchData, teamList) {
 
 function generateUniqueColor(index) {
     const hue = (index * 137.5) % 360; // Gera uma cor diferente baseado no índice
-    return `hsl(${hue}, 70%, 50%)`; // Retorna uma cor em formato HSL
+    return `hsl(${hue}, 70%, 50%, 90%)`; // Retorna uma cor em formato HSL
 }
 
 // Função para exibir os detalhes dos jogadores do time na div da direita

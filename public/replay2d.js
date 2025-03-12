@@ -180,14 +180,26 @@ fetch(TELEMETRY_URL)
 
       Object.keys(interpolatedLocationsByPlayer).forEach(accountId => {
         const playerLocations = interpolatedLocationsByPlayer[accountId];
+        let id = globalMatchData.included
+        .filter(participant => participant.type === "participant")
+        .find(item => item.attributes.stats.playerId === accountId)?.id;
+        let roster = globalMatchData.included
+        .filter(item => item.type === 'roster')
+        .find(item => item.relationships.participants.data.some(participant => participant.id === id));
+        let color = roster ? roster.color : null;
+
         if (playerLocations.length > 0) {
           const playerLocation = playerLocations[currentIndex];
           if (playerLocation && playerLocation.x != null && playerLocation.y != null) {
             const pointSize = 5 / (scaleFactor * zoomScale);
-            drawCtx.fillStyle = "red";
+            const borderWidth = 2 / (scaleFactor * zoomScale);
+            drawCtx.fillStyle = color;
+            drawCtx.strokeStyle = 'black';
+            drawCtx.lineWidth = borderWidth;
             drawCtx.beginPath();
             drawCtx.arc(playerLocation.x, playerLocation.y, pointSize, 0, 2 * Math.PI);
             drawCtx.fill();
+            drawCtx.stroke();
           }
         }
       });
