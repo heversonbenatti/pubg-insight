@@ -624,22 +624,83 @@ button:hover {
     background-color: #333;
 }
 
-/* Div do mapa com tamanho fixo */
-.match-map-custom {
-    flex: 2; /* Garante que a div central tenha mais espaço */
+#replayDiv {
+    margin: 0;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
-    padding: 20px;
-    max-height: 100%; /* Garante que a altura da div não ultrapasse a altura da modal */
+    height: 100vh;
+    background-color: #f0f0f0;
+    position: relative;
 }
 
-#map-image-custom {
-    max-width: 100%; /* A imagem ocupa no máximo a largura disponível */
-    max-height: 100%; /* A imagem ocupa no máximo a altura disponível */
-    width: auto; /* Deixa a largura ajustar-se automaticamente */
-    height: auto; /* Deixa a altura ajustar-se automaticamente */
-    object-fit: contain; /* Mantém a proporção da imagem sem cortar */
+#viewport {
+    width: 600px;
+    /* Adjust this percentage for size */
+    height: 600px;
+    max-width: 100%;
+    position: relative;
+    background-color: #333;
+    z-index: 1;
+}
+
+#canvasContainer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    /* Add this */
+    height: 100%;
+    /* Add this */
+}
+
+#mapCanvas {
+    z-index: 0;
+}
+
+#drawCanvas {
+    z-index: 1;
+}
+
+#mapCanvas,
+#drawCanvas {
+    image-rendering: crisp-edges;
+    /* Prevent blurry scaling */
+    top: 0;
+    left: 0;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+}
+
+#progressBar {
+    position: absolute;
+    bottom: -30px;
+    width: 100%;
+    z-index: 4;
+    background: #555;
+    pointer-events: all;
+    margin-top: 20px;
+    z-index: 3;
+}
+
+#progressBar::-webkit-slider-thumb {
+    background: #fff;
+    /* Visible thumb */
+}
+
+#timer {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    /* Higher than canvases */
+    color: white !important;
+    /* Ensure visibility */
+    font-family: 'PantonNarrow', sans-serif;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+    z-index: 4;
 }
 
 /* Detalhes do time */
