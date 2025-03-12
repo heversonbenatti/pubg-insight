@@ -120,6 +120,9 @@ function showModal(matchData) {
     if (existingModal) {
         existingModal.remove();
     }
+    
+    // Get telemetry URL from match data
+    const telemetryUrl = matchData.included.find(item => item.type === "asset").attributes.URL;
 
     // Cria a janela modal
     const modal = document.createElement('div');
@@ -137,12 +140,43 @@ function showModal(matchData) {
     teamList.classList.add('team-list-custom');
 
     // Div para o mapa
-    const matchMap = document.createElement('div');
-    matchMap.id = 'match-map-custom';
-    matchMap.classList.add('match-map-custom');
-    const mapImage = document.createElement('img');
-    mapImage.id = 'map-image-custom';
-    matchMap.appendChild(mapImage);
+    const viewport = document.createElement('div');
+    viewport.id = 'viewport';
+    viewport.setAttribute('data-map-width', '800000');
+    viewport.setAttribute('data-map-height', '800000');
+    viewport.setAttribute('data-canvas-scale', '0.001');
+    const replayDiv = document.createElement('div');
+    replayDiv.id = 'replayDiv';
+    replayDiv.appendChild(viewport)
+    const canvasContainer = document.createElement('div');
+    canvasContainer.id = 'canvasContainer';
+    viewport.appendChild(canvasContainer);
+    const mapCanvas = document.createElement('canvas');
+    mapCanvas.id = 'mapCanvas';
+    const drawCanvas = document.createElement('canvas');
+    drawCanvas.id = 'drawCanvas';
+    canvasContainer.appendChild(mapCanvas);
+    canvasContainer.appendChild(drawCanvas);
+    const progressBar = document.createElement('input');
+    progressBar.id = 'progressBar';
+    progressBar.type = 'range';
+    progressBar.min = '0';
+    progressBar.step = '1';
+    viewport.appendChild(progressBar);
+    const timer = document.createElement('div');
+    timer.id = 'timer';
+    viewport.appendChild(timer);
+    // Create script element for replay2d.js
+    const script = document.createElement("script");
+    script.src = "replay2d.js";
+    script.dataset.telemetryUrl = telemetryUrl; // Pass telemetry URL via dataset
+    script.dataset.mapName = matchData.data.attributes.mapName; // Pass map name
+    script.onload = () => {
+        setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+        }, 100);
+    };
+    document.head.appendChild(script);
 
     // Div para os detalhes do time selecionado
     const teamDetails = document.createElement('div');
@@ -150,7 +184,7 @@ function showModal(matchData) {
     teamDetails.classList.add('team-details-custom');
 
     modalContainer.appendChild(teamList);
-    modalContainer.appendChild(matchMap);
+    modalContainer.appendChild(viewport);
     modalContainer.appendChild(teamDetails);
 
     modalContent.appendChild(modalContainer);
@@ -160,8 +194,8 @@ function showModal(matchData) {
     // Popula os times na div da esquerda
     populateTeams(matchData, teamList);
 
-    const mapName = matchData.data.attributes.mapName;
-    updateMap(mapName);
+    // const mapName = matchData.data.attributes.mapName;
+    // updateMap(mapName);
 
     // Fecha a modal ao clicar fora
     modal.addEventListener('click', function (e) {
