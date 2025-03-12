@@ -32,6 +32,9 @@ let panY = 0;
 const maxZoom = 30;
 const minZoom = 1;
 
+let isPlaying = false;
+let animationFrameId = null;
+
 // Use translated map name for background image
 const translatedMapName = translateMapName(MAP_NAME);
 const backgroundImage = new Image();
@@ -323,14 +326,34 @@ fetch(TELEMETRY_URL)
     }
 
     function animate() {
-      updateSafeZone();
-      requestAnimationFrame(animate);
+      if (isPlaying) {
+        if (currentIndex < interpolatedData.length - 1) {
+          currentIndex++;
+          progressBar.value = currentIndex;
+          updateSafeZone();
+        } else {
+          isPlaying = false;
+        }
+      }
+      animationFrameId = requestAnimationFrame(animate);
     }
 
     progressBar.max = interpolatedData.length - 1;
-    progressBar.addEventListener("input", function() {
-        currentIndex = parseInt(this.value);
-        updateSafeZone();
+    progressBar.addEventListener('input', function() {
+      if (isPlaying) {
+        isPlaying = false;
+        globalPlayButton.innerHTML = '▶';
+      }
+      currentIndex = parseInt(progressBar.value);
+      updateSafeZone();
+    });
+
+    globalPlayButton.addEventListener('click', function() {
+      isPlaying = !isPlaying;
+      globalPlayButton.innerHTML = isPlaying ? '❚❚' : '▶';
+      if (isPlaying && currentIndex >= interpolatedData.length - 1) {
+        currentIndex = 0;
+      }
     });
 
     animate();

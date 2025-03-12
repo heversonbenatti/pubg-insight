@@ -430,8 +430,10 @@ button:hover {
 /* Main match display container */
 .match-info {
     display: flex;
-    justify-content: space-between; /* Ensure even spacing */
-    align-items: center; /* Align vertically in the center */
+    justify-content: space-between;
+    /* Ensure even spacing */
+    align-items: center;
+    /* Align vertically in the center */
     background-color: #282828;
     margin-bottom: 15px;
     color: #fff;
@@ -550,12 +552,16 @@ button:hover {
     transform: translateX(-50%);
 }
 
-.match-kills, .match-assists, .match-damage, .match-time {
+.match-kills,
+.match-assists,
+.match-damage,
+.match-time {
     font-size: 1.3rem;
     color: #fff;
     letter-spacing: 0.1rem;
     text-align: left;
-    width: 100%; /* Para garantir que eles ocupem o espaço total da célula */
+    width: 100%;
+    /* Para garantir que eles ocupem o espaço total da célula */
 }
 
 .match-time {
@@ -565,51 +571,70 @@ button:hover {
 .modal-custom {
     display: flex;
     justify-content: center;
-    align-items: center; /* Alinha ao centro verticalmente */
+    align-items: center;
+    /* Alinha ao centro verticalmente */
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-color: rgba(0, 0, 0, 0.85); /* Fundo escuro com leve transparência */
+    background-color: rgba(0, 0, 0, 0.85);
+    /* Fundo escuro com leve transparência */
     z-index: 1000;
     padding: 20px;
-    box-sizing: border-box; /* Inclui padding no tamanho total */
+    box-sizing: border-box;
+    /* Inclui padding no tamanho total */
 }
 
 /* Ajuste do conteúdo da modal */
 .modal-content-custom {
     background-color: #222;
     width: 100%;
-    max-width: 1200px; /* Tamanho máximo para a largura */
-    border-radius: 8px; /* Bordas arredondadas */
+    max-width: 1200px;
+    /* Tamanho máximo para a largura */
+    border-radius: 8px;
+    /* Bordas arredondadas */
     padding: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3); /* Sombra suave */
-    color: #E0E0E0; /* Texto claro */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    /* Sombra suave */
+    color: #E0E0E0;
+    /* Texto claro */
     display: flex;
-    justify-content: space-between; /* Espaçamento uniforme entre as divs */
-    gap: 20px; /* Espaço entre as divs */
-    box-sizing: border-box; /* Inclui padding no tamanho total */
-    max-height: 90vh; /* Limite a altura para não ultrapassar a tela */
+    justify-content: space-between;
+    /* Espaçamento uniforme entre as divs */
+    gap: 20px;
+    /* Espaço entre as divs */
+    box-sizing: border-box;
+    /* Inclui padding no tamanho total */
+    max-height: 90vh;
+    /* Limite a altura para não ultrapassar a tela */
     overflow: hidden;
 }
 
 .modal-container-custom {
     display: flex;
     justify-content: space-between;
-    height: 100%; /* Garante que ocupe a altura total da modal */
+    height: 100%;
+    /* Garante que ocupe a altura total da modal */
 }
 
 .team-list-custom {
     width: 25%;
     background-color: #1d1d1d;
-    overflow-y: auto; /* Barra de rolagem para a lista de times */
-    max-height: 80vh; /* Altura máxima para a lista de times */
-    scrollbar-color: #555 #333; /* Cor da barra de rolagem */
-    scrollbar-width: thin; /* Largura fina da barra de rolagem */
-    border: 1px solid #3a3a3a; /* Borda fina cinza */
-    border-radius: 5px; /* Bordas levemente arredondadas */
+    overflow-y: auto;
+    /* Barra de rolagem para a lista de times */
+    max-height: 80vh;
+    /* Altura máxima para a lista de times */
+    scrollbar-color: #555 #333;
+    /* Cor da barra de rolagem */
+    scrollbar-width: thin;
+    /* Largura fina da barra de rolagem */
+    border: 1px solid #3a3a3a;
+    /* Borda fina cinza */
+    border-radius: 5px;
+    /* Bordas levemente arredondadas */
 }
+
 /* WebKit browsers (Chrome, Safari, Edge) */
 .team-list-custom::-webkit-scrollbar {
     width: 10px;
@@ -678,7 +703,6 @@ button:hover {
     position: absolute;
     bottom: -30px;
     width: 100%;
-    z-index: 4;
     background: #555;
     pointer-events: all;
     margin-top: 20px;
@@ -688,6 +712,16 @@ button:hover {
 #progressBar::-webkit-slider-thumb {
     background: #fff;
     /* Visible thumb */
+}
+
+#viewport button {
+    z-index: 5;
+    position: relative;
+}
+
+#viewport input[type="range"] {
+    flex-grow: 1;
+    margin: 0;
 }
 
 #timer {
@@ -708,7 +742,8 @@ button:hover {
     flex: 1;
     background-color: #1d1d1d;
     padding: 20px;
-    overflow-y: auto; /* Barra de rolagem para a área de detalhes */
+    overflow-y: auto;
+    /* Barra de rolagem para a área de detalhes */
     max-height: 100%;
 }
 
@@ -716,10 +751,13 @@ button:hover {
 .team-custom {
     display: flex;
     justify-content: flex-start;
-    align-items: center; /* Alinha os elementos horizontalmente ao centro */
-    padding-top: 5px; /* Espaçamento vertical */
+    align-items: center;
+    /* Alinha os elementos horizontalmente ao centro */
+    padding-top: 5px;
+    /* Espaçamento vertical */
     padding-left: 10px;
-    position: relative; /* Necessário para o ::before funcionar corretamente */
+    position: relative;
+    /* Necessário para o ::before funcionar corretamente */
 }
 
 /* Estilo para adicionar uma linha separadora acima de cada time */
@@ -753,7 +791,8 @@ button:hover {
 /* Estilo para a lista de jogadores */
 .players-list-custom {
     display: flex;
-    flex-direction: column; /* Organiza os jogadores em coluna */
+    flex-direction: column;
+    /* Organiza os jogadores em coluna */
     text-align: left;
     color: white;
     font-size: 12px;
@@ -761,7 +800,8 @@ button:hover {
 
 /* Estilo individual para cada nome de jogador */
 .players-list-custom div {
-    margin-bottom: 5px; /* Espaçamento entre os nomes dos jogadores */
+    margin-bottom: 5px;
+    /* Espaçamento entre os nomes dos jogadores */
 }
 
 .team-custom:hover {
