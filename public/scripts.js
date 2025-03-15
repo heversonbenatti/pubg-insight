@@ -148,7 +148,7 @@ function showModal(matchData) {
     viewport.setAttribute('data-canvas-scale', '0.001');
     const replayDiv = document.createElement('div');
     replayDiv.id = 'replayDiv';
-    replayDiv.appendChild(viewport)
+    replayDiv.appendChild(viewport);
     const canvasContainer = document.createElement('div');
     canvasContainer.id = 'canvasContainer';
     viewport.appendChild(canvasContainer);
@@ -163,11 +163,13 @@ function showModal(matchData) {
     progressBar.type = 'range';
     progressBar.min = '0';
     progressBar.step = '1';
+    progressBar.value = '0';
     const timer = document.createElement('div');
     timer.id = 'timer';
     viewport.appendChild(timer);
 
     const controlsContainer = document.createElement('div');
+    controlsContainer.id = 'controlsConatiner';
     controlsContainer.style.position = 'absolute';
     controlsContainer.style.bottom = '-30px';
     controlsContainer.style.width = '100%';
@@ -177,12 +179,12 @@ function showModal(matchData) {
 
     const playButton = document.createElement('button');
     playButton.innerHTML = '▶';
-    playButton.style.background = '#555';
+    playButton.style.background = 'rgba(85, 85, 85, 0)';
     playButton.style.color = 'white';
     playButton.style.border = 'none';
     playButton.style.borderRadius = '4px';
-    playButton.style.padding = '5px 10px';
     playButton.style.cursor = 'pointer';
+    playButton.style.left = '10px';
     window.globalPlayButton = playButton;
 
     controlsContainer.appendChild(playButton);

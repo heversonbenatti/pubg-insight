@@ -204,7 +204,7 @@ input:-webkit-autofill:active {
     /* Initially hidden */
 }
 
-button {
+#search-button, #load-more {
     flex: 1;
     padding: 10px 20px;
     border: none;
@@ -661,9 +661,9 @@ button:hover {
 
 #viewport {
     width: 600px;
-    /* Adjust this percentage for size */
     height: 600px;
     max-width: 100%;
+    aspect-ratio: 1;
     position: relative;
     background-color: #333;
     z-index: 1;
@@ -689,8 +689,6 @@ button:hover {
 
 #mapCanvas,
 #drawCanvas {
-    image-rendering: crisp-edges;
-    /* Prevent blurry scaling */
     top: 0;
     left: 0;
     position: absolute;
@@ -701,17 +699,34 @@ button:hover {
 
 #progressBar {
     position: absolute;
-    bottom: -30px;
-    width: 100%;
-    background: #555;
+    left: 50px;
+    top: 10px;;
+    width: 90%;
+    height: 10%;
     pointer-events: all;
     margin-top: 20px;
     z-index: 3;
+    -webkit-appearance: none;
+    appearance: none;
+    background: #555;
+    border-radius: 3px;
+    outline: none;
 }
 
 #progressBar::-webkit-slider-thumb {
-    background: #fff;
-    /* Visible thumb */
+    -webkit-appearance: none;
+    appearance: none;
+    background: #222;
+    border: 2px solid gray; /* Borda cinza */
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+/* Muda a bolinha para vermelho ao passar o mouse sobre a progressBar */
+#progressBar:hover::-webkit-slider-thumb {
+    background: gray;
 }
 
 #viewport button {
