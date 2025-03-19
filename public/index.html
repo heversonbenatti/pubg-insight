@@ -22,28 +22,24 @@
             </div>
         </form>
 
-        <!-- Player Info Section -->
         <div id="player-stats" style="display: none;">
             <div class="player-info">
                 <img src="/images/steam-logo-transparent.png" alt="Steam Icon" class="player-icon">
                 <h2 id="player-name-display"></h2>
             </div>
 
-            <!-- Tabbed navigation -->
             <div class="w3-bar w3-black tab-bar">
-                <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'soloFpp')">SOLO FPP</button>
-                <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'duoFpp')">DUO FPP</button>
-                <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'squadFpp')">SQUAD FPP</button>
-                <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'soloTpp')">SOLO TPP</button>
-                <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'duoTpp')">DUO TPP</button>
-                <button class="w3-bar-item w3-button tablink" onclick="openTab(event, 'squadTpp')">SQUAD TPP</button>
+                <button class="w3-bar-item w3-button tablink" data-tab="soloFpp">SOLO FPP</button>
+                <button class="w3-bar-item w3-button tablink" data-tab="duoFpp">DUO FPP</button>
+                <button class="w3-bar-item w3-button tablink" data-tab="squadFpp">SQUAD FPP</button>
+                <button class="w3-bar-item w3-button tablink" data-tab="soloTpp">SOLO TPP</button>
+                <button class="w3-bar-item w3-button tablink" data-tab="duoTpp">DUO TPP</button>
+                <button class="w3-bar-item w3-button tablink" data-tab="squadTpp">SQUAD TPP</button>
             </div>
 
-            <!-- Statistics display area -->
             <div id="stats-container" class="stats-grid"></div>
         </div>
 
-        <!-- Separate Last Matches display area (outside of #player-stats) -->
         <div id="matches-container" style="display: none;">
             <div id="match-list" class="match-list">
                 <h2>Last Matches</h2>
@@ -51,7 +47,9 @@
         </div>
     </div>
 
-    <script src="scripts.js"></script>
+    <script type="module" src="scripts.js"></script>
+    <script type="module" src="modal.js"></script>
+    <script type="module" src="replay2d.js"></script>
 </body>
 
 </html>

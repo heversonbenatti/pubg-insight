@@ -70,10 +70,10 @@ h1 .insight {
     letter-spacing: 0.1em;
     text-transform: uppercase;
     text-align: left;
-    /* Mantém o texto alinhado à esquerda */
+
     width: fit-content;
     margin: 0 auto;
-    /* Centraliza horizontalmente */
+
 }
 
 form {
@@ -93,11 +93,11 @@ form {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    /* Spacing between select and button */
+
     gap: 10px;
-    /* A small gap between the two */
+
     width: 100%;
-    /* Ensure full width of the input name */
+
 }
 
 #player-name,
@@ -111,38 +111,38 @@ form {
 
 #player-name {
     width: 100%;
-    /* Ensure this input uses the full width available */
+
     margin-bottom: 10px;
 }
 
 #season-select {
     flex: 3;
     background-color: #333;
-    /* Dark background */
+
     color: #E0E0E0;
-    /* Light text color */
+
     border: 1px solid #444;
-    /* Dark border */
+
     border-radius: 5px;
-    /* Rounded corners */
+
     padding: 10px;
     appearance: none;
-    /* Removes the default browser styling */
+
     scrollbar-color: #555 #333;
-    /* Thumb color #555, track color #333 */
+
     scrollbar-width: thin;
-    /* Slimmer scrollbar */
+
     -webkit-appearance: none;
-    /* For WebKit browsers */
+
     -moz-appearance: none;
-    /* For Firefox */
+
 }
 
 #season-select option {
     background-color: #333;
-    /* Ensure options are also dark */
+
     color: #E0E0E0;
-    /* Light text in options */
+
 }
 
 #season-select::after {
@@ -155,53 +155,51 @@ form {
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
     border-top: 5px solid #E0E0E0;
-    /* Custom arrow color */
+
     pointer-events: none;
 }
 
-/* WebKit browsers (Chrome, Safari, Edge) */
 #season-select::-webkit-scrollbar {
     width: 10px;
 }
 
 #season-select::-webkit-scrollbar-thumb {
     background-color: #555;
-    /* Dark color for scrollbar thumb */
+
     border-radius: 10px;
 }
 
 #season-select::-webkit-scrollbar-track {
     background-color: #333;
-    /* Dark background for scrollbar track */
+
 }
 
-/* Remove o estilo padrão do autocomplete */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
     -webkit-box-shadow: 0 0 0 30px #333 inset !important;
-    /* Cor de fundo */
+
     -webkit-text-fill-color: #ffffff !important;
-    /* Cor do texto */
+
     transition: background-color 5000s ease-in-out 0s;
 }
 
 #player-stats {
     font-family: 'PantonNarrow', sans-serif;
     background-color: #1d1d1d;
-    /* Cor de fundo igual ao site */
+
     border: 1px solid #222222;
-    /* Borda suave */
+
     border-radius: 10px;
     padding: 0px;
     margin-top: 20px;
-    /* Ajuste para espaço inferior maior */
+
     position: relative;
     z-index: 0;
-    /* Div da Steam atrás das abas */
+
     display: none;
-    /* Initially hidden */
+
 }
 
 #search-button, #load-more {
@@ -227,12 +225,12 @@ button:hover {
     padding-top: 13px;
     background: linear-gradient(90deg, #333333 0%, #1d1d1d 100%);
     border-top-left-radius: 10px;
-    /* Mantém as bordas arredondadas para alinhar com o contêiner */
+
     border-top-right-radius: 10px;
-    /* Mantém as bordas arredondadas */
+
     position: relative;
     z-index: 1;
-    /* Certifica-se de que fique no topo sem sobrepor o contêiner */
+
 }
 
 .player-icon {
@@ -243,7 +241,7 @@ button:hover {
 
 #player-name-display {
     font-family: inherit;
-    /* Mantém a fonte que estava antes */
+
 }
 
 .player-info h2 {
@@ -256,39 +254,39 @@ button:hover {
     display: flex;
     justify-content: center;
     margin-top: -12px;
-    /* Ajuste para que as abas sobreponham 20% da div da Steam */
+
     gap: 20px;
-    /* Espaçamento de 25px entre os botões */
+
     padding-left: 25px;
-    /* Adiciona mais espaço entre as abas e a borda lateral esquerda */
+
     padding-right: 25px;
-    /* Adiciona mais espaço entre as abas e a borda lateral direita */
+
     position: relative;
-    /* Para ajustar a sobreposição */
+
     z-index: 1;
-    /* Garantir que as abas fiquem acima da div */
+
 }
 
 .tablink.active {
     border-bottom: 3px solid #c9c9c9;
-    /* Adiciona a linha vermelha ao botão ativo */
+
     padding-bottom: 2px;
-    /* Ajusta o padding para manter o alinhamento correto */
+
 }
 
 .w3-bar-item {
     font-family: 'PantonNarrow', sans-serif;
     padding: 15px 30px;
-    /* Tamanho das abas */
+
     background-color: #444;
     color: #fff;
     border-radius: 10px;
     cursor: pointer;
     transition: background-color 0.3s ease;
     box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.2);
-    /* Efeito de elevação */
+
     white-space: nowrap;
-    /* Impede a quebra de linha dentro dos botões */
+
 }
 
 .w3-bar-item:hover,
@@ -299,42 +297,42 @@ button:hover {
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
-    /* 6 colunas */
+
     gap: 10px;
-    /* Reduzindo o espaçamento entre os itens */
+
     margin-top: 20px;
 }
 
 #stats-container {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
-    /* Define 6 colunas de tamanho igual */
+
     grid-template-rows: auto auto;
-    /* Define 2 linhas automáticas */
+
     gap: 20px;
-    /* Define um espaçamento entre as colunas e as linhas */
+
     justify-items: center;
-    /* Centraliza o conteúdo dentro das colunas */
+
     align-items: center;
-    /* Alinha o conteúdo no centro verticalmente */
+
     height: 150px;
-    /* Mantém a altura fixa para o container */
+
     padding-bottom: 20px;
 }
 
 .no-data-message {
     font-size: 24px;
-    /* Fonte maior */
+
     color: #7F7F7F;
-    /* Cinza 127 */
+
     text-align: center;
-    /* Centraliza o texto */
+
     grid-column: span 6;
-    /* Garante que ocupe toda a largura das colunas */
+
     line-height: 85px;
-    /* Centraliza verticalmente */
+
     white-space: nowrap;
-    /* Impede quebra de linha */
+
 }
 
 .stat-item {
@@ -344,25 +342,24 @@ button:hover {
     border-radius: 10px;
     color: #E0E0E0;
     gap: 5px;
-    /* Menor espaçamento interno */
+
 }
 
 .stat-item h2 {
     font-size: 14px;
     margin-bottom: 5px;
-    /* Reduzir o espaço entre h2 e p */
+
     color: #5a5a5a;
 }
 
 .stat-item p {
     font-size: 20px;
-    /* Um pouco menor para ajustar ao layout */
+
     margin: 0;
-    /* Remover margem extra */
+
     color: #fff;
 }
 
-/* General container for matches */
 .match-list {
     background-color: #1d1d1d;
     padding: 10px;
@@ -412,7 +409,6 @@ button:hover {
     transform-origin: top right;
 }
 
-/* Apply the font to all match-related text */
 .match-info,
 .match-map-mode,
 .match-stats,
@@ -427,13 +423,12 @@ button:hover {
     font-family: 'Leg-Hug', sans-serif;
 }
 
-/* Main match display container */
 .match-info {
     display: flex;
     justify-content: space-between;
-    /* Ensure even spacing */
+
     align-items: center;
-    /* Align vertically in the center */
+
     background-color: #282828;
     margin-bottom: 15px;
     color: #fff;
@@ -442,12 +437,11 @@ button:hover {
     height: 90px;
 }
 
-/* Photo and rank overlay section */
 .match-photo-rank {
     width: 25%;
-    /* 1/4th of the total container width */
+
     height: 100%;
-    /* Ensure proper height */
+
     position: relative;
 }
 
@@ -465,47 +459,45 @@ button:hover {
     -webkit-mask-image: linear-gradient(to right, rgba(0, 0, 0, 1) 60%, rgba(0, 0, 0, 0) 100%);
 }
 
-/* Overlay for the rank on top of the image */
 .match-rank-overlay {
     position: absolute;
     top: 50%;
-    /* Vertically centered */
+
     left: 20%;
-    /* Horizontally centered */
+
     transform: translate(-50%, -50%);
     z-index: 1;
-    /* Ensure it's on top of the background */
+
     text-shadow: 2px 2px 4px rgba(0, 0, 0);
 }
 
 .rank-large {
     font-size: 3rem;
-    /* Larger size for the rank before '/' */
+
     color: #ffff00;
-    /* Yellow color */
+
     vertical-align: bottom;
-    /* Aligns with the smaller part */
+
 }
 
 .rank-small {
     font-size: 2.4rem;
-    /* Smaller size for the part after '/' */
+
     color: #ffffff;
-    /* White color */
+
     vertical-align: bottom;
-    /* Ensures both parts align at the bottom */
+
 }
 
 .first-place {
     border-left: 5px solid #ffff00;
-    /* Yellow border on the left */
+
 }
 
-/* Map name and game mode section */
 .match-map-mode {
     flex-direction: column;
     justify-content: space-around;
-    /* Space the map and mode vertically */
+
     text-align: left;
     padding-left: 10px;
 }
@@ -525,7 +517,7 @@ button:hover {
 .match-stats {
     display: grid;
     grid-template-columns: 100px 100px 100px 100px;
-    /* Ajuste os valores conforme necessário para obter o alinhamento desejado */
+
     align-items: center;
     justify-items: start;
     height: 100%;
@@ -561,7 +553,7 @@ button:hover {
     letter-spacing: 0.1rem;
     text-align: left;
     width: 100%;
-    /* Para garantir que eles ocupem o espaço total da célula */
+
 }
 
 .match-time {
@@ -572,42 +564,41 @@ button:hover {
     display: flex;
     justify-content: center;
     align-items: center;
-    /* Alinha ao centro verticalmente */
+
     position: fixed;
     top: 0;
     left: 0;
     width: 100vw;
     height: 100vh;
     background-color: rgba(0, 0, 0, 0.85);
-    /* Fundo escuro com leve transparência */
+
     z-index: 1000;
     padding: 20px;
     box-sizing: border-box;
-    /* Inclui padding no tamanho total */
+
 }
 
-/* Ajuste do conteúdo da modal */
 .modal-content-custom {
     background-color: #222;
     width: 100%;
     max-width: 1200px;
-    /* Tamanho máximo para a largura */
+
     border-radius: 8px;
-    /* Bordas arredondadas */
+
     padding: 20px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    /* Sombra suave */
+
     color: #E0E0E0;
-    /* Texto claro */
+
     display: flex;
     justify-content: space-between;
-    /* Espaçamento uniforme entre as divs */
+
     gap: 20px;
-    /* Espaço entre as divs */
+
     box-sizing: border-box;
-    /* Inclui padding no tamanho total */
+
     max-height: 90vh;
-    /* Limite a altura para não ultrapassar a tela */
+
     overflow: hidden;
 }
 
@@ -615,27 +606,26 @@ button:hover {
     display: flex;
     justify-content: space-between;
     height: 100%;
-    /* Garante que ocupe a altura total da modal */
+
 }
 
 .team-list-custom {
     width: 25%;
     background-color: #1d1d1d;
     overflow-y: auto;
-    /* Barra de rolagem para a lista de times */
+
     max-height: 80vh;
-    /* Altura máxima para a lista de times */
+
     scrollbar-color: #555 #333;
-    /* Cor da barra de rolagem */
+
     scrollbar-width: thin;
-    /* Largura fina da barra de rolagem */
+
     border: 1px solid #3a3a3a;
-    /* Borda fina cinza */
+
     border-radius: 5px;
-    /* Bordas levemente arredondadas */
+
 }
 
-/* WebKit browsers (Chrome, Safari, Edge) */
 .team-list-custom::-webkit-scrollbar {
     width: 10px;
 }
@@ -674,9 +664,9 @@ button:hover {
     top: 0;
     left: 0;
     width: 100%;
-    /* Add this */
+
     height: 100%;
-    /* Add this */
+
 }
 
 #mapCanvas {
@@ -717,14 +707,13 @@ button:hover {
     -webkit-appearance: none;
     appearance: none;
     background: #222;
-    border: 2px solid gray; /* Borda cinza */
+    border: 2px solid gray; 
     width: 15px;
     height: 15px;
     border-radius: 50%;
     cursor: pointer;
 }
 
-/* Muda a bolinha para vermelho ao passar o mouse sobre a progressBar */
 #progressBar:hover::-webkit-slider-thumb {
     background: gray;
 }
@@ -744,38 +733,35 @@ button:hover {
     top: 10px;
     left: 50%;
     transform: translateX(-50%);
-    /* Higher than canvases */
+
     color: white !important;
-    /* Ensure visibility */
+
     font-family: 'PantonNarrow', sans-serif;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
     z-index: 4;
 }
 
-/* Detalhes do time */
 .team-details-custom {
     flex: 1;
     background-color: #1d1d1d;
     padding: 20px;
     overflow-y: auto;
-    /* Barra de rolagem para a área de detalhes */
+
     max-height: 100%;
 }
 
-/* Estilo para a div de cada time */
 .team-custom {
     display: flex;
     justify-content: flex-start;
     align-items: center;
-    /* Alinha os elementos horizontalmente ao centro */
+
     padding-top: 5px;
-    /* Espaçamento vertical */
+
     padding-left: 10px;
     position: relative;
-    /* Necessário para o ::before funcionar corretamente */
+
 }
 
-/* Estilo para adicionar uma linha separadora acima de cada time */
 .team-custom:not(:first-child)::before {
     content: '';
     position: absolute;
@@ -787,7 +773,6 @@ button:hover {
     opacity: 0.5;
 }
 
-/* Estilo para o número do time */
 .team-number-custom {
     width: 25px;
     height: 25px;
@@ -803,20 +788,18 @@ button:hover {
     font-family: Universal-Knowledge;
 }
 
-/* Estilo para a lista de jogadores */
 .players-list-custom {
     display: flex;
     flex-direction: column;
-    /* Organiza os jogadores em coluna */
+
     text-align: left;
     color: white;
     font-size: 12px;
 }
 
-/* Estilo individual para cada nome de jogador */
 .players-list-custom div {
     margin-bottom: 5px;
-    /* Espaçamento entre os nomes dos jogadores */
+
 }
 
 .team-custom:hover {

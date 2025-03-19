@@ -1,27 +1,36 @@
+import { showModal } from './modal.js';
+import { translateMapName } from './utils.js'
+
 document.addEventListener('click', function (e) {
     if (e.target.closest('.arrow')) {
         const matchId = e.target.closest('.arrow').dataset.matchId;
-        
-        // Encontre os dados da partida correta com base no matchId
+
         const matchData = allMatches.find(match => match.data.id === matchId);
         window.globalMatchData = matchData;
 
-        // Abra a modal e passe os dados da partida específica
         if (matchData) {
             showModal(matchData);
         }
     }
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.w3-bar-item.w3-button.tablink').forEach(button => {
+        button.addEventListener('click', (event) => {
+            const tabName = button.getAttribute('data-tab');
+            openTab(event, tabName);
+        });
+    });
+});
+
 document.addEventListener('DOMContentLoaded', async function () {
     const seasonSelect = document.getElementById('season-select');
     const playerForm = document.getElementById('player-form');
     const playerStatsContainer = document.getElementById('player-stats');
     const playerNameDisplay = document.getElementById('player-name-display');
 
-    // Hide player stats container initially
     playerStatsContainer.style.display = 'none';
 
-    // Fetch seasons and populate the select dropdown
     try {
         const response = await fetch('/api/seasons');
         const seasons = await response.json();
@@ -45,7 +54,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         }).sort((a, b) => {
             const seasonA = parseInt(a.id.split('-').pop(), 10);
             const seasonB = parseInt(b.id.split('-').pop(), 10);
-            return seasonB - seasonA; // Ordena da maior para a menor
+            return seasonB - seasonA; 
         });
 
         let currentSeasonId = '';
@@ -73,41 +82,35 @@ document.addEventListener('DOMContentLoaded', async function () {
             seasonSelect.selectedIndex = 0;
         }
 
-        // Prevenir comportamento padrão do formulário
         playerForm.addEventListener('submit', async function (e) {
             e.preventDefault();
-        
+
             const playerName = document.getElementById('player-name').value;
             const seasonId = seasonSelect.value;
-        
+
             try {
                 const response = await fetch(`/api/player/${playerName}?season=${seasonId}`);
                 const data = await response.json();
-        
+
                 if (!data.stats) {
                     alert('No stats available for this player');
-                    console.error('No stats data received:', data); // Log data for debugging
+                    console.error('No stats data received:', data); 
                     return;
                 }
-        
-                // Torna visível a seção de estatísticas após carregar os dados do jogador
+
                 playerStatsContainer.style.display = 'block'; 
-        
-                // Salvar as estatísticas globalmente
+
                 window.fppStats = data.stats.fpp;
                 window.tppStats = data.stats.tpp;
-        
-                // Exibe o modo de jogo com mais partidas jogadas
+
                 displayStatsForModeWithMostRounds(window.fppStats, window.tppStats);
-        
-                // Exibe o nome do jogador
+
                 playerNameDisplay.textContent = playerName;
-        
-                // Carrega e exibe as últimas partidas
+
                 await fetchAndDisplayPlayerMatches(playerName);
             } catch (error) {
                 alert('Failed to load player stats.');
-                console.error('Error fetching player stats:', error); // Log the error
+                console.error('Error fetching player stats:', error); 
             }
         });
     } catch (error) {
@@ -115,225 +118,16 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 });
 
-function showModal(matchData) {
-    // Remove qualquer modal existente
-    const existingModal = document.querySelector('.modal');
-    if (existingModal) {
-        existingModal.remove();
-    }
-    
-    // Get telemetry URL from match data
-    const telemetryUrl = matchData.included.find(item => item.type === "asset").attributes.URL;
-
-    // Cria a janela modal
-    const modal = document.createElement('div');
-    modal.classList.add('modal-custom');
-
-    const modalContent = document.createElement('div');
-    modalContent.classList.add('modal-content-custom');
-
-    const modalContainer = document.createElement('div');
-    modalContainer.classList.add('modal-container-custom');
-
-    // Div para a lista de times
-    const teamList = document.createElement('div');
-    teamList.id = 'team-list-custom';
-    teamList.classList.add('team-list-custom');
-
-    // Div para o mapa
-    const viewport = document.createElement('div');
-    viewport.id = 'viewport';
-    viewport.setAttribute('data-map-width', '800000');
-    viewport.setAttribute('data-map-height', '800000');
-    viewport.setAttribute('data-canvas-scale', '0.001');
-    const replayDiv = document.createElement('div');
-    replayDiv.id = 'replayDiv';
-    replayDiv.appendChild(viewport);
-    const canvasContainer = document.createElement('div');
-    canvasContainer.id = 'canvasContainer';
-    viewport.appendChild(canvasContainer);
-    const mapCanvas = document.createElement('canvas');
-    mapCanvas.id = 'mapCanvas';
-    const drawCanvas = document.createElement('canvas');
-    drawCanvas.id = 'drawCanvas';
-    canvasContainer.appendChild(mapCanvas);
-    canvasContainer.appendChild(drawCanvas);
-    const progressBar = document.createElement('input');
-    progressBar.id = 'progressBar';
-    progressBar.type = 'range';
-    progressBar.min = '0';
-    progressBar.step = '1';
-    progressBar.value = '0';
-    const timer = document.createElement('div');
-    timer.id = 'timer';
-    viewport.appendChild(timer);
-
-    const controlsContainer = document.createElement('div');
-    controlsContainer.id = 'controlsConatiner';
-    controlsContainer.style.position = 'absolute';
-    controlsContainer.style.bottom = '-30px';
-    controlsContainer.style.width = '100%';
-    controlsContainer.style.display = 'flex';
-    controlsContainer.style.justifyContent = 'space-between';
-    controlsContainer.style.gap = '10px';
-
-    const playButton = document.createElement('button');
-    playButton.innerHTML = '▶';
-    playButton.style.background = 'rgba(85, 85, 85, 0)';
-    playButton.style.color = 'white';
-    playButton.style.border = 'none';
-    playButton.style.borderRadius = '4px';
-    playButton.style.cursor = 'pointer';
-    playButton.style.left = '10px';
-    window.globalPlayButton = playButton;
-
-    controlsContainer.appendChild(playButton);
-    controlsContainer.appendChild(progressBar);
-    viewport.appendChild(controlsContainer);
-
-    const script = document.createElement("script");
-    script.src = "replay2d.js";
-    script.dataset.telemetryUrl = telemetryUrl; // Pass telemetry URL via dataset
-    script.dataset.mapName = matchData.data.attributes.mapName; // Pass map name
-    script.onload = () => {
-        setTimeout(() => {
-            window.dispatchEvent(new Event('resize'));
-        }, 100);
-    };
-    document.head.appendChild(script);
-
-    // Div para os detalhes do time selecionado
-    const teamDetails = document.createElement('div');
-    teamDetails.id = 'team-details-custom';
-    teamDetails.classList.add('team-details-custom');
-
-    modalContainer.appendChild(teamList);
-    modalContainer.appendChild(viewport);
-    modalContainer.appendChild(teamDetails);
-
-    modalContent.appendChild(modalContainer);
-    modal.appendChild(modalContent);
-    document.body.appendChild(modal);
-
-    // Popula os times na div da esquerda
-    populateTeams(matchData, teamList);
-
-    // const mapName = matchData.data.attributes.mapName;
-    // updateMap(mapName);
-
-    // Fecha a modal ao clicar fora
-    modal.addEventListener('click', function (e) {
-        if (e.target === modal) {
-            modal.remove();
-        }
-    });
-}
-
-function populateTeams(matchData, teamList) {
-    // Limpa a lista de times
-    teamList.innerHTML = '';
-
-    // Filtra os rosters (times) no matchData
-    const rosters = matchData.included.filter(item => item.type === 'roster');
-    
-    // Para cada time (roster)
-    rosters.forEach((roster, index) => {
-        // Pega o número do time (rank ou teamNumber)
-        const teamNumber = roster.attributes.stats.rank || roster.attributes.stats.teamId;
-
-        let uniqueColor = generateUniqueColor(index);
-        roster.color = uniqueColor;
-
-        // Cria a div do time
-        const teamDiv = document.createElement('div');
-        teamDiv.classList.add('team-custom');
-        teamDiv.style.cursor = 'pointer'; // Cursor de clique
-
-        // Cria o elemento para o número do time
-        const teamNumberDiv = document.createElement('div');
-        teamNumberDiv.classList.add('team-number-custom');
-        teamNumberDiv.textContent = teamNumber;
-        teamNumberDiv.style.backgroundColor = uniqueColor;
-
-        // Cria o container para os jogadores
-        const playersDiv = document.createElement('div');
-        playersDiv.classList.add('players-list-custom');
-
-        // Adiciona os jogadores dentro da div de jogadores
-        roster.relationships.participants.data.forEach(participantRef => {
-            const participant = matchData.included.find(p => p.id === participantRef.id);
-            const playerDiv = document.createElement('div');
-            playerDiv.textContent = participant.attributes.stats.name;
-            playersDiv.appendChild(playerDiv);
-        });
-
-        // Adiciona o número do time e a lista de jogadores
-        teamDiv.appendChild(teamNumberDiv);
-        teamDiv.appendChild(playersDiv);
-
-        // Adiciona o time na lista de times
-        teamList.appendChild(teamDiv);
-
-        // Torna a div clicável para mostrar os detalhes dos jogadores
-        teamDiv.addEventListener('click', function() {
-            displayTeamDetails(roster, matchData);
-        });
-    });
-}
-
-function generateUniqueColor(index) {
-    const hue = (index * 137.5) % 360; // Gera uma cor diferente baseado no índice
-    return `hsl(${hue}, 70%, 50%, 90%)`; // Retorna uma cor em formato HSL
-}
-
-// Função para exibir os detalhes dos jogadores do time na div da direita
-function displayTeamDetails(roster, matchData) {
-    const teamDetailsDiv = document.getElementById('team-details-custom');
-    
-    // Limpa os detalhes atuais
-    teamDetailsDiv.innerHTML = '';
-
-    // Adiciona os detalhes de cada jogador
-    roster.relationships.participants.data.forEach(participantRef => {
-        const participant = matchData.included.find(p => p.id === participantRef.id);
-        
-        // Criar uma div para cada jogador com detalhes
-        const playerDetailDiv = document.createElement('div');
-        playerDetailDiv.classList.add('player-detail-custom');
-        playerDetailDiv.textContent = `Player: ${participant.attributes.stats.name} - Kills: ${participant.attributes.stats.kills}, Damage: ${participant.attributes.stats.damageDealt.toFixed(2)}`;
-        
-        // Adiciona os detalhes do jogador à div de detalhes do time
-        teamDetailsDiv.appendChild(playerDetailDiv);
-    });
-}
-
-// Função para atualizar a imagem do mapa
 function updateMap(mapName) {
-    const translatedMapName = translateMapName(mapName); // Traduz o nome do mapa
+    const translatedMapName = translateMapName(mapName); 
     const mapImage = document.getElementById('map-image-custom');
-    mapImage.src = `/images/${translatedMapName.toLowerCase()}map.png`; // Usa o nome traduzido
-    mapImage.alt = `${translatedMapName} map`; // Define o atributo alt
+    mapImage.src = `/images/${translatedMapName.toLowerCase()}map.png`; 
+    mapImage.alt = `${translatedMapName} map`; 
 }
 
-function translateMapName(mapName) {
-    const mapNames = {
-        'Erangel_Main': 'Erangel',
-        'Desert_Main': 'Miramar',
-        'Savage_Main': 'Sanhok',
-        'DihorOtok_Main': 'Vikendi',
-        'Summerland_Main': 'Karakin',
-        'Tiger_Main': 'Taego',
-        'Kiki_Main': 'Deston',
-        'Neon_Main': 'Rondo',
-        'Baltic_Main': 'Erangel'
-    };
-    
-    return mapNames[mapName] || mapName; // Return translated name or fallback to original
-}
-
-let allMatches = [];  // This will hold all the fetched matches
-let currentIndex = 0;  // This will keep track of how many matches have been displayed so far
-const matchesPerPage = 20;  // Number of matches to load at once
+let allMatches = [];  
+let currentIndex = 0;  
+const matchesPerPage = 20;  
 
 async function fetchAndDisplayPlayerMatches(playerName) {
     try {
@@ -347,9 +141,8 @@ async function fetchAndDisplayPlayerMatches(playerName) {
         allMatches = data.matches;
         currentIndex = 0;
 
-        // Exibir a div de Last Matches quando as partidas forem carregadas
         const matchesContainer = document.getElementById('matches-container');
-        matchesContainer.style.display = 'block';  // Mostra a div das partidas
+        matchesContainer.style.display = 'block';  
 
         displayNextMatches(playerName);
         setupLoadMoreButton(playerName);
@@ -366,8 +159,8 @@ function displayNextMatches(playerName) {
     }
 
     const matchListContainer = document.getElementById('match-list');
-    const nextMatches = allMatches.slice(currentIndex, currentIndex + matchesPerPage);  // Pega as próximas 20 partidas
-    currentIndex += nextMatches.length;  // Atualiza currentIndex
+    const nextMatches = allMatches.slice(currentIndex, currentIndex + matchesPerPage);  
+    currentIndex += nextMatches.length;  
 
     nextMatches.forEach((match) => {
 
@@ -375,28 +168,23 @@ function displayNextMatches(playerName) {
         const gameMode = match.data.attributes.gameMode.toUpperCase().replace('-', ' ');
         const mapName = match.data.attributes.mapName;
 
-        // Traduza o nome do mapa para a URL da imagem
         const translatedMapName = translateMapName(mapName);
 
-        // Determine se a partida é Ranked ou Normal
         const matchCategory = matchType === "competitive" ? "Ranked" : "Normal";
 
-        // Conta o número de rosters (times) na partida
         const totalRosters = match.data.relationships.rosters.data.length;
 
-        // Encontre o participante que corresponde ao nome do jogador
         const participants = match.included.filter(item => item.type === 'participant');
         const participant = participants.find(p => p.attributes?.stats?.name === playerName);
 
         if (participant) {
-            // Criar o elemento de exibição de partida somente se o participante for encontrado
+
             const matchItem = document.createElement('div');
             matchItem.classList.add('match-info');
-        
+
             const { kills, assists, damageDealt, winPlace, timeSurvived } = participant.attributes.stats;
             const firstPlaceClass = winPlace === 1 ? 'first-place' : '';
-        
-            // Inserir o HTML com os dados da partida
+
             matchItem.innerHTML = `
             <div class="match-photo-rank">
                 <div class="match-background ${firstPlaceClass}" style="background-image: url('/images/${translatedMapName.toLowerCase()}.jpg');">
@@ -422,8 +210,7 @@ function displayNextMatches(playerName) {
                 </div>
             </div>
             `;
-        
-            // Adiciona o elemento ao container de partidas
+
             matchListContainer.appendChild(matchItem);
         } else {
             return;
@@ -436,7 +223,7 @@ function displayNextMatches(playerName) {
 }
 
 function setupLoadMoreButton(playerName) {
-    // Create a Load More button if it doesn't exist
+
     let loadMoreButton = document.getElementById('load-more');
     if (!loadMoreButton) {
         loadMoreButton = document.createElement('button');
@@ -447,36 +234,29 @@ function setupLoadMoreButton(playerName) {
         loadMoreButton.style.padding = '10px';
         loadMoreButton.style.cursor = 'pointer';
 
-        // Add the button to the DOM
         const matchListContainer = document.getElementById('matches-container');
         matchListContainer.appendChild(loadMoreButton);
 
-        // Add click event listener
-        loadMoreButton.addEventListener('click', () => displayNextMatches(playerName));  // Pass playerName to displayNextMatches
+        loadMoreButton.addEventListener('click', () => displayNextMatches(playerName));  
     }
 }
 
-// Helper function to format the time survived in minutes:seconds
 function formatTime(timeInSeconds) {
     const minutes = Math.floor(timeInSeconds / 60);
     const seconds = timeInSeconds % 60;
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
 }
 
-
 function openTab(evt, tabName) {
     var i, tablinks;
 
-    // Remove a classe "active" de todas as abas
     tablinks = document.getElementsByClassName("tablink");
     for (i = 0; i < tablinks.length; i++) {
         tablinks[i].classList.remove("w3-gray", "active");
     }
 
-    // Adiciona a classe "active" à aba clicada
     evt.currentTarget.classList.add("w3-gray", "active");
 
-    // Chame a função updateStats sempre que uma aba for clicada
     const fppStats = window.fppStats || {};
     const tppStats = window.tppStats || {};
 
@@ -486,21 +266,18 @@ function openTab(evt, tabName) {
 function getGameModeWithMostRounds(fppStats, tppStats) {
     const modes = ['solo', 'duo', 'squad'];
 
-    // Inicializa com valores de rounds jogados e seu modo correspondente
     let maxRounds = 0;
-    let selectedMode = 'squadFpp'; // Default caso não tenha nenhum modo com partidas
+    let selectedMode = 'squadFpp'; 
 
     modes.forEach(mode => {
         const fppRounds = fppStats[mode]?.roundsPlayed || 0;
         const tppRounds = tppStats[mode]?.roundsPlayed || 0;
 
-        // Verifica se o modo FPP tem mais rounds jogados
         if (fppRounds > maxRounds) {
             maxRounds = fppRounds;
             selectedMode = `${mode}Fpp`;
         }
 
-        // Verifica se o modo TPP tem mais rounds jogados
         if (tppRounds > maxRounds) {
             maxRounds = tppRounds;
             selectedMode = `${mode}Tpp`;
@@ -513,10 +290,9 @@ function getGameModeWithMostRounds(fppStats, tppStats) {
 function displayStatsForModeWithMostRounds(fppStats, tppStats) {
     const gameMode = getGameModeWithMostRounds(fppStats, tppStats);
 
-    // Simula um clique no botão correspondente ao gameMode com mais rounds
-    const button = document.querySelector(`.tablink[onclick*="${gameMode}"]`);
+    const button = document.querySelector(`.tablink[data-tab="${gameMode}"]`);
     if (button) {
-        button.click(); // Simula o clique para abrir a aba automaticamente
+        button.click(); 
     }
 }
 
@@ -533,7 +309,7 @@ function updateStats(fppStats, tppStats) {
     const selectedStats = stats && stats[mode] ? stats[mode] : null;
 
     const statsContainer = document.getElementById('stats-container');
-    statsContainer.innerHTML = ''; // Limpa todas as estatísticas anteriores
+    statsContainer.innerHTML = ''; 
 
     if (!selectedStats || !selectedStats.roundsPlayed || selectedStats.roundsPlayed === 0) {
         const noDataMessage = document.createElement('p');

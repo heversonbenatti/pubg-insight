@@ -8,17 +8,14 @@ const app = express();
 const API_KEY = process.env.API_KEY;
 const BASE_URL = 'https://api.pubg.com/shards/steam';
 
-// Serve static files from the 'public' folder
 app.use(express.static('public'));
 
-// Path to save seasons.json file
 const seasonsFilePath = path.join(__dirname, 'public', 'jsons', 'seasons.json');
 
-// API to fetch and cache seasons
 app.get('/api/seasons', async (req, res) => {
-    // Check if seasons.json exists
+
     if (fs.existsSync(seasonsFilePath)) {
-        // Read cached seasons.json
+
         fs.readFile(seasonsFilePath, 'utf8', (err, data) => {
             if (err) {
                 console.error('Error reading seasons.json:', err);
@@ -27,7 +24,7 @@ app.get('/api/seasons', async (req, res) => {
             res.json(JSON.parse(data));
         });
     } else {
-        // Fetch from API and save to seasons.json
+
         try {
             const response = await axios.get(`${BASE_URL}/seasons`, {
                 headers: {
@@ -36,14 +33,12 @@ app.get('/api/seasons', async (req, res) => {
                 }
             });
 
-            // Write to seasons.json
             fs.writeFile(seasonsFilePath, JSON.stringify(response.data.data), 'utf8', (err) => {
                 if (err) {
                     console.error('Error writing seasons.json:', err);
                 }
             });
 
-            // Respond with API data
             res.json(response.data.data);
         } catch (error) {
             console.error('Error fetching seasons from API:', error);
@@ -53,7 +48,7 @@ app.get('/api/seasons', async (req, res) => {
 });
 
 const playerStatsFilePath = (playerName) => path.join(__dirname, 'public', 'jsons', `${playerName}_stats.json`);
-// API to get player stats for a specific season
+
 app.get('/api/player/:playerName', async (req, res) => {
     const { playerName } = req.params;
     const { season } = req.query;
@@ -61,7 +56,7 @@ app.get('/api/player/:playerName', async (req, res) => {
     const playerFile = playerStatsFilePath(playerName);
 
     if (fs.existsSync(playerFile)) {
-        // Read cached player stats
+
         fs.readFile(playerFile, 'utf8', (err, data) => {
             if (err) {
                 console.error(`Error reading ${playerName}_stats.json:`, err);
@@ -71,7 +66,7 @@ app.get('/api/player/:playerName', async (req, res) => {
         });
     } else {
         try {
-            // Fetch player ID
+
             const playerResponse = await axios.get(`${BASE_URL}/players?filter[playerNames]=${playerName}`, {
                 headers: {
                     'Authorization': `Bearer ${API_KEY}`,
@@ -86,7 +81,6 @@ app.get('/api/player/:playerName', async (req, res) => {
 
             const playerId = playerResponse.data.data[0].id;
 
-            // Fetch season stats for player
             const seasonStatsResponse = await axios.get(`${BASE_URL}/players/${playerId}/seasons/${season}`, {
                 headers: {
                     'Authorization': `Bearer ${API_KEY}`,
@@ -109,7 +103,6 @@ app.get('/api/player/:playerName', async (req, res) => {
                 }
             };
 
-            // Write player stats to file
             fs.writeFile(playerFile, JSON.stringify({ player: { name: playerName }, stats: playerStats }), 'utf8', (err) => {
                 if (err) {
                     console.error(`Error writing ${playerName}_stats.json:`, err);
@@ -124,7 +117,6 @@ app.get('/api/player/:playerName', async (req, res) => {
     }
 });
 
-// Função para ler arquivos de cache com Promise
 function readCacheFile(filePath) {
     return new Promise((resolve, reject) => {
         fs.readFile(filePath, 'utf8', (err, data) => {
@@ -141,7 +133,6 @@ function readCacheFile(filePath) {
     });
 }
 
-// Função para gravar arquivos de cache com Promise
 function writeCacheFile(filePath, data) {
     return new Promise((resolve, reject) => {
         fs.writeFile(filePath, JSON.stringify(data), 'utf8', (err) => {
@@ -153,26 +144,23 @@ function writeCacheFile(filePath, data) {
     });
 }
 
-// Caminho para salvar as partidas no cache
 const playerMatchesFilePath = (playerName) => path.join(__dirname, 'public', 'jsons', `${playerName}_matches.json`);
 
 app.get('/api/player/:playerName/matches', async (req, res) => {
     const { playerName } = req.params;
     const matchesFile = playerMatchesFilePath(playerName);
 
-    // Verificar se o arquivo de cache existe
     if (fs.existsSync(matchesFile)) {
         try {
-            // Ler o arquivo de cache
+
             const cachedData = await readCacheFile(matchesFile);
-            return res.json(cachedData);  // Retornar o cache se encontrado
+            return res.json(cachedData);  
         } catch (error) {
             console.error(`Erro ao ler o cache para ${playerName}:`, error.message);
             return res.status(500).json({ error: 'Erro ao ler o cache' });
         }
     }
 
-    // Se o cache não existir, buscar os dados da API externa
     try {
         const playerResponse = await axios.get(`${BASE_URL}/players?filter[playerNames]=${playerName}`, {
             headers: {
@@ -183,7 +171,6 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
 
         const matchesData = playerResponse.data.data[0].relationships.matches.data;
 
-        // Buscar os detalhes das partidas
         const matchDetails = await Promise.all(matchesData.map(async match => {
             try {
                 const matchId = match.id;
@@ -196,7 +183,7 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
                 return matchResponse.data;
             } catch (error) {
                 console.error(`Erro ao buscar a partida ${match.id}:`, error.message);
-                return null;  // Retornar null se a partida falhar
+                return null;  
             }
         }));
 
@@ -206,10 +193,8 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
             throw new Error('Nenhuma partida encontrada');
         }
 
-        // Retornar os dados imediatamente ao cliente (frontend)
         res.json({ matches: validMatches });
 
-        // Salvar os detalhes da partida no cache de forma assíncrona, sem bloquear o frontend
         writeCacheFile(matchesFile, { matches: validMatches })
             .then(() => console.log(`Cache salvo para o jogador ${playerName}`))
             .catch((error) => console.error(`Erro ao salvar o cache para ${playerName}:`, error.message));
