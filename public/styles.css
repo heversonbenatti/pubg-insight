@@ -424,6 +424,7 @@ button:hover {
 }
 
 .match-info {
+    cursor: pointer;
     display: flex;
     justify-content: space-between;
 
@@ -573,57 +574,44 @@ button:hover {
     background-color: rgba(0, 0, 0, 0.85);
 
     z-index: 1000;
-    padding: 20px;
+    padding: 10px;
     box-sizing: border-box;
 
 }
 
 .modal-content-custom {
     background-color: #222;
-    width: 100%;
-    max-width: 1200px;
-
+    width: 95vw;
+    max-width: 1600px;
+    height: calc(100vh - 20px);
     border-radius: 8px;
-
-    padding: 20px;
+    padding: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-
     color: #E0E0E0;
-
     display: flex;
-    justify-content: space-between;
-
-    gap: 20px;
-
     box-sizing: border-box;
-
-    max-height: 90vh;
-
     overflow: hidden;
 }
 
 .modal-container-custom {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
+    align-items: stretch;
+    width: 100%;
     height: 100%;
-
+    gap: 0;
 }
 
 .team-list-custom {
-    width: 25%;
+    width: 160px;
+    flex-shrink: 0;
     background-color: #1d1d1d;
     overflow-y: auto;
-
-    max-height: 80vh;
-
+    height: 100%;
     scrollbar-color: #555 #333;
-
     scrollbar-width: thin;
-
     border: 1px solid #3a3a3a;
-
     border-radius: 5px;
-
 }
 
 .team-list-custom::-webkit-scrollbar {
@@ -650,13 +638,14 @@ button:hover {
 }
 
 #viewport {
-    width: 600px;
-    height: 600px;
-    max-width: 100%;
     aspect-ratio: 1;
+    height: 100%;
+    width: auto;
+    min-height: 0;
     position: relative;
     background-color: #333;
     z-index: 1;
+    flex-shrink: 1;
 }
 
 #canvasContainer {
@@ -688,19 +677,15 @@ button:hover {
 }
 
 #progressBar {
-    position: absolute;
-    left: 50px;
-    top: 10px;;
-    width: 90%;
-    height: 10%;
+    flex: 1;
     pointer-events: all;
-    margin-top: 20px;
-    z-index: 3;
     -webkit-appearance: none;
     appearance: none;
     background: #555;
     border-radius: 3px;
     outline: none;
+    height: 6px;
+    cursor: pointer;
 }
 
 #progressBar::-webkit-slider-thumb {
@@ -718,14 +703,34 @@ button:hover {
     background: gray;
 }
 
-#viewport button {
+#controlsConatiner button {
     z-index: 5;
     position: relative;
 }
 
-#viewport input[type="range"] {
-    flex-grow: 1;
+#controlsConatiner input[type="range"] {
     margin: 0;
+}
+
+#speedSlider {
+    -webkit-appearance: none;
+    appearance: none;
+    background: #555;
+    border-radius: 3px;
+    outline: none;
+    height: 6px;
+    cursor: pointer;
+}
+
+#speedSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    background: #ccc;
+    border: 2px solid #888;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    cursor: pointer;
 }
 
 #timer {
@@ -742,12 +747,7 @@ button:hover {
 }
 
 .team-details-custom {
-    flex: 1;
-    background-color: #1d1d1d;
-    padding: 20px;
-    overflow-y: auto;
-
-    max-height: 100%;
+    display: none;
 }
 
 .team-custom {

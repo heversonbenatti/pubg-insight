@@ -1,25 +1,18 @@
 import { showModal } from './modal.js';
-import { translateMapName } from './utils.js'
+import { translateMapName } from './utils.js';
 
 document.addEventListener('click', function (e) {
-    if (e.target.closest('.arrow')) {
-        const matchId = e.target.closest('.arrow').dataset.matchId;
-
+    if (e.target.closest('.match-info')) {
+        const matchId = e.target.closest('.match-info').querySelector('.arrow').dataset.matchId;
         const matchData = allMatches.find(match => match.data.id === matchId);
         window.globalMatchData = matchData;
-
-        if (matchData) {
-            showModal(matchData);
-        }
+        if (matchData) showModal(matchData);
     }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.w3-bar-item.w3-button.tablink').forEach(button => {
-        button.addEventListener('click', (event) => {
-            const tabName = button.getAttribute('data-tab');
-            openTab(event, tabName);
-        });
+        button.addEventListener('click', (event) => openTab(event, button.getAttribute('data-tab')));
     });
 });
 
@@ -41,46 +34,27 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
 
         let currentSeasonNumber = null;
-
         const pcSeasons = seasons.filter(season => {
             if (season.id.includes('pc') && !season.id.includes('console')) {
-                const seasonNumber = parseInt(season.id.split('-').pop(), 10);
-                if (season.attributes.isCurrentSeason) {
-                    currentSeasonNumber = seasonNumber;
-                }
+                const n = parseInt(season.id.split('-').pop(), 10);
+                if (season.attributes.isCurrentSeason) currentSeasonNumber = n;
                 return true;
             }
             return false;
-        }).sort((a, b) => {
-            const seasonA = parseInt(a.id.split('-').pop(), 10);
-            const seasonB = parseInt(b.id.split('-').pop(), 10);
-            return seasonB - seasonA; 
-        });
+        }).sort((a, b) => parseInt(b.id.split('-').pop(), 10) - parseInt(a.id.split('-').pop(), 10));
 
         let currentSeasonId = '';
-
         pcSeasons.forEach(season => {
-            const seasonNumber = parseInt(season.id.split('-').pop(), 10);
-
-            if (currentSeasonNumber && seasonNumber > currentSeasonNumber) {
-                return;
-            }
-
+            const n = parseInt(season.id.split('-').pop(), 10);
+            if (currentSeasonNumber && n > currentSeasonNumber) return;
             const option = document.createElement('option');
             option.value = season.id;
-            option.textContent = `Season ${seasonNumber}`;
-
-            if (season.attributes.isCurrentSeason) {
-                currentSeasonId = season.id;
-                option.selected = true;
-            }
-
+            option.textContent = `Season ${n}`;
+            if (season.attributes.isCurrentSeason) { currentSeasonId = season.id; option.selected = true; }
             seasonSelect.appendChild(option);
         });
 
-        if (!currentSeasonId && pcSeasons.length > 0) {
-            seasonSelect.selectedIndex = 0;
-        }
+        if (!currentSeasonId && pcSeasons.length > 0) seasonSelect.selectedIndex = 0;
 
         playerForm.addEventListener('submit', async function (e) {
             e.preventDefault();
@@ -88,29 +62,27 @@ document.addEventListener('DOMContentLoaded', async function () {
             const playerName = document.getElementById('player-name').value;
             const seasonId = seasonSelect.value;
 
+            playerStatsContainer.style.display = 'none';
+            document.getElementById('stats-container').innerHTML = '';
+            document.getElementById('match-list').innerHTML = '<h2>Last Matches</h2>';
+            document.getElementById('matches-container').style.display = 'none';
+            const oldLoadMore = document.getElementById('load-more');
+            if (oldLoadMore) oldLoadMore.remove();
+            allMatches = [];
+            currentIndex = 0;
+
             try {
                 const response = await fetch(`/api/player/${playerName}?season=${seasonId}`);
                 const data = await response.json();
-
-                if (!data.stats) {
-                    alert('No stats available for this player');
-                    console.error('No stats data received:', data); 
-                    return;
-                }
-
-                playerStatsContainer.style.display = 'block'; 
-
+                if (!data.stats) { alert('No stats available for this player'); return; }
+                playerStatsContainer.style.display = 'block';
                 window.fppStats = data.stats.fpp;
                 window.tppStats = data.stats.tpp;
-
                 displayStatsForModeWithMostRounds(window.fppStats, window.tppStats);
-
                 playerNameDisplay.textContent = playerName;
-
                 await fetchAndDisplayPlayerMatches(playerName);
             } catch (error) {
                 alert('Failed to load player stats.');
-                console.error('Error fetching player stats:', error); 
             }
         });
     } catch (error) {
@@ -118,74 +90,46 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 });
 
-function updateMap(mapName) {
-    const translatedMapName = translateMapName(mapName); 
-    const mapImage = document.getElementById('map-image-custom');
-    mapImage.src = `/images/${translatedMapName.toLowerCase()}map.png`; 
-    mapImage.alt = `${translatedMapName} map`; 
-}
-
-let allMatches = [];  
-let currentIndex = 0;  
-const matchesPerPage = 20;  
+let allMatches = [];
+let currentIndex = 0;
+const matchesPerPage = 20;
 
 async function fetchAndDisplayPlayerMatches(playerName) {
     try {
         const response = await fetch(`/api/player/${playerName}/matches`);
         const data = await response.json();
-
-        if (!data.matches) {
-            throw new Error('No matches found');
-        }
-
+        if (!data.matches) throw new Error('No matches found');
         allMatches = data.matches;
         currentIndex = 0;
-
-        const matchesContainer = document.getElementById('matches-container');
-        matchesContainer.style.display = 'block';  
-
+        document.getElementById('matches-container').style.display = 'block';
         displayNextMatches(playerName);
         setupLoadMoreButton(playerName);
     } catch (error) {
-        console.error('Error fetching matches:', error);
         alert('Failed to load matches');
     }
 }
 
 function displayNextMatches(playerName) {
-    if (!allMatches || allMatches.length === 0) {
-        alert('No matches to display');
-        return;
-    }
+    if (!allMatches || allMatches.length === 0) { alert('No matches to display'); return; }
 
     const matchListContainer = document.getElementById('match-list');
-    const nextMatches = allMatches.slice(currentIndex, currentIndex + matchesPerPage);  
-    currentIndex += nextMatches.length;  
+    const nextMatches = allMatches.slice(currentIndex, currentIndex + matchesPerPage);
+    currentIndex += nextMatches.length;
 
-    nextMatches.forEach((match) => {
-
+    nextMatches.forEach(match => {
         const matchType = match.data.attributes.matchType;
         const gameMode = match.data.attributes.gameMode.toUpperCase().replace('-', ' ');
-        const mapName = match.data.attributes.mapName;
-
-        const translatedMapName = translateMapName(mapName);
-
-        const matchCategory = matchType === "competitive" ? "Ranked" : "Normal";
-
+        const translatedMapName = translateMapName(match.data.attributes.mapName);
+        const matchCategory = matchType === 'competitive' ? 'Ranked' : 'Normal';
         const totalRosters = match.data.relationships.rosters.data.length;
+        const participant = match.included.filter(i => i.type === 'participant').find(p => p.attributes?.stats?.name === playerName);
+        if (!participant) return;
 
-        const participants = match.included.filter(item => item.type === 'participant');
-        const participant = participants.find(p => p.attributes?.stats?.name === playerName);
-
-        if (participant) {
-
-            const matchItem = document.createElement('div');
-            matchItem.classList.add('match-info');
-
-            const { kills, assists, damageDealt, winPlace, timeSurvived } = participant.attributes.stats;
-            const firstPlaceClass = winPlace === 1 ? 'first-place' : '';
-
-            matchItem.innerHTML = `
+        const { kills, assists, damageDealt, winPlace, timeSurvived } = participant.attributes.stats;
+        const firstPlaceClass = winPlace === 1 ? 'first-place' : '';
+        const matchItem = document.createElement('div');
+        matchItem.classList.add('match-info');
+        matchItem.innerHTML = `
             <div class="match-photo-rank">
                 <div class="match-background ${firstPlaceClass}" style="background-image: url('/images/${translatedMapName.toLowerCase()}.jpg');">
                     <div class="match-rank-overlay">
@@ -208,36 +152,22 @@ function displayNextMatches(playerName) {
                     <div class="arrow-top"></div>
                     <div class="arrow-bottom"></div>
                 </div>
-            </div>
-            `;
-
-            matchListContainer.appendChild(matchItem);
-        } else {
-            return;
-        }
+            </div>`;
+        matchListContainer.appendChild(matchItem);
     });
 
-    if (currentIndex >= allMatches.length) {
-        document.getElementById('load-more').style.display = 'none';
-    }
+    if (currentIndex >= allMatches.length) document.getElementById('load-more').style.display = 'none';
 }
 
 function setupLoadMoreButton(playerName) {
-
-    let loadMoreButton = document.getElementById('load-more');
-    if (!loadMoreButton) {
-        loadMoreButton = document.createElement('button');
-        loadMoreButton.id = 'load-more';
-        loadMoreButton.textContent = 'Load More';
-        loadMoreButton.style.display = 'block';
-        loadMoreButton.style.margin = '20px auto';
-        loadMoreButton.style.padding = '10px';
-        loadMoreButton.style.cursor = 'pointer';
-
-        const matchListContainer = document.getElementById('matches-container');
-        matchListContainer.appendChild(loadMoreButton);
-
-        loadMoreButton.addEventListener('click', () => displayNextMatches(playerName));  
+    let btn = document.getElementById('load-more');
+    if (!btn) {
+        btn = document.createElement('button');
+        btn.id = 'load-more';
+        btn.textContent = 'Load More';
+        btn.style.cssText = 'display:block;margin:20px auto;padding:10px;cursor:pointer;';
+        document.getElementById('matches-container').appendChild(btn);
+        btn.addEventListener('click', () => displayNextMatches(playerName));
     }
 }
 
@@ -248,135 +178,76 @@ function formatTime(timeInSeconds) {
 }
 
 function openTab(evt, tabName) {
-    var i, tablinks;
-
-    tablinks = document.getElementsByClassName("tablink");
-    for (i = 0; i < tablinks.length; i++) {
-        tablinks[i].classList.remove("w3-gray", "active");
-    }
-
-    evt.currentTarget.classList.add("w3-gray", "active");
-
-    const fppStats = window.fppStats || {};
-    const tppStats = window.tppStats || {};
-
-    updateStats(fppStats, tppStats);
+    document.getElementsByClassName('tablink').forEach
+    ? [...document.getElementsByClassName('tablink')].forEach(t => t.classList.remove('w3-gray', 'active'))
+    : null;
+    Array.from(document.getElementsByClassName('tablink')).forEach(t => t.classList.remove('w3-gray', 'active'));
+    evt.currentTarget.classList.add('w3-gray', 'active');
+    updateStats(window.fppStats || {}, window.tppStats || {});
 }
 
 function getGameModeWithMostRounds(fppStats, tppStats) {
-    const modes = ['solo', 'duo', 'squad'];
-
-    let maxRounds = 0;
-    let selectedMode = 'squadFpp'; 
-
-    modes.forEach(mode => {
-        const fppRounds = fppStats[mode]?.roundsPlayed || 0;
-        const tppRounds = tppStats[mode]?.roundsPlayed || 0;
-
-        if (fppRounds > maxRounds) {
-            maxRounds = fppRounds;
-            selectedMode = `${mode}Fpp`;
-        }
-
-        if (tppRounds > maxRounds) {
-            maxRounds = tppRounds;
-            selectedMode = `${mode}Tpp`;
-        }
+    let maxRounds = 0, selectedMode = 'squadFpp';
+    ['solo', 'duo', 'squad'].forEach(mode => {
+        const fpp = fppStats[mode]?.roundsPlayed || 0;
+        const tpp = tppStats[mode]?.roundsPlayed || 0;
+        if (fpp > maxRounds) { maxRounds = fpp; selectedMode = `${mode}Fpp`; }
+        if (tpp > maxRounds) { maxRounds = tpp; selectedMode = `${mode}Tpp`; }
     });
-
     return selectedMode;
 }
 
 function displayStatsForModeWithMostRounds(fppStats, tppStats) {
     const gameMode = getGameModeWithMostRounds(fppStats, tppStats);
-
-    const button = document.querySelector(`.tablink[data-tab="${gameMode}"]`);
-    if (button) {
-        button.click(); 
-    }
+    document.querySelector(`.tablink[data-tab="${gameMode}"]`)?.click();
 }
 
 function updateStats(fppStats, tppStats) {
     const currentTab = document.querySelector('.tablink.active')?.textContent;
-
-    if (!currentTab) {
-        return;
-    }
+    if (!currentTab) return;
 
     const stats = currentTab.includes('FPP') ? fppStats : tppStats;
     const mode = currentTab.includes('SOLO') ? 'solo' : currentTab.includes('DUO') ? 'duo' : 'squad';
-
-    const selectedStats = stats && stats[mode] ? stats[mode] : null;
+    const selectedStats = stats?.[mode] || null;
 
     const statsContainer = document.getElementById('stats-container');
-    statsContainer.innerHTML = ''; 
+    statsContainer.innerHTML = '';
 
-    if (!selectedStats || !selectedStats.roundsPlayed || selectedStats.roundsPlayed === 0) {
-        const noDataMessage = document.createElement('p');
-        noDataMessage.textContent = 'No matches found';
-        noDataMessage.classList.add('no-data-message');
-        statsContainer.appendChild(noDataMessage);
+    if (!selectedStats?.roundsPlayed) {
+        const msg = document.createElement('p');
+        msg.textContent = 'No matches found';
+        msg.classList.add('no-data-message');
+        statsContainer.appendChild(msg);
         return;
     }
 
-    function calculateStats(statObj) {
-        const totalGames = statObj.roundsPlayed || 1;
-        const wins = statObj.wins || 0;
-        const kills = (statObj.kills || 0) - (statObj.teamKills || 0);
-        const deaths = statObj.losses;
-        const top10s = statObj.top10s || statObj.top10 || 0;
-        const damageDealt = Math.round(statObj.damageDealt) || 0;
-        const assists = statObj.assists || 0;
-        const headshotKills = statObj.headshotKills || 0;
-        const mostKills = statObj.roundMostKills || 0;
-        const longestKill = statObj.longestKill ? Math.round(statObj.longestKill) + 'm' : 0;
+    const total = selectedStats.roundsPlayed || 1;
+    const kills = (selectedStats.kills || 0) - (selectedStats.teamKills || 0);
+    const deaths = selectedStats.losses;
+    const top10s = selectedStats.top10s || selectedStats.top10 || 0;
+    const assists = selectedStats.assists || 0;
+    const headshotKills = selectedStats.headshotKills || 0;
+    const damageDealt = Math.round(selectedStats.damageDealt) || 0;
 
-        const kdRatio = kills && deaths ? (kills / deaths).toFixed(2) : 0;
-        const kda = (kills + assists) && deaths ? ((kills + assists) / deaths).toFixed(2) : 0;
-        const winPercentage = totalGames > 0 ? ((wins / totalGames) * 100).toFixed(2) + '%' : 0;
-        const top10Percentage = totalGames > 0 ? ((top10s / totalGames) * 100).toFixed(2) + '%' : 0;
-        const avgDamage = damageDealt ? Math.round((damageDealt / totalGames)) : 0;
-        const headshotPercentage = kills ? ((headshotKills / kills) * 100).toFixed(2) + '%' : 0;
+    const stats_ = {
+        'K/D': kills && deaths ? (kills / deaths).toFixed(2) : 0,
+        'Avg. Damage': damageDealt ? Math.round(damageDealt / total) : 0,
+        'Assist': assists,
+        'Games': total,
+        'Win %': ((( selectedStats.wins || 0) / total) * 100).toFixed(2) + '%',
+        'Wins': selectedStats.wins || 0,
+        'KDA': (kills + assists) && deaths ? ((kills + assists) / deaths).toFixed(2) : 0,
+        'Headshot %': kills ? ((headshotKills / kills) * 100).toFixed(2) + '%' : 0,
+        'Most Kills': selectedStats.roundMostKills || 0,
+        'Longest Kill': selectedStats.longestKill ? Math.round(selectedStats.longestKill) + 'm' : 0,
+        'Top 10 %': ((top10s / total) * 100).toFixed(2) + '%',
+        'Top 10': top10s,
+    };
 
-        return {
-            kdRatio,
-            winPercentage,
-            top10Percentage,
-            avgDamage,
-            kda,
-            headshotPercentage,
-            mostKills,
-            longestKill
-        };
-    }
-
-    const statsToDisplay = calculateStats(selectedStats);
-
-    function createStatElement(title, value) {
-        const statItem = document.createElement('div');
-        statItem.classList.add('stat-item');
-
-        const statTitle = document.createElement('h2');
-        statTitle.textContent = title;
-        statItem.appendChild(statTitle);
-
-        const statValue = document.createElement('p');
-        statValue.textContent = value;
-        statItem.appendChild(statValue);
-
-        statsContainer.appendChild(statItem);
-    }
-
-    createStatElement('K/D', statsToDisplay.kdRatio);
-    createStatElement('Avg. Damage', statsToDisplay.avgDamage);
-    createStatElement('Assist', selectedStats.assists || 0);
-    createStatElement('Games', selectedStats.roundsPlayed || 0);
-    createStatElement('Win %', statsToDisplay.winPercentage);
-    createStatElement('Wins', selectedStats.wins || 0);
-    createStatElement('KDA', statsToDisplay.kda);
-    createStatElement('Headshot %', statsToDisplay.headshotPercentage);
-    createStatElement('Most Kills', statsToDisplay.mostKills);
-    createStatElement('Longest Kill', statsToDisplay.longestKill);
-    createStatElement('Top 10 %', statsToDisplay.top10Percentage);
-    createStatElement('Top 10', selectedStats.top10s || selectedStats.top10 || 0);
+    Object.entries(stats_).forEach(([title, value]) => {
+        const item = document.createElement('div');
+        item.classList.add('stat-item');
+        item.innerHTML = `<h2>${title}</h2><p>${value}</p>`;
+        statsContainer.appendChild(item);
+    });
 }

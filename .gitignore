@@ -1,4 +1,4 @@
 .env
 node_modules/
 /public/jsons/
-.codebuddy/
+/public/api-assets-master/
