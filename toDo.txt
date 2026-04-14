@@ -1,0 +1,4 @@
+Caching para evitar chamadas desnecessárias e repetidas na API.
+Implementar função de expandir partidas para mostrar mais detalhes.
+Responsividade para mobile.
+Implementar outras plataformas na busca (PSN, XBOX, etc...).

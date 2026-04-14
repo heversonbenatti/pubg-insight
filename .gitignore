@@ -1,2 +1,4 @@
 .env
 node_modules/
+/public/jsons/
+/public/api-assets-master/
