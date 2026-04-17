@@ -15,6 +15,7 @@ import { results } from './helpers.js';
 import './utils.test.js';
 import './timing.test.js';
 import './death.test.js';
+import './knock.test.js';
 import './interpolation.test.js';
 import './loadout.test.js';
 import './mapDimensions.test.js';

@@ -82,10 +82,12 @@ export function startModal(telemetryUrl, mapName) {
       }
 
       // ── Death / respawn ─────────────────────────────────────────────────────
+      // LogPlayerKillV2 = actual death. victim.isDBNO indicates they were knocked
+      // when they died (e.g. team-wiped), but they are still DEAD. Do NOT filter by isDBNO.
       const playerDeathIntervals = {};
       data.forEach(item => {
         if ((item._T === 'LogPlayerKillV2' || item._T === 'LogPlayerKill') &&
-          item.victim?.accountId && item._D && !item.victim.isDBNO) {
+          item.victim?.accountId && item._D) {
           const t = dMsToElapsed(new Date(item._D).getTime());
           if (!playerDeathIntervals[item.victim.accountId]) playerDeathIntervals[item.victim.accountId] = [];
           playerDeathIntervals[item.victim.accountId].push({ death: t, respawn: null });
@@ -114,16 +116,67 @@ export function startModal(telemetryUrl, mapName) {
         return false;
       }
 
+      // ── Knock (DBNO) intervals ──────────────────────────────────────────────
+      // Track when players are knocked (downed) so we can override HP display.
+      // Knocked players have DBNO HP (separate from normal HP) but telemetry
+      // keyframes report health:100 for knocked players (their DBNO HP bar).
+      // We force HP to 0 during knock intervals so the visual is correct.
+      const playerKnockIntervals = {};
+      data.forEach(item => {
+        if (item._T === 'LogPlayerMakeGroggy' && item._D && item.victim?.accountId) {
+          const id = item.victim.accountId;
+          const t = dMsToElapsed(new Date(item._D).getTime());
+          if (!playerKnockIntervals[id]) playerKnockIntervals[id] = [];
+          playerKnockIntervals[id].push({ knock: t, end: null });
+        }
+      });
+      // Knock ends when: revived (LogPlayerRevive), killed, or redeployed
+      data.forEach(item => {
+        if (item._T === 'LogPlayerRevive' && item._D && item.victim?.accountId) {
+          const id = item.victim.accountId;
+          const t = dMsToElapsed(new Date(item._D).getTime());
+          const intervals = playerKnockIntervals[id];
+          if (!intervals) return;
+          for (let i = intervals.length - 1; i >= 0; i--) {
+            if (intervals[i].end === null && t > intervals[i].knock) {
+              intervals[i].end = t;
+              break;
+            }
+          }
+        }
+      });
+      // Close remaining open knocks at death time
+      Object.entries(playerKnockIntervals).forEach(([id, intervals]) => {
+        const deathIntervals = playerDeathIntervals[id];
+        if (!deathIntervals) return;
+        intervals.forEach(iv => {
+          if (iv.end === null) {
+            const death = deathIntervals.find(d => d.death >= iv.knock);
+            if (death) iv.end = death.death;
+          }
+        });
+      });
+
+      function isPlayerKnocked(accountId, elapsed) {
+        const intervals = playerKnockIntervals[accountId];
+        if (!intervals) return false;
+        for (const iv of intervals)
+          if (elapsed >= iv.knock && (iv.end === null || elapsed < iv.end)) return true;
+        return false;
+      }
+
       // ── Position anchors ────────────────────────────────────────────────────
       // Every anchor uses t = dMsToElapsed(_D), so all are in elapsedTime space.
       const players = {};
 
       // 1. LogPlayerPosition keyframes (~every 10s)
+      // Skip positions that arrive after a player's death (telemetry lag)
       characterData.forEach(item => {
         const id = item.character.accountId;
         if (!players[id]) players[id] = [];
         const t = dMsToElapsed(new Date(item._D).getTime());
         if (t <= 9) return;
+        if (isPlayerDead(id, t)) return;
         players[id].push({
           t,
           x: item.character.location.x,
@@ -150,6 +203,7 @@ export function startModal(telemetryUrl, mapName) {
         if (t <= 9) return;
         const addPoint = (accountId, location) => {
           if (!accountId || !location || !players[accountId]) return;
+          if (isPlayerDead(accountId, t)) return;
           players[accountId].push({ t, x: location.x, y: location.y, vehicleType: '', health: undefined, isKeyframe: false });
         };
         if (CHAR_LOC_EVENTS.has(item._T)) {
@@ -284,34 +338,54 @@ export function startModal(telemetryUrl, mapName) {
 
       // ── Kill/knock feed ─────────────────────────────────────────────────────
       const feedEvents = [];
-      const knockKillByVictim = {};
+
+      // 1. Knock events from LogPlayerMakeGroggy, timed via first 0-HP damage
+      const knockByVictim = {};
       data.forEach(item => {
-        if ((item._T !== 'LogPlayerKillV2' && item._T !== 'LogPlayerKill') || !item._D) return;
-        const killer = item.killer || item.attacker || {};
+        if (item._T !== 'LogPlayerMakeGroggy' || !item._D) return;
+        const attacker = item.attacker || {};
         const victim = item.victim || {};
-        if (!killer.name || !victim.name || !victim.accountId) return;
-        knockKillByVictim[victim.accountId] = {
-          killerName: killer.name, killerAccountId: killer.accountId,
+        if (!attacker.name || !victim.name || !victim.accountId) return;
+        // Use dBNOId as key to handle multiple knocks on the same player
+        const dBNOId = item.dBNOId || victim.accountId;
+        knockByVictim[`${victim.accountId}_${dBNOId}`] = {
+          killerName: attacker.name, killerAccountId: attacker.accountId,
           victimName: victim.name, victimAccountId: victim.accountId,
-          isKnock: victim.isDBNO === true,
+          isKnock: true,
         };
       });
 
-      const seen = new Set();
+      // Match knock events to first 0-HP damage for timing
+      const knockSeen = new Set();
       data.filter(i => i._T === 'LogPlayerTakeDamage' && i._D)
         .sort((a, b) => a._D.localeCompare(b._D))
         .forEach(item => {
           const vic = item.victim || {};
           if (!vic.accountId || vic.health > 0) return;
           const t = dMsToElapsed(new Date(item._D).getTime());
-          const key = `${vic.accountId}_${Math.round(t)}`;
-          if (seen.has(key)) return;
-          seen.add(key);
-          const info = knockKillByVictim[vic.accountId];
-          if (!info) return;
+          // Find a matching knock entry for this victim
+          const matchKey = Object.keys(knockByVictim).find(k => k.startsWith(vic.accountId + '_') && !knockSeen.has(k));
+          if (!matchKey) return;
+          knockSeen.add(matchKey);
+          const info = knockByVictim[matchKey];
           feedEvents.push({ ...info, t });
-          delete knockKillByVictim[vic.accountId];
         });
+
+      // 2. Kill events from LogPlayerKillV2, timed directly from the event
+      data.forEach(item => {
+        if ((item._T !== 'LogPlayerKillV2' && item._T !== 'LogPlayerKill') || !item._D) return;
+        const killer = item.killer || item.attacker || {};
+        const victim = item.victim || {};
+        if (!killer.name || !victim.name || !victim.accountId) return;
+        const t = dMsToElapsed(new Date(item._D).getTime());
+        feedEvents.push({
+          killerName: killer.name, killerAccountId: killer.accountId,
+          victimName: victim.name, victimAccountId: victim.accountId,
+          isKnock: false,
+          t,
+        });
+      });
+
       feedEvents.sort((a, b) => a.t - b.t);
 
       // ── Bullet traces ───────────────────────────────────────────────────────
@@ -602,10 +676,12 @@ export function startModal(telemetryUrl, mapName) {
           drawCtx.stroke();
 
           const hp = playerHpByTime[accountId]?.[currentElapsed] ?? 100;
-          const isDead = isPlayerDead(accountId, currentElapsed);
-          const isKnocked = !isDead && hp <= 0;
+          const knocked = isPlayerKnocked(accountId, currentElapsed);
 
-          if (isKnocked) {
+          // Override HP display for knocked players: show 0 HP arc
+          const displayHp = knocked ? 0 : hp;
+
+          if (knocked) {
             drawCtx.save();
             drawCtx.translate(px, py);
             const r = pointSize * 0.6;
@@ -617,7 +693,7 @@ export function startModal(telemetryUrl, mapName) {
             drawCtx.restore();
           }
 
-          const hpRatio = Math.max(0, Math.min(1, hp / 100));
+          const hpRatio = Math.max(0, Math.min(1, displayHp / 100));
           if (hpRatio > 0) {
             drawCtx.beginPath();
             drawCtx.arc(px, py, pointSize + borderWidth * 1.2, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * hpRatio);
