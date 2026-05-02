@@ -20,6 +20,8 @@ import './interpolation.test.js';
 import './loadout.test.js';
 import './mapDimensions.test.js';
 import './telemetry.test.js';
+import './matchFilter.test.js';
+import './platform.test.js';
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 
