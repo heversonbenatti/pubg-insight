@@ -7,26 +7,178 @@ export function showModal(matchData) {
 
     const telemetryUrl = matchData.included.find(item => item.type === "asset").attributes.URL;
 
+    // ── Outer modal backdrop ─────────────────────────────────────────────────
     const modal = document.createElement('div');
     modal.classList.add('modal-custom');
 
+    // ── Inner card ───────────────────────────────────────────────────────────
     const modalContent = document.createElement('div');
     modalContent.classList.add('modal-content-custom');
+    modalContent.style.cssText = `
+        display:flex;flex-direction:column;
+        width:100%;height:100%;max-width:1600px;
+        background:var(--bg);
+        border:1px solid var(--border);
+        border-radius:var(--r-md);
+        overflow:hidden;
+    `;
 
-    const modalContainer = document.createElement('div');
-    modalContainer.classList.add('modal-container-custom');
+    // ── Top bar ──────────────────────────────────────────────────────────────
+    const attr = matchData.data.attributes;
+    const mapName = attr.mapName;
+    const gameMode = attr.gameMode.toUpperCase().replace(/-/g, ' ');
+    const matchCategory = attr.matchType === 'competitive' ? 'RANKED' : 'NORMAL';
 
-    // Left: team list
+    // Find player placement
+    const searchedPlayerName = document.getElementById('player-name-display')?.textContent?.trim() || '';
+    const participant = matchData.included
+        .filter(i => i.type === 'participant')
+        .find(p => p.attributes?.stats?.name === searchedPlayerName);
+    const place = participant?.attributes?.stats?.winPlace ?? 1;
+    const total = matchData.data.relationships.rosters.data.length;
+
+    const topBar = document.createElement('div');
+    topBar.style.cssText = `
+        display:flex;align-items:center;gap:14px;
+        padding:12px 16px;
+        border-bottom:1px solid var(--divider);
+        flex-shrink:0;
+        background:var(--surface);
+    `;
+
+    // Rank chip
+    const isWin = place === 1;
+    const rankChipEl = document.createElement('div');
+    rankChipEl.style.cssText = `
+        width:42px;height:42px;border-radius:var(--r-sm);
+        background:${isWin ? 'oklch(0.78 0.15 75 / 0.12)' : 'var(--surface-2)'};
+        border:1px solid ${isWin ? 'oklch(0.78 0.15 75 / 0.45)' : 'var(--border)'};
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        font-family:var(--font-mono);line-height:1.1;flex-shrink:0;
+    `;
+    rankChipEl.innerHTML = `
+        <span style="font-size:16px;font-weight:700;letter-spacing:-0.02em;color:${isWin ? 'var(--win)' : 'var(--text)'}">#${place}</span>
+        <span style="font-size:10px;color:var(--text-faint)">/${total}</span>
+    `;
+
+    // Map + mode info
+    const mapInfo = document.createElement('div');
+    mapInfo.style.cssText = 'flex:1;min-width:0;';
+    mapInfo.innerHTML = `
+        <div style="font-size:15px;font-weight:700;letter-spacing:-0.01em;color:var(--text)">
+            ${mapName.replace(/_Main$/, '').replace(/_/g, ' ')}
+            <span style="font-family:var(--font-mono);margin-left:10px;color:var(--text-muted);font-size:11px;font-weight:400">${gameMode} · ${matchCategory}</span>
+        </div>
+        <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);margin-top:2px;letter-spacing:0.04em">
+            2D REPLAY · TELEMETRY
+        </div>
+    `;
+
+    // Share button
+    const shareBtn = document.createElement('button');
+    shareBtn.style.cssText = `
+        display:inline-flex;align-items:center;gap:8px;
+        height:32px;padding:0 12px;
+        border-radius:var(--r-sm);
+        background:transparent;color:var(--text-dim);
+        border:none;font-family:var(--font-ui);font-size:13px;
+        cursor:pointer;transition:background 140ms;
+    `;
+    shareBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 8a3 3 0 1 1 3 -3M9 12a3 3 0 1 1 -3 3M15 16a3 3 0 1 1 3 3M8.7 13.3l6.6 3.4M15.3 7.3l-6.6 3.4"/></svg> Share`;
+    shareBtn.onmouseenter = () => shareBtn.style.background = 'var(--surface-2)';
+    shareBtn.onmouseleave = () => shareBtn.style.background = 'transparent';
+
+    // Close button
+    const closeBtn = document.createElement('button');
+    closeBtn.style.cssText = `
+        width:32px;height:32px;border-radius:var(--r-sm);
+        background:var(--surface-2);border:1px solid var(--border);
+        color:var(--text-dim);cursor:pointer;
+        display:flex;align-items:center;justify-content:center;
+        transition:background 140ms;
+    `;
+    closeBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6l-12 12"/></svg>`;
+    closeBtn.onmouseenter = () => closeBtn.style.background = 'var(--surface-3)';
+    closeBtn.onmouseleave = () => closeBtn.style.background = 'var(--surface-2)';
+    closeBtn.addEventListener('click', () => {
+        if (window._loadoutInterval) clearInterval(window._loadoutInterval);
+        modal.remove();
+    });
+
+    topBar.appendChild(rankChipEl);
+    topBar.appendChild(mapInfo);
+    topBar.appendChild(shareBtn);
+    topBar.appendChild(closeBtn);
+    modalContent.appendChild(topBar);
+
+    // ── Body row ─────────────────────────────────────────────────────────────
+    const bodyRow = document.createElement('div');
+    bodyRow.style.cssText = 'flex:1;display:flex;gap:10px;padding:10px;min-height:0;overflow:hidden;';
+
+    // ── Team list (left, 220px) ───────────────────────────────────────────────
     const teamList = document.createElement('div');
     teamList.id = 'team-list-custom';
     teamList.classList.add('team-list-custom');
+    teamList.style.cssText = `
+        width:220px;flex-shrink:0;
+        background:var(--surface);
+        border:1px solid var(--border);
+        border-radius:var(--r-md);
+        overflow:hidden;height:100%;
+        display:flex;flex-direction:column;
+    `;
 
-    // Center: replay + pinned teams all in one flex row
-    const replayColumn = document.createElement('div');
-    replayColumn.style.cssText = 'display:flex;flex-direction:row;align-items:stretch;gap:12px;flex:1;min-width:0;height:100%;padding:0 12px;box-sizing:border-box;justify-content:center;';
+    // Team list header
+    const teamListHeader = document.createElement('div');
+    teamListHeader.style.cssText = `
+        padding:10px 12px;
+        border-bottom:1px solid var(--divider);
+        display:flex;align-items:center;justify-content:space-between;
+        flex-shrink:0;
+    `;
+    teamListHeader.innerHTML = `
+        <span style="font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;font-size:9.5px;color:var(--text-muted)">TEAMS</span>
+        <span id="team-count" style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint)">0</span>
+    `;
+    teamList.appendChild(teamListHeader);
 
+    const teamListScroll = document.createElement('div');
+    teamListScroll.style.cssText = 'overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:var(--surface-3) transparent;';
+    teamList.appendChild(teamListScroll);
+
+    // ── Center column: viewport + controls ───────────────────────────────────
+    // centerCol is flex:1 and centers its children.
+    // innerColumn wraps viewport + controls so controls bar matches viewport width exactly.
+    const centerCol = document.createElement('div');
+    centerCol.style.cssText = `
+        flex:1;min-width:0;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+    `;
+
+    // innerColumn: sized to content (i.e. the square viewport),
+    // so controls bar inherits the same width and doesn't stretch.
+    const innerColumn = document.createElement('div');
+    innerColumn.style.cssText = `
+        display:flex;flex-direction:column;gap:10px;
+        height:100%;width:fit-content;
+        align-items:stretch;
+    `;
+
+    // Viewport
     const viewport = document.createElement('div');
     viewport.id = 'viewport';
+    viewport.style.cssText = `
+        aspect-ratio:1/1;height:100%;width:auto;min-height:0;
+        position:relative;
+        background:#0e1014;
+        border:1px solid var(--border);
+        border-radius:var(--r-md);
+        overflow:hidden;
+        flex-shrink:1;
+    `;
+
     const MAP_DIMENSIONS = {
         'Erangel_Main':    { width: 816000, height: 816000 },
         'Baltic_Main':     { width: 816000, height: 816000 },
@@ -39,7 +191,6 @@ export function showModal(matchData) {
         'Summerland_Main': { width: 204800, height: 204800 },
         'Paramo_Main':     { width: 306000, height: 306000 },
     };
-    const mapName = matchData.data.attributes.mapName;
     const dims = MAP_DIMENSIONS[mapName] || { width: 816000, height: 816000 };
     viewport.setAttribute('data-map-width', dims.width);
     viewport.setAttribute('data-map-height', dims.height);
@@ -47,6 +198,7 @@ export function showModal(matchData) {
 
     const canvasContainer = document.createElement('div');
     canvasContainer.id = 'canvasContainer';
+    canvasContainer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;';
     viewport.appendChild(canvasContainer);
 
     const mapCanvas = document.createElement('canvas');
@@ -58,113 +210,192 @@ export function showModal(matchData) {
 
     const timer = document.createElement('div');
     timer.id = 'timer';
+    timer.style.cssText = `
+        position:absolute;top:10px;left:50%;transform:translateX(-50%);
+        font-family:var(--font-mono);font-size:18px;font-weight:600;
+        color:var(--text);letter-spacing:0.05em;
+        text-shadow:0 2px 8px rgba(0,0,0,0.9);
+        z-index:5;
+    `;
     viewport.appendChild(timer);
 
+    // Zoom/pan hint chip bottom-right
+    const hintChip = document.createElement('div');
+    hintChip.style.cssText = `
+        position:absolute;bottom:10px;right:10px;
+        font-family:var(--font-mono);font-size:10px;letter-spacing:0.06em;text-transform:uppercase;
+        color:var(--text-faint);
+        background:rgba(0,0,0,0.5);
+        padding:3px 7px;border-radius:4px;
+        pointer-events:none;z-index:5;
+    `;
+    hintChip.textContent = 'SCROLL TO ZOOM · DRAG TO PAN';
+    viewport.appendChild(hintChip);
+
+    // ── Controls bar ─────────────────────────────────────────────────────────
     const controlsBar = document.createElement('div');
     controlsBar.id = 'controlsConatiner';
-    controlsBar.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%;padding:6px 8px;box-sizing:border-box;background:rgba(20,20,20,0.95);border-radius:6px;';
+    controlsBar.style.cssText = `
+        display:flex;align-items:center;gap:10px;
+        width:100%;padding:8px 12px;box-sizing:border-box;
+        background:var(--surface-2);
+        border:1px solid var(--border);
+        border-radius:var(--r-md);
+        flex-shrink:0;
+    `;
 
+    // Play/pause — amber 32×32
     const playButton = document.createElement('button');
-    playButton.innerHTML = '▶';
-    playButton.style.cssText = 'background:transparent;color:white;border:none;font-size:16px;cursor:pointer;padding:0 4px;flex-shrink:0;';
+    playButton.style.cssText = `
+        width:32px;height:32px;border-radius:6px;
+        background:var(--accent);color:#111;
+        border:none;cursor:pointer;
+        display:flex;align-items:center;justify-content:center;
+        flex-shrink:0;transition:filter 140ms;
+    `;
+    playButton.innerHTML = `<svg width="10" height="12" viewBox="0 0 10 12"><path d="M0 0 L10 6 L0 12 Z" fill="#111"/></svg>`;
+    playButton.onmouseenter = () => playButton.style.filter = 'brightness(1.1)';
+    playButton.onmouseleave = () => playButton.style.filter = '';
     window.globalPlayButton = playButton;
 
+    // Current time display
+    const currentTimeDisplay = document.createElement('span');
+    currentTimeDisplay.style.cssText = 'font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:11px;color:var(--text-dim);min-width:40px;flex-shrink:0;';
+    currentTimeDisplay.textContent = '00:00';
+
+    // Progress bar — flex:1 so it fills all remaining space
     const progressBar = document.createElement('input');
     progressBar.id = 'progressBar';
     progressBar.type = 'range';
     progressBar.min = '0';
     progressBar.step = '1';
     progressBar.value = '0';
-    progressBar.style.cssText = 'flex:1;cursor:pointer;';
+    progressBar.style.cssText = 'flex:1;min-width:0;';
 
-    const sep = () => { const s = document.createElement('div'); s.style.cssText = 'width:1px;height:18px;background:#444;flex-shrink:0;'; return s; };
+    // Total time display
+    const totalTimeDisplay = document.createElement('span');
+    totalTimeDisplay.style.cssText = 'font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:11px;color:var(--text-faint);min-width:40px;flex-shrink:0;';
+    totalTimeDisplay.textContent = '00:00';
 
+    // Divider
+    const divider = document.createElement('div');
+    divider.style.cssText = 'width:1px;height:18px;background:var(--border);flex-shrink:0;';
+
+    // Speed label
     const speedLabel = document.createElement('span');
-    speedLabel.textContent = 'Speed:';
-    speedLabel.style.cssText = 'color:#aaa;font-size:11px;white-space:nowrap;flex-shrink:0;';
+    speedLabel.style.cssText = 'font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;font-size:9.5px;color:var(--text-muted);flex-shrink:0;';
+    speedLabel.textContent = 'SPEED';
 
+    // Speed slider
     const speedSlider = document.createElement('input');
     speedSlider.id = 'speedSlider';
     speedSlider.type = 'range';
     speedSlider.min = '0'; speedSlider.max = '9'; speedSlider.step = '1'; speedSlider.value = '2';
-    speedSlider.style.cssText = 'width:80px;cursor:pointer;flex-shrink:0;';
+    speedSlider.style.cssText = 'width:80px;flex-shrink:0;';
 
+    // Speed display
     const speedDisplay = document.createElement('span');
     speedDisplay.id = 'speedDisplay';
     speedDisplay.textContent = '1x';
-    speedDisplay.style.cssText = 'color:white;font-size:11px;min-width:28px;flex-shrink:0;';
+    speedDisplay.style.cssText = 'font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:11px;color:var(--accent);min-width:34px;text-align:right;flex-shrink:0;';
 
     controlsBar.appendChild(playButton);
+    controlsBar.appendChild(currentTimeDisplay);
     controlsBar.appendChild(progressBar);
-    controlsBar.appendChild(sep());
+    controlsBar.appendChild(totalTimeDisplay);
+    controlsBar.appendChild(divider);
     controlsBar.appendChild(speedLabel);
     controlsBar.appendChild(speedSlider);
     controlsBar.appendChild(speedDisplay);
 
-    // Inner column: viewport + controls
-    const innerColumn = document.createElement('div');
-    innerColumn.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:10px;flex-shrink:1;height:100%;min-width:0;';
+    // Sync timer el → currentTimeDisplay (replay2d writes to #timer)
+    const timerObserver = new MutationObserver(() => {
+        currentTimeDisplay.textContent = timer.textContent;
+    });
+    timerObserver.observe(timer, { childList: true, characterData: true, subtree: true });
+
     innerColumn.appendChild(viewport);
     innerColumn.appendChild(controlsBar);
-    replayColumn.appendChild(innerColumn);
+    centerCol.appendChild(innerColumn);
 
-    // Right: pinned teams container (inside replayColumn)
+    // ── Pinned teams container (right) ────────────────────────────────────────
     const pinnedContainer = document.createElement('div');
     pinnedContainer.id = 'pinned-teams-container';
-    pinnedContainer.style.cssText = 'display:none;flex-shrink:0;gap:8px;height:100%;';
-    replayColumn.appendChild(pinnedContainer);
+    pinnedContainer.style.cssText = 'display:none;flex-shrink:0;gap:10px;height:100%;';
 
-    modalContainer.appendChild(teamList);
-    modalContainer.appendChild(replayColumn);
-
-    modalContent.appendChild(modalContainer);
+    bodyRow.appendChild(teamList);
+    bodyRow.appendChild(centerCol);
+    bodyRow.appendChild(pinnedContainer);
+    modalContent.appendChild(bodyRow);
     modal.appendChild(modalContent);
     document.body.appendChild(modal);
 
     window.teamNameVisibility = {};
-    window.pinnedTeams = [null, null]; // [slot0, slot1]
+    window.pinnedTeams = [null, null];
 
     startModal(telemetryUrl, matchData.data.attributes.mapName);
     fetch(`/api/telemetry/save?url=${encodeURIComponent(telemetryUrl)}`).catch(() => {});
-    populateTeams(matchData, teamList);
+    populateTeams(matchData, teamListScroll);
 
     modal.addEventListener('click', function (e) {
         if (e.target === modal) {
+            timerObserver.disconnect();
             if (window._loadoutInterval) clearInterval(window._loadoutInterval);
             modal.remove();
         }
     });
 }
 
-// --- Pinned team panel management ---
+// ─────────────────────────────────────────────────────────────────────────────
+// Pinned panel management
+// ─────────────────────────────────────────────────────────────────────────────
 
 function updatePinnedLayout() {
     const container = document.getElementById('pinned-teams-container');
     if (!container) return;
     const filled = window.pinnedTeams.filter(Boolean).length;
-    // Show/hide container and resize modal
     container.style.display = filled > 0 ? 'flex' : 'none';
 }
 
 function buildTeamPanel(roster, matchData, teamId, color, slotIndex) {
     const panel = document.createElement('div');
     panel.dataset.teamId = teamId;
-    panel.style.cssText = `width:220px;flex-shrink:0;background:#1d1d1d;border:1px solid #3a3a3a;border-radius:5px;display:flex;flex-direction:column;overflow:hidden;height:100%;`;
+    panel.style.cssText = `
+        width:220px;flex-shrink:0;
+        background:var(--surface);
+        border:1px solid var(--border);
+        border-radius:var(--r-md);
+        display:flex;flex-direction:column;
+        overflow:hidden;height:100%;
+    `;
 
     // Header
     const header = document.createElement('div');
-    header.style.cssText = `display:flex;align-items:center;gap:6px;padding:8px;border-bottom:1px solid #333;background:#222;flex-shrink:0;`;
+    header.style.cssText = `
+        display:flex;align-items:center;gap:8px;
+        padding:10px;
+        background:var(--surface-2);
+        border-bottom:1px solid var(--divider);
+        flex-shrink:0;
+    `;
 
     const dot = document.createElement('div');
     dot.style.cssText = `width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0;`;
 
     const title = document.createElement('span');
     title.textContent = `Team #${roster.attributes.stats.rank || roster.attributes.stats.teamId}`;
-    title.style.cssText = 'color:white;font-weight:bold;font-size:12px;flex:1;';
+    title.style.cssText = 'font-size:12px;font-weight:600;flex:1;color:var(--text);';
 
     const closeBtn = document.createElement('button');
     closeBtn.textContent = '✕';
-    closeBtn.style.cssText = 'background:none;border:none;color:#aaa;cursor:pointer;font-size:12px;padding:0 2px;';
+    closeBtn.style.cssText = `
+        width:22px;height:22px;border-radius:4px;border:none;
+        background:transparent;color:var(--text-muted);cursor:pointer;
+        font-size:12px;display:flex;align-items:center;justify-content:center;
+        transition:background 140ms;
+    `;
+    closeBtn.onmouseenter = () => closeBtn.style.background = 'var(--surface-3)';
+    closeBtn.onmouseleave = () => closeBtn.style.background = 'transparent';
     closeBtn.addEventListener('click', () => unpinTeam(teamId));
 
     header.appendChild(dot);
@@ -172,45 +403,60 @@ function buildTeamPanel(roster, matchData, teamId, color, slotIndex) {
     header.appendChild(closeBtn);
     panel.appendChild(header);
 
-    // Toggles
+    // Toggles section
     const optionsRow = document.createElement('div');
-    optionsRow.style.cssText = 'padding:6px 8px;border-bottom:1px solid #222;flex-shrink:0;';
+    optionsRow.style.cssText = 'padding:6px 10px;border-bottom:1px solid var(--divider);flex-shrink:0;';
 
     function makeToggle(label, initialState, onChange) {
         const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;';
+        row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:3px 0;';
+
         const lbl = document.createElement('span');
         lbl.textContent = label;
-        lbl.style.cssText = 'color:#ccc;font-size:11px;';
-        const toggle = document.createElement('div');
+        lbl.style.cssText = 'font-size:11px;color:var(--text-dim);';
+
+        const pill = document.createElement('button');
         let active = initialState;
-        const knob = document.createElement('div');
-        knob.style.cssText = 'width:14px;height:14px;border-radius:50%;background:white;position:absolute;top:3px;transition:transform 0.2s;';
-        toggle.style.cssText = 'width:32px;height:18px;border-radius:9px;position:relative;cursor:pointer;transition:background 0.2s;flex-shrink:0;';
-        const update = () => { toggle.style.background = active ? '#3a7bd5' : '#555'; knob.style.transform = active ? 'translateX(14px)' : 'translateX(3px)'; };
-        toggle.appendChild(knob);
-        update();
-        toggle.addEventListener('click', () => { active = !active; update(); onChange(active); });
+        pill.style.cssText = `
+            width:28px;height:16px;border-radius:8px;border:none;cursor:pointer;
+            background:${active ? 'var(--accent)' : 'var(--surface-3)'};
+            position:relative;transition:background 160ms;flex-shrink:0;
+        `;
+        const knob = document.createElement('span');
+        knob.style.cssText = `
+            position:absolute;top:2px;left:${active ? '14px' : '2px'};
+            width:12px;height:12px;border-radius:50%;
+            background:#111;transition:left 160ms;
+        `;
+        pill.appendChild(knob);
+
+        pill.addEventListener('click', () => {
+            active = !active;
+            pill.style.background = active ? 'var(--accent)' : 'var(--surface-3)';
+            knob.style.left = active ? '14px' : '2px';
+            onChange(active);
+        });
+
         row.appendChild(lbl);
-        row.appendChild(toggle);
+        row.appendChild(pill);
         return row;
     }
 
     if (!window.teamNameVisibility) window.teamNameVisibility = {};
     if (!window.teamTrackVisibility) window.teamTrackVisibility = {};
-    optionsRow.appendChild(makeToggle('Show Names', !!window.teamNameVisibility[teamId], val => { window.teamNameVisibility[teamId] = val; }));
-    optionsRow.appendChild(makeToggle('Track', !!window.teamTrackVisibility[teamId], val => { window.teamTrackVisibility[teamId] = val; }));
+    optionsRow.appendChild(makeToggle('Show names', !!window.teamNameVisibility[teamId], val => { window.teamNameVisibility[teamId] = val; }));
+    optionsRow.appendChild(makeToggle('Track path', !!window.teamTrackVisibility[teamId], val => { window.teamTrackVisibility[teamId] = val; }));
     panel.appendChild(optionsRow);
 
     // Scrollable player list
     const playerList = document.createElement('div');
-    playerList.style.cssText = 'flex:1;overflow-y:auto;padding:6px;scrollbar-width:thin;scrollbar-color:#555 #333;';
+    playerList.style.cssText = 'flex:1;overflow-y:auto;padding:8px;scrollbar-width:thin;scrollbar-color:var(--surface-3) transparent;';
 
     const ASSETS = 'api-assets-master/Assets/Item';
     const IGNORED_BACKPACKS = new Set(['Item_Back_B_01_StartParachutePack_C']);
-    const SEP_HTML = '<div style="width:1px;background:#333;align-self:stretch;margin:0 3px;"></div>';
-    const SLOT_SM = 'flex-shrink:0;width:32px;height:32px;background:#111;border-radius:4px;display:flex;align-items:center;justify-content:center;overflow:hidden;';
-    const SLOT_WP = 'flex-shrink:0;width:44px;height:32px;background:#111;border-radius:4px;display:flex;align-items:center;justify-content:center;overflow:hidden;';
+    const SEP_HTML = '<div style="width:1px;background:var(--divider);align-self:stretch;margin:0 3px;"></div>';
+    const SLOT_SM = `flex-shrink:0;width:32px;height:32px;background:var(--surface);border:1px solid var(--divider);border-radius:4px;display:flex;align-items:center;justify-content:center;overflow:hidden;`;
+    const SLOT_WP = `flex-shrink:0;width:44px;height:32px;background:var(--surface);border:1px solid var(--divider);border-radius:4px;display:flex;align-items:center;justify-content:center;overflow:hidden;`;
 
     function itemImg(src, alt) {
         return `<img src="/${src}" alt="${alt}" title="${alt}" style="width:100%;height:100%;object-fit:contain;" onerror="this.style.opacity=0.15">`;
@@ -245,38 +491,39 @@ function buildTeamPanel(roster, matchData, teamId, color, slotIndex) {
         const accountId = s.playerId;
 
         const card = document.createElement('div');
-        card.style.cssText = 'background:#1a1a1a;border-radius:5px;padding:6px;margin-bottom:5px;';
+        card.style.cssText = `
+            background:var(--surface-2);
+            border:1px solid var(--divider);
+            border-radius:6px;padding:8px;margin-bottom:6px;
+        `;
 
-        // Name row with HP bar
         const nameRow = document.createElement('div');
-        nameRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;gap:6px;';
+        nameRow.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:5px;';
 
         const nameSpan = document.createElement('span');
         nameSpan.textContent = s.name;
-        nameSpan.style.cssText = 'color:white;font-weight:bold;font-size:11px;flex-shrink:0;';
+        nameSpan.style.cssText = 'font-size:11.5px;font-weight:600;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;color:var(--text);';
 
         const hpWrapper = document.createElement('div');
-        hpWrapper.style.cssText = 'flex:1;display:flex;align-items:center;gap:4px;';
+        hpWrapper.style.cssText = 'flex:1;display:flex;align-items:center;gap:6px;';
 
-        const hpBar = document.createElement('div');
-        hpBar.style.cssText = 'flex:1;height:4px;background:#333;border-radius:2px;overflow:hidden;';
+        const hpTrack = document.createElement('div');
+        hpTrack.style.cssText = 'flex:1;height:4px;background:var(--surface-3);border-radius:2px;overflow:hidden;';
         const hpFill = document.createElement('div');
-        hpFill.style.cssText = 'height:100%;background:#4caf50;border-radius:2px;transition:width 0.2s,background 0.2s;width:100%;';
-        hpBar.appendChild(hpFill);
+        hpFill.style.cssText = 'height:100%;border-radius:2px;transition:width 180ms,background 180ms;width:100%;background:oklch(0.76 0.14 155);';
+        hpTrack.appendChild(hpFill);
 
         const hpText = document.createElement('span');
         hpText.textContent = '100';
-        hpText.style.cssText = 'color:#aaa;font-size:10px;min-width:22px;text-align:right;flex-shrink:0;';
+        hpText.style.cssText = 'font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:10px;color:var(--text-muted);min-width:22px;text-align:right;flex-shrink:0;';
 
-        hpWrapper.appendChild(hpBar);
+        hpWrapper.appendChild(hpTrack);
         hpWrapper.appendChild(hpText);
-
         nameRow.appendChild(nameSpan);
         nameRow.appendChild(hpWrapper);
 
-        // Stats row
         const statsRow = document.createElement('div');
-        statsRow.style.cssText = 'color:#666;font-size:10px;margin-bottom:4px;';
+        statsRow.style.cssText = 'font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-bottom:6px;';
         statsRow.textContent = `K:${s.kills}  A:${s.assists}  D:${Math.round(s.damageDealt)}`;
 
         const loadoutDiv = document.createElement('div');
@@ -292,7 +539,6 @@ function buildTeamPanel(roster, matchData, teamId, color, slotIndex) {
 
     panel.appendChild(playerList);
 
-    // Live update
     const intervalKey = `_loadout_${teamId}`;
     if (window[intervalKey]) clearInterval(window[intervalKey]);
 
@@ -303,15 +549,17 @@ function buildTeamPanel(roster, matchData, teamId, color, slotIndex) {
         Object.entries(playerDivs).forEach(([accountId, div]) => {
             const { weapons, equipment } = window.getLoadoutAt(accountId, elapsed);
 
-            // HP
             const hp = window.playerHpByTime?.[accountId]?.[Math.round(elapsed)] ?? 100;
             const hpRatio = Math.max(0, Math.min(1, hp / 100));
             const { fill, text } = hpDivs[accountId];
             fill.style.width = `${hpRatio * 100}%`;
-            fill.style.background = hpRatio > 0.5 ? '#4caf50' : hpRatio > 0.25 ? '#ff9800' : '#f44336';
+            fill.style.background = hpRatio > 0.5
+                ? 'oklch(0.76 0.14 155)'
+                : hpRatio > 0.25
+                    ? 'oklch(0.80 0.15 60)'
+                    : 'oklch(0.68 0.18 25)';
             text.textContent = Math.round(hp);
 
-            // Loadout
             const helmet = equipment['headgear'];
             const vest = equipment['vest'];
             const rawBackpack = equipment['backpack'];
@@ -341,18 +589,15 @@ function buildTeamPanel(roster, matchData, teamId, color, slotIndex) {
 
 function pinTeam(roster, matchData, teamId, color) {
     const slots = window.pinnedTeams;
-    // Already pinned → unpin
     if (slots[0]?.teamId === teamId || slots[1]?.teamId === teamId) {
         unpinTeam(teamId);
         return;
     }
-    // Find empty slot
     if (slots[0] === null) {
         slots[0] = { teamId, roster, matchData, color };
     } else if (slots[1] === null) {
         slots[1] = { teamId, roster, matchData, color };
     } else {
-        // Both full: replace slot 0, keep slot 1
         if (window[`_loadout_${slots[0].teamId}`]) {
             clearInterval(window[`_loadout_${slots[0].teamId}`]);
             delete window[`_loadout_${slots[0].teamId}`];
@@ -366,16 +611,13 @@ function unpinTeam(teamId) {
     const slots = window.pinnedTeams;
     const idx = slots.findIndex(s => s?.teamId === teamId);
     if (idx === -1) return;
-    // Clear interval
     if (window[`_loadout_${teamId}`]) { clearInterval(window[`_loadout_${teamId}`]); delete window[`_loadout_${teamId}`]; }
     slots[idx] = null;
-    // Compact: move slot1 to slot0 if slot0 is empty
     if (slots[0] === null && slots[1] !== null) { slots[0] = slots[1]; slots[1] = null; }
     renderPinnedPanels();
-    // Update team list outlines
     document.querySelectorAll('.team-custom').forEach(d => {
         const isSelected = window.pinnedTeams.some(s => s?.teamId === parseInt(d.dataset.teamId));
-        if (!isSelected) d.style.outline = 'none';
+        if (!isSelected) d.style.borderLeftColor = 'transparent';
     });
 }
 
@@ -395,10 +637,13 @@ function renderPinnedPanels() {
     }
 }
 
-function populateTeams(matchData, teamList) {
-    teamList.innerHTML = '';
+function populateTeams(matchData, teamListEl) {
+    teamListEl.innerHTML = '';
     const searchedPlayerName = document.getElementById('player-name-display')?.textContent?.trim();
     const rosters = matchData.included.filter(item => item.type === 'roster');
+
+    const countEl = document.getElementById('team-count');
+    if (countEl) countEl.textContent = rosters.length;
 
     const searchedRoster = rosters.find(roster =>
         roster.relationships.participants.data.some(ref => {
@@ -421,45 +666,72 @@ function populateTeams(matchData, teamList) {
         window.teamNameVisibility[teamId] = isSearchedTeam;
         window.teamTrackVisibility[teamId] = false;
 
-        const teamDiv = document.createElement('div');
+        const teamDiv = document.createElement('button');
         teamDiv.classList.add('team-custom');
         teamDiv.dataset.teamId = teamId;
-        teamDiv.style.cursor = 'pointer';
-        if (!isSearchedTeam) teamDiv.style.opacity = '0.5';
+        teamDiv.style.cssText = `
+            width:100%;text-align:left;
+            display:flex;align-items:center;gap:10px;
+            padding:8px 10px;
+            background:${isSearchedTeam ? 'var(--surface-2)' : 'transparent'};
+            border:none;
+            border-left:3px solid transparent;
+            color:${isSearchedTeam ? 'var(--text)' : 'var(--text-muted)'};
+            cursor:pointer;
+            opacity:${isSearchedTeam ? '1' : '0.55'};
+            border-bottom:1px solid var(--divider);
+            font-family:var(--font-ui);
+            transition:background 140ms,opacity 140ms;
+        `;
 
-        const teamNumberDiv = document.createElement('div');
-        teamNumberDiv.classList.add('team-number-custom');
-        teamNumberDiv.textContent = teamNumber;
-        teamNumberDiv.style.backgroundColor = uniqueColor;
+        const rankChip = document.createElement('div');
+        rankChip.style.cssText = `
+            width:26px;height:26px;border-radius:4px;
+            background:${uniqueColor};color:#111;
+            display:flex;align-items:center;justify-content:center;
+            font-family:var(--font-mono);font-size:11px;font-weight:700;
+            flex-shrink:0;box-shadow:0 1px 2px oklch(0 0 0 / 0.4);
+        `;
+        rankChip.textContent = teamNumber;
 
         const playersDiv = document.createElement('div');
-        playersDiv.classList.add('players-list-custom');
+        playersDiv.style.cssText = 'flex:1;min-width:0;';
 
         roster.relationships.participants.data.forEach(ref => {
             const participant = matchData.included.find(p => p.id === ref.id);
             const playerDiv = document.createElement('div');
             playerDiv.textContent = participant.attributes.stats.name;
-            if (participant.attributes.stats.name === searchedPlayerName) {
-                playerDiv.style.fontWeight = 'bold';
-                playerDiv.style.color = '#ffdd57';
-            }
+            const isSelf = participant.attributes.stats.name === searchedPlayerName;
+            playerDiv.style.cssText = `
+                font-size:11.5px;
+                font-weight:${isSelf ? '600' : '400'};
+                color:${isSelf ? 'var(--accent)' : 'inherit'};
+                white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+            `;
             playersDiv.appendChild(playerDiv);
         });
 
-        teamDiv.appendChild(teamNumberDiv);
+        teamDiv.appendChild(rankChip);
         teamDiv.appendChild(playersDiv);
-        teamList.appendChild(teamDiv);
+        teamListEl.appendChild(teamDiv);
 
         teamDiv.addEventListener('click', function (e) {
             e.preventDefault();
             pinTeam(roster, matchData, teamId, uniqueColor);
-            // Update outline
             document.querySelectorAll('.team-custom').forEach(d => {
                 const tid = parseInt(d.dataset.teamId);
                 const isSelected = window.pinnedTeams.some(s => s?.teamId === tid);
-                d.style.outline = isSelected ? `2px solid ${generateUniqueColor(rosters.findIndex(r => r.attributes.stats.teamId === tid))}` : 'none';
-                d.style.opacity = isSelected ? '1' : '0.5';
+                d.style.borderLeftColor = isSelected ? generateUniqueColor(rosters.findIndex(r => r.attributes.stats.teamId === tid)) : 'transparent';
+                d.style.background = isSelected ? 'var(--surface-3)' : (tid === teamId || isSearchedTeam ? 'var(--surface-2)' : 'transparent');
+                d.style.opacity = isSelected || d.dataset.teamId == searchedRoster?.attributes?.stats?.teamId ? '1' : '0.55';
             });
         });
+
+        teamDiv.onmouseenter = () => { if (teamDiv.style.opacity !== '1') teamDiv.style.opacity = '0.8'; };
+        teamDiv.onmouseleave = () => {
+            const tid = parseInt(teamDiv.dataset.teamId);
+            const isSelected = window.pinnedTeams.some(s => s?.teamId === tid);
+            teamDiv.style.opacity = (isSelected || isSearchedTeam) ? '1' : '0.55';
+        };
     });
 }

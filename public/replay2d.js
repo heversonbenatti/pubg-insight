@@ -61,9 +61,6 @@ export function startModal(telemetryUrl, mapName) {
       const matchStartEvent = data.find(item => item._T === 'LogMatchStart');
       const matchStartMs = matchStartEvent ? new Date(matchStartEvent._D).getTime() : 0;
 
-      // ── Single source of truth for time conversion ──────────────────────────
-      // ALL timestamps use dMsToElapsed(new Date(item._D).getTime())
-      // This maps wall-clock time to elapsedTime, same as what the render timer shows.
       const gsTimeline = gameStateData.map(g => ({
         dMs: new Date(g._D).getTime(),
         elapsed: g.gameState.elapsedTime
@@ -81,11 +78,10 @@ export function startModal(telemetryUrl, mapName) {
         return prev.elapsed + (next.elapsed - prev.elapsed) * ratio;
       }
 
-      // ── Death / respawn ─────────────────────────────────────────────────────
       const playerDeathIntervals = {};
       data.forEach(item => {
         if ((item._T === 'LogPlayerKillV2' || item._T === 'LogPlayerKill') &&
-          item.victim?.accountId && item._D && !item.victim.isDBNO) {
+          item.victim?.accountId && item._D) {
           const t = dMsToElapsed(new Date(item._D).getTime());
           if (!playerDeathIntervals[item.victim.accountId]) playerDeathIntervals[item.victim.accountId] = [];
           playerDeathIntervals[item.victim.accountId].push({ death: t, respawn: null });
@@ -114,16 +110,56 @@ export function startModal(telemetryUrl, mapName) {
         return false;
       }
 
-      // ── Position anchors ────────────────────────────────────────────────────
-      // Every anchor uses t = dMsToElapsed(_D), so all are in elapsedTime space.
+      const playerKnockIntervals = {};
+      data.forEach(item => {
+        if (item._T === 'LogPlayerMakeGroggy' && item._D && item.victim?.accountId) {
+          const id = item.victim.accountId;
+          const t = dMsToElapsed(new Date(item._D).getTime());
+          if (!playerKnockIntervals[id]) playerKnockIntervals[id] = [];
+          playerKnockIntervals[id].push({ knock: t, end: null });
+        }
+      });
+      data.forEach(item => {
+        if (item._T === 'LogPlayerRevive' && item._D && item.victim?.accountId) {
+          const id = item.victim.accountId;
+          const t = dMsToElapsed(new Date(item._D).getTime());
+          const intervals = playerKnockIntervals[id];
+          if (!intervals) return;
+          for (let i = intervals.length - 1; i >= 0; i--) {
+            if (intervals[i].end === null && t > intervals[i].knock) {
+              intervals[i].end = t;
+              break;
+            }
+          }
+        }
+      });
+      Object.entries(playerKnockIntervals).forEach(([id, intervals]) => {
+        const deathIntervals = playerDeathIntervals[id];
+        if (!deathIntervals) return;
+        intervals.forEach(iv => {
+          if (iv.end === null) {
+            const death = deathIntervals.find(d => d.death >= iv.knock);
+            if (death) iv.end = death.death;
+          }
+        });
+      });
+
+      function isPlayerKnocked(accountId, elapsed) {
+        const intervals = playerKnockIntervals[accountId];
+        if (!intervals) return false;
+        for (const iv of intervals)
+          if (elapsed >= iv.knock && (iv.end === null || elapsed < iv.end)) return true;
+        return false;
+      }
+
       const players = {};
 
-      // 1. LogPlayerPosition keyframes (~every 10s)
       characterData.forEach(item => {
         const id = item.character.accountId;
         if (!players[id]) players[id] = [];
         const t = dMsToElapsed(new Date(item._D).getTime());
         if (t <= 9) return;
+        if (isPlayerDead(id, t)) return;
         players[id].push({
           t,
           x: item.character.location.x,
@@ -134,7 +170,6 @@ export function startModal(telemetryUrl, mapName) {
         });
       });
 
-      // 2. Real-time action events (exact positions)
       const CHAR_LOC_EVENTS = new Set([
         'LogItemPickup', 'LogHeal', 'LogItemEquip', 'LogItemUnequip', 'LogItemUse',
         'LogItemAttach', 'LogItemDetach', 'LogItemDrop', 'LogObjectInteraction',
@@ -150,6 +185,7 @@ export function startModal(telemetryUrl, mapName) {
         if (t <= 9) return;
         const addPoint = (accountId, location) => {
           if (!accountId || !location || !players[accountId]) return;
+          if (isPlayerDead(accountId, t)) return;
           players[accountId].push({ t, x: location.x, y: location.y, vehicleType: '', health: undefined, isKeyframe: false });
         };
         if (CHAR_LOC_EVENTS.has(item._T)) {
@@ -165,8 +201,6 @@ export function startModal(telemetryUrl, mapName) {
 
       Object.values(players).forEach(pts => pts.sort((a, b) => a.t - b.t));
 
-      // ── Build byTime / byVehicle / byHp ─────────────────────────────────────
-      // All indexed by Math.round(elapsedTime) — same as what the render reads.
       const playerLocationsByTime = {};
       const playerVehicleByTime = {};
       const playerHpByTime = {};
@@ -175,7 +209,6 @@ export function startModal(telemetryUrl, mapName) {
         const anchors = players[accountId];
         const byTime = {}, byVehicle = {}, byHp = {};
 
-        // Interpolate position between every consecutive anchor pair
         for (let i = 0; i < anchors.length - 1; i++) {
           const curr = anchors[i], next = anchors[i + 1];
           const timeDiff = next.t - curr.t;
@@ -191,12 +224,10 @@ export function startModal(telemetryUrl, mapName) {
           }
         }
 
-        // Action points overwrite interpolated (they are exact)
         anchors.filter(a => !a.isKeyframe).forEach(a => {
           byTime[Math.round(a.t)] = { x: a.x, y: a.y };
         });
 
-        // Keyframe points: position + HP
         anchors.filter(a => a.isKeyframe).forEach(a => {
           const t = Math.round(a.t);
           if (!byTime[t]) byTime[t] = { x: a.x, y: a.y };
@@ -204,7 +235,6 @@ export function startModal(telemetryUrl, mapName) {
           if (a.health !== undefined) byHp[t] = a.health;
         });
 
-        // Fill HP gaps: carry last known forward
         const kfTimes = anchors.filter(a => a.isKeyframe).map(a => Math.round(a.t)).sort((a, b) => a - b);
         if (kfTimes.length) {
           let lastHp = 100;
@@ -219,8 +249,6 @@ export function startModal(telemetryUrl, mapName) {
         playerHpByTime[accountId] = byHp;
       });
 
-      // ── HP refinement: distribute damage hits within each keyframe interval ──
-      // All times in elapsedTime space via dMsToElapsed.
       const damageByVictim = {};
       data.forEach(item => {
         if (item._T !== 'LogPlayerTakeDamage' || !item._D) return;
@@ -236,7 +264,6 @@ export function startModal(telemetryUrl, mapName) {
         if (!byHp) return;
         hits.sort((a, b) => a.t - b.t);
 
-        // Keyframe boundaries in elapsedTime space
         const kfTimes = (players[accountId] || [])
           .filter(p => p.isKeyframe)
           .map(p => Math.round(p.t))
@@ -261,7 +288,6 @@ export function startModal(telemetryUrl, mapName) {
             byHp[Math.round(hit.t)] = runningHp;
           });
 
-          // Carry each hit's HP forward until the next hit (step function)
           const hitTimes = group.map(h => Math.round(h.t)).sort((a, b) => a - b);
           for (let hi = 0; hi < hitTimes.length; hi++) {
             const from = hitTimes[hi];
@@ -272,49 +298,52 @@ export function startModal(telemetryUrl, mapName) {
         }
       });
 
-      // DEBUG: log Oboneco HP around elapsed 199-215
-      const _obonecoId = 'account.79503026482b465a9665f4c763eddc32';
-      if (playerHpByTime[_obonecoId]) {
-        console.log('[HP DEBUG] Oboneco byHp elapsed 199-215:');
-        for (let s = 199; s <= 215; s++) {
-          const v = playerHpByTime[_obonecoId][s];
-          console.log(`  elapsed=${s}s (${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')})  hp=${v?.toFixed(1) ?? 'undefined'}`);
-        }
-      }
-
-      // ── Kill/knock feed ─────────────────────────────────────────────────────
       const feedEvents = [];
-      const knockKillByVictim = {};
+
+      const knockByVictim = {};
       data.forEach(item => {
-        if ((item._T !== 'LogPlayerKillV2' && item._T !== 'LogPlayerKill') || !item._D) return;
-        const killer = item.killer || item.attacker || {};
+        if (item._T !== 'LogPlayerMakeGroggy' || !item._D) return;
+        const attacker = item.attacker || {};
         const victim = item.victim || {};
-        if (!killer.name || !victim.name || !victim.accountId) return;
-        knockKillByVictim[victim.accountId] = {
-          killerName: killer.name, killerAccountId: killer.accountId,
+        if (!attacker.name || !victim.name || !victim.accountId) return;
+        const dBNOId = item.dBNOId || victim.accountId;
+        knockByVictim[`${victim.accountId}_${dBNOId}`] = {
+          killerName: attacker.name, killerAccountId: attacker.accountId,
           victimName: victim.name, victimAccountId: victim.accountId,
-          isKnock: victim.isDBNO === true,
+          isKnock: true,
         };
       });
 
-      const seen = new Set();
+      const knockSeen = new Set();
       data.filter(i => i._T === 'LogPlayerTakeDamage' && i._D)
         .sort((a, b) => a._D.localeCompare(b._D))
         .forEach(item => {
           const vic = item.victim || {};
           if (!vic.accountId || vic.health > 0) return;
           const t = dMsToElapsed(new Date(item._D).getTime());
-          const key = `${vic.accountId}_${Math.round(t)}`;
-          if (seen.has(key)) return;
-          seen.add(key);
-          const info = knockKillByVictim[vic.accountId];
-          if (!info) return;
+          const matchKey = Object.keys(knockByVictim).find(k => k.startsWith(vic.accountId + '_') && !knockSeen.has(k));
+          if (!matchKey) return;
+          knockSeen.add(matchKey);
+          const info = knockByVictim[matchKey];
           feedEvents.push({ ...info, t });
-          delete knockKillByVictim[vic.accountId];
         });
+
+      data.forEach(item => {
+        if ((item._T !== 'LogPlayerKillV2' && item._T !== 'LogPlayerKill') || !item._D) return;
+        const killer = item.killer || item.attacker || {};
+        const victim = item.victim || {};
+        if (!killer.name || !victim.name || !victim.accountId) return;
+        const t = dMsToElapsed(new Date(item._D).getTime());
+        feedEvents.push({
+          killerName: killer.name, killerAccountId: killer.accountId,
+          victimName: victim.name, victimAccountId: victim.accountId,
+          isKnock: false,
+          t,
+        });
+      });
+
       feedEvents.sort((a, b) => a.t - b.t);
 
-      // ── Bullet traces ───────────────────────────────────────────────────────
       const bulletEvents = [];
       data.forEach(item => {
         if (item._T !== 'LogPlayerTakeDamage' || !item._D || item.damageTypeCategory !== 'Damage_Gun') return;
@@ -332,7 +361,6 @@ export function startModal(telemetryUrl, mapName) {
       });
       bulletEvents.sort((a, b) => a.t - b.t);
 
-      // ── Loadout ─────────────────────────────────────────────────────────────
       const loadoutEvents = {};
       const loadoutEventTypes = new Set(['LogItemEquip', 'LogItemUnequip', 'LogItemAttach', 'LogItemDetach']);
       data.forEach(item => {
@@ -377,7 +405,6 @@ export function startModal(telemetryUrl, mapName) {
       window.playerNames = playerNames;
       window.playerHpByTime = playerHpByTime;
 
-      // ── Game state timeline (zones) ─────────────────────────────────────────
       const interpolatedData = [];
       for (let i = 0; i < gameStateData.length - 1; i++) {
         const curr = gameStateData[i].gameState, next = gameStateData[i + 1].gameState;
@@ -397,6 +424,8 @@ export function startModal(telemetryUrl, mapName) {
         }
       }
       interpolatedData.push(gameStateData[gameStateData.length - 1].gameState);
+
+      let subProgress = 0;
 
       backgroundImage.onload = function () {
         const fitZoomX = VIEWPORT_WIDTH / (MAP_WIDTH * scaleFactor);
@@ -477,7 +506,7 @@ export function startModal(telemetryUrl, mapName) {
       }
 
       const MS_PER_GAME_SECOND = 1000;
-      let lastTimestamp = null, timeAccumulator = 0, subProgress = 0;
+      let lastTimestamp = null, timeAccumulator = 0;
 
       function drawGrid() {
         const BASE_MAP_SIZE = 816000, outerCells = 8, innerCells = 10;
@@ -522,7 +551,6 @@ export function startModal(telemetryUrl, mapName) {
         const currentTime = interpolatedData[currentIndex]?.elapsedTime ?? 0;
         const currentTimeSmooth = currentTime + subProgress;
 
-        // Track lines
         if (window.teamTrackVisibility) {
           Object.keys(playerLocationsByTime).forEach(accountId => {
             const pid = globalMatchData.included.filter(p => p.type === 'participant').find(p => p.attributes.stats.playerId === accountId)?.id;
@@ -550,7 +578,6 @@ export function startModal(telemetryUrl, mapName) {
         const borderWidth = 2 / (scaleFactor * zoomScale);
         const nextIndex = Math.min(currentIndex + 1, interpolatedData.length - 1);
 
-        // Bullet traces
         bulletEvents.filter(b => b.t <= currentTimeSmooth && b.t + b.duration > currentTimeSmooth).forEach(bullet => {
           const age = (currentTimeSmooth - bullet.t) / bullet.duration;
           const alpha = 1 - age;
@@ -576,7 +603,6 @@ export function startModal(telemetryUrl, mapName) {
           drawCtx.restore();
         });
 
-        // Pass 1: player circles
         const playerRenderData = [];
         Object.keys(playerLocationsByTime).forEach(accountId => {
           const byTime = playerLocationsByTime[accountId];
@@ -602,10 +628,10 @@ export function startModal(telemetryUrl, mapName) {
           drawCtx.stroke();
 
           const hp = playerHpByTime[accountId]?.[currentElapsed] ?? 100;
-          const isDead = isPlayerDead(accountId, currentElapsed);
-          const isKnocked = !isDead && hp <= 0;
+          const knocked = isPlayerKnocked(accountId, currentElapsed);
+          const displayHp = knocked ? 0 : hp;
 
-          if (isKnocked) {
+          if (knocked) {
             drawCtx.save();
             drawCtx.translate(px, py);
             const r = pointSize * 0.6;
@@ -617,7 +643,7 @@ export function startModal(telemetryUrl, mapName) {
             drawCtx.restore();
           }
 
-          const hpRatio = Math.max(0, Math.min(1, hp / 100));
+          const hpRatio = Math.max(0, Math.min(1, displayHp / 100));
           if (hpRatio > 0) {
             drawCtx.beginPath();
             drawCtx.arc(px, py, pointSize + borderWidth * 1.2, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * hpRatio);
@@ -651,11 +677,11 @@ export function startModal(telemetryUrl, mapName) {
           if (name && window.teamNameVisibility?.[teamId]) playerRenderData.push({ px, py, name, pointSize });
         });
 
-        // Pass 2: names
+        // Pass 2: names — JetBrains Mono
         const fixedFontSize = 11;
         drawCtx.save();
         drawCtx.setTransform(1, 0, 0, 1, 0, 0);
-        drawCtx.font = `bold ${fixedFontSize}px Arial`;
+        drawCtx.font = `bold ${fixedFontSize}px "JetBrains Mono", monospace`;
         drawCtx.textAlign = 'center';
         drawCtx.textBaseline = 'top';
         playerRenderData.forEach(({ px, py, name, pointSize }) => {
@@ -674,20 +700,28 @@ export function startModal(telemetryUrl, mapName) {
         updatePanLimits();
         drawCtx.restore();
 
-        // Kill/knock feed
+        // Kill/knock feed — JetBrains Mono, styled box
         const feedDuration = 5;
         const activeFeed = feedEvents.filter(e => e.t <= currentTime && e.t + feedDuration > currentTime).slice(-5);
         if (activeFeed.length > 0) {
           const fs = 11, lineH = 18, padX = 8, padY = 6, margin = 8;
           drawCtx.save();
           drawCtx.setTransform(1, 0, 0, 1, 0, 0);
-          drawCtx.font = `bold ${fs}px Arial`;
+          drawCtx.font = `bold ${fs}px "JetBrains Mono", monospace`;
           let maxW = 0;
           activeFeed.forEach(e => { maxW = Math.max(maxW, drawCtx.measureText(`${e.killerName}  X  ${e.victimName}`).width); });
           const boxW = maxW + padX * 2, boxH = activeFeed.length * lineH + padY * 2;
-          const boxX = VIEWPORT_WIDTH - boxW - margin, boxY = margin + 30;
+          const boxX = VIEWPORT_WIDTH - boxW - margin, boxY = margin + 48;
+          // Box with subtle border
           drawCtx.fillStyle = 'rgba(0,0,0,0.55)';
-          drawCtx.beginPath(); drawCtx.roundRect(boxX, boxY, boxW, boxH, 4); drawCtx.fill();
+          drawCtx.strokeStyle = 'oklch(1 0 0 / 0.05)';
+          drawCtx.lineWidth = 1;
+          drawCtx.beginPath();
+          if (drawCtx.roundRect) drawCtx.roundRect(boxX, boxY, boxW, boxH, 4);
+          else drawCtx.rect(boxX, boxY, boxW, boxH);
+          drawCtx.fill();
+          drawCtx.stroke();
+
           const getColor = (accountId) => {
             const pid = globalMatchData.included.filter(p => p.type === 'participant').find(p => p.attributes?.stats?.playerId === accountId)?.id;
             const roster = pid ? globalMatchData.included.filter(r => r.type === 'roster').find(r => r.relationships.participants.data.some(p => p.id === pid)) : null;
@@ -721,6 +755,10 @@ export function startModal(telemetryUrl, mapName) {
         timerElement.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
       }
 
+      // Play/pause SVG icons
+      const ICON_PLAY = `<svg width="10" height="12" viewBox="0 0 10 12"><path d="M0 0 L10 6 L0 12 Z" fill="#111"/></svg>`;
+      const ICON_PAUSE = `<svg width="11" height="12" viewBox="0 0 11 12"><rect x="0" y="0" width="4" height="12" rx="1" fill="#111"/><rect x="7" y="0" width="4" height="12" rx="1" fill="#111"/></svg>`;
+
       function animate(timestamp) {
         if (isPlaying) {
           if (lastTimestamp !== null) {
@@ -731,7 +769,7 @@ export function startModal(telemetryUrl, mapName) {
                 currentIndex++;
               } else {
                 isPlaying = false;
-                globalPlayButton.innerHTML = '▶';
+                globalPlayButton.innerHTML = ICON_PLAY;
                 timeAccumulator = 0; subProgress = 0;
                 break;
               }
@@ -749,14 +787,14 @@ export function startModal(telemetryUrl, mapName) {
 
       progressBar.max = interpolatedData.length - 1;
       progressBar.addEventListener('input', function () {
-        if (isPlaying) { isPlaying = false; globalPlayButton.innerHTML = '▶'; }
+        if (isPlaying) { isPlaying = false; globalPlayButton.innerHTML = ICON_PLAY; }
         currentIndex = parseInt(progressBar.value);
         updateSafeZone();
       });
 
       globalPlayButton.addEventListener('click', function () {
         isPlaying = !isPlaying;
-        globalPlayButton.innerHTML = isPlaying ? '❚❚' : '▶';
+        globalPlayButton.innerHTML = isPlaying ? ICON_PAUSE : ICON_PLAY;
         if (isPlaying && currentIndex >= interpolatedData.length - 1) {
           currentIndex = 0; frameAccumulator = 0; timeAccumulator = 0; lastTimestamp = null;
         }
