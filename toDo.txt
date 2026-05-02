@@ -1,5 +1,29 @@
-- Caching para evitar chamadas desnecessárias e repetidas na API.
-- Implementar função de expandir partidas para mostrar mais detalhes.
-- Responsividade para mobile.
-- Implementar outras plataformas na busca (PSN, XBOX, etc...).
-- Implementar testes.
+[x] Caching para evitar chamadas desnecessárias e repetidas na API.
+    - seasons: 24h, player: 10min, matches list: 5min, match details: 7d
+    - in-flight dedup pra não pedir o mesmo match em paralelo
+[x] Responsividade para mobile.
+    - breakpoints em 900px, 720px e 480px
+[x] Implementar outras plataformas na busca (PSN, XBOX, etc...).
+    - Steam, Kakao, PSN, Xbox, Stadia
+    - filtro de seasons separa PC vs Console; preferência salva em localStorage
+[x] Implementar testes.
+    - 19 novos testes (matchFilter + platform); total 135 testes passando
+
+Botões antes sem função, agora ligados:
+- "History" + "Saved" no header → popovers com lista clicável (procurar / remover)
+- "Save" + "Share" no header do player → toggle salvo, copia link
+- "Filter" + "All modes" na lista de partidas → filtros por mapa + ciclo FPP/TPP/Ranked/Normal
+- "Share" no drawer da partida + "Share" no replay modal → copia link da partida
+- Recents na landing → busca direto + botão pra remover entrada
+- URL deep links: ?p=nome&s=season[&m=matchId] abre direto
+
+Substituições de placeholder:
+- timeline fake do drawer (com pontos hardcoded) → grid real com headshots, knocks,
+  longest kill, dano sofrido, heals/boosts, distância, tempo, tipo de morte
+
+Possíveis próximos passos:
+- Ícones específicos por plataforma (hoje todos usam o ícone Steam)
+- Estatísticas ranked (currentTier, survivalTitle) — endpoint /seasons/{id}/ranked
+- Comparar duas seasons lado a lado
+- Sincronizar drawer aberto na URL (?m=)
+- Integrar tests com CI (github actions)

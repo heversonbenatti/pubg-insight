@@ -1,6 +1,20 @@
 import { generateUniqueColor } from './utils.js';
 import { startModal } from './replay2d.js';
 
+function buildPlayerLink(name) {
+    const url = new URL(window.location.href);
+    url.search = '';
+    url.hash = '';
+    url.searchParams.set('p', name);
+    const search = new URLSearchParams(window.location.search);
+    const season = search.get('s');
+    if (season) url.searchParams.set('s', season);
+    let platform = 'steam';
+    try { platform = localStorage.getItem('pi_platform') || 'steam'; } catch (_) {}
+    url.searchParams.set('platform', platform);
+    return url.toString();
+}
+
 export function showModal(matchData) {
     const existingModal = document.querySelector('.modal-custom');
     if (existingModal) existingModal.remove();
@@ -87,6 +101,32 @@ export function showModal(matchData) {
     shareBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 8a3 3 0 1 1 3 -3M9 12a3 3 0 1 1 -3 3M15 16a3 3 0 1 1 3 3M8.7 13.3l6.6 3.4M15.3 7.3l-6.6 3.4"/></svg> Share`;
     shareBtn.onmouseenter = () => shareBtn.style.background = 'var(--surface-2)';
     shareBtn.onmouseleave = () => shareBtn.style.background = 'transparent';
+    shareBtn.addEventListener('click', () => {
+        const url = new URL(window.location.href);
+        url.search = '';
+        url.searchParams.set('p', searchedPlayerName);
+        url.searchParams.set('m', matchData.data.id);
+        const text = url.toString();
+        const fallback = () => {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); } catch (_) {}
+            ta.remove();
+        };
+        const showToast = () => {
+            shareBtn.style.color = 'var(--accent)';
+            const orig = shareBtn.innerHTML;
+            shareBtn.innerHTML = '✓ Copied';
+            setTimeout(() => { shareBtn.innerHTML = orig; shareBtn.style.color = ''; }, 1400);
+        };
+        if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(text).then(showToast).catch(() => { fallback(); showToast(); });
+        } else {
+            fallback(); showToast();
+        }
+    });
 
     // Close button
     const closeBtn = document.createElement('button');
@@ -502,7 +542,14 @@ function buildTeamPanel(roster, matchData, teamId, color, slotIndex) {
 
         const nameSpan = document.createElement('span');
         nameSpan.textContent = s.name;
-        nameSpan.style.cssText = 'font-size:11.5px;font-weight:600;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;color:var(--text);';
+        nameSpan.title = `Open ${s.name} in a new tab`;
+        nameSpan.style.cssText = 'font-size:11.5px;font-weight:600;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;color:var(--text);cursor:pointer;';
+        nameSpan.addEventListener('mouseenter', () => { nameSpan.style.textDecoration = 'underline'; });
+        nameSpan.addEventListener('mouseleave', () => { nameSpan.style.textDecoration = ''; });
+        nameSpan.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.open(buildPlayerLink(s.name), '_blank', 'noopener');
+        });
 
         const hpWrapper = document.createElement('div');
         hpWrapper.style.cssText = 'flex:1;display:flex;align-items:center;gap:6px;';
@@ -699,15 +746,26 @@ function populateTeams(matchData, teamListEl) {
 
         roster.relationships.participants.data.forEach(ref => {
             const participant = matchData.included.find(p => p.id === ref.id);
-            const playerDiv = document.createElement('div');
-            playerDiv.textContent = participant.attributes.stats.name;
-            const isSelf = participant.attributes.stats.name === searchedPlayerName;
+            const name = participant.attributes.stats.name;
+            const isSelf = name === searchedPlayerName;
+            const playerDiv = document.createElement('span');
+            playerDiv.textContent = name;
+            playerDiv.title = `Open ${name} in a new tab`;
             playerDiv.style.cssText = `
                 font-size:11.5px;
                 font-weight:${isSelf ? '600' : '400'};
                 color:${isSelf ? 'var(--accent)' : 'inherit'};
                 white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+                cursor:pointer;
+                display:block;
+                padding:1px 0;
             `;
+            playerDiv.addEventListener('mouseenter', () => { playerDiv.style.textDecoration = 'underline'; });
+            playerDiv.addEventListener('mouseleave', () => { playerDiv.style.textDecoration = ''; });
+            playerDiv.addEventListener('click', (e) => {
+                e.stopPropagation();
+                window.open(buildPlayerLink(name), '_blank', 'noopener');
+            });
             playersDiv.appendChild(playerDiv);
         });
 

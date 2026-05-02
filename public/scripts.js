@@ -76,8 +76,73 @@ let currentIndex = 0;
 const MATCHES_PER_PAGE = 20;
 let activeMode = 'squadFpp';
 let recentSearches = [];
+let savedPlayers = [];
+let currentPlatform = 'steam';
 try { recentSearches = JSON.parse(localStorage.getItem('pi_recents') || '[]'); } catch(e) {}
+try { savedPlayers   = JSON.parse(localStorage.getItem('pi_saved')   || '[]'); } catch(e) {}
+try {
+  const p = localStorage.getItem('pi_platform');
+  if (p) currentPlatform = p;
+} catch(e) {}
 let fppStats = {}, tppStats = {};
+let mapFilter = new Set();
+let perspectiveFilter = 'all';   // 'all' | 'fpp' | 'tpp' | 'ranked' | 'normal'
+
+const PLATFORMS = [
+  { value: 'steam',  label: 'Steam'  },
+  { value: 'kakao',  label: 'Kakao'  },
+  { value: 'psn',    label: 'PSN'    },
+  { value: 'xbox',   label: 'Xbox'   },
+  { value: 'stadia', label: 'Stadia' },
+];
+
+function platformLabel(value = currentPlatform) {
+  return PLATFORMS.find(p => p.value === value)?.label || 'Steam';
+}
+
+function isConsolePlatform(p = currentPlatform) {
+  return p === 'psn' || p === 'xbox' || p === 'stadia';
+}
+
+function platformSelectHTML(idPrefix) {
+  return `<div class="pi-season-wrap">
+    <select id="${idPrefix}-platform-select" class="pi-season-select">
+      ${PLATFORMS.map(p => `<option value="${p.value}"${p.value === currentPlatform ? ' selected' : ''}>${p.label}</option>`).join('')}
+    </select>
+    <span class="pi-season-chevron">${Icon.chevronD(14)}</span>
+  </div>`;
+}
+
+async function loadSeasonsForCurrentPlatform() {
+  const res = await fetch(`/api/seasons?platform=${currentPlatform}`);
+  const seasons = await res.json();
+  if (!seasons || seasons.error) throw new Error('seasons failed');
+
+  const isConsole = isConsolePlatform();
+  allSeasons = seasons
+    .filter(s => isConsole ? !s.id.includes('pc') || s.id.includes('console') : (s.id.includes('pc') && !s.id.includes('console')))
+    .sort((a, b) => parseInt(b.id.split('-').pop(), 10) - parseInt(a.id.split('-').pop(), 10));
+}
+
+async function changePlatform(newPlatform) {
+  if (newPlatform === currentPlatform) return;
+  currentPlatform = newPlatform;
+  try { localStorage.setItem('pi_platform', newPlatform); } catch (_) {}
+  try {
+    await loadSeasonsForCurrentPlatform();
+  } catch (e) {
+    alert('Failed to load seasons for ' + platformLabel());
+    return;
+  }
+  // Repopulate selects
+  populateSeasonSelect('header-season-select');
+  populateSeasonSelect('landing-season-select');
+  // Sync platform selects so both copies match
+  ['header-platform-select', 'landing-platform-select'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = currentPlatform;
+  });
+}
 
 const MODES = [
   { key: 'soloFpp',  label: 'Solo',  persp: 'FPP', statKey: 'solo',  perspKey: 'fpp' },
@@ -103,6 +168,7 @@ function renderHeader(query = '', season = '') {
           <input id="header-player-name" value="${escapeAttr(query)}" placeholder="Search player name" autocomplete="off">
           <div class="pi-search-hint">⏎</div>
         </div>
+        ${platformSelectHTML('header')}
         <div class="pi-season-wrap">
           <select id="header-season-select" class="pi-season-select"></select>
           <span class="pi-season-chevron">${Icon.chevronD(14)}</span>
@@ -111,12 +177,32 @@ function renderHeader(query = '', season = '') {
       </form>
     </div>
     <div class="pi-header-actions">
-      <button class="pi-btn subtle">${Icon.clock(14)} History</button>
-      <button class="pi-btn subtle">${Icon.star(14)} Saved</button>
+      <div class="pi-popover-host">
+        <button id="btn-history" class="pi-btn subtle" type="button">${Icon.clock(14)} History</button>
+      </div>
+      <div class="pi-popover-host">
+        <button id="btn-saved" class="pi-btn subtle" type="button">${Icon.star(14)} Saved</button>
+      </div>
     </div>`;
   populateSeasonSelect('header-season-select', season);
   document.getElementById('header-search-form').addEventListener('submit', e => { e.preventDefault(); doSearch(); });
   document.getElementById('header-logo-link').addEventListener('click', e => { e.preventDefault(); showLanding(); });
+  document.getElementById('header-platform-select')?.addEventListener('change', e => changePlatform(e.target.value));
+  document.getElementById('btn-history').addEventListener('click', e => {
+    e.stopPropagation();
+    togglePlayerListPopover('btn-history', 'History', recentSearches, name => {
+      recentSearches = recentSearches.filter(x => x !== name);
+      try { localStorage.setItem('pi_recents', JSON.stringify(recentSearches)); } catch(_) {}
+    });
+  });
+  document.getElementById('btn-saved').addEventListener('click', e => {
+    e.stopPropagation();
+    togglePlayerListPopover('btn-saved', 'Saved', savedPlayers, name => {
+      savedPlayers = savedPlayers.filter(x => x !== name);
+      try { localStorage.setItem('pi_saved', JSON.stringify(savedPlayers)); } catch(_) {}
+      updateSaveButtonState();
+    });
+  });
 }
 
 function escapeAttr(s) {
@@ -155,11 +241,17 @@ function showLanding() {
   document.getElementById('pi-header').style.display = 'none';
   renderLanding();
   closeDrawer();
+  const url = new URL(window.location.href);
+  if (url.search || url.hash) {
+    url.search = '';
+    url.hash = '';
+    window.history.replaceState({}, '', url.toString());
+  }
 }
 
 function renderLanding() {
   const recentHTML = recentSearches.slice(0, 6).map(name =>
-    `<button class="pi-chip recent-chip" data-name="${escapeAttr(name)}">${Icon.clock(12)} ${name}</button>`
+    `<button class="pi-chip recent-chip" data-name="${escapeAttr(name)}" title="Search ${escapeAttr(name)}">${Icon.clock(12)} ${name} <span class="recent-chip-x" title="Remove">${Icon.x(10)}</span></button>`
   ).join('');
 
   document.getElementById('landing').innerHTML = `
@@ -171,8 +263,11 @@ function renderLanding() {
         <div class="pi-search-input-wrap" style="flex:1">
           ${Icon.search(18)}
           <input id="landing-player-name" placeholder="Enter player name…" autocomplete="off" autofocus>
-          <div class="pi-steam-badge">
-            ${Icon.steam(14)} <span class="micro">STEAM</span>
+          <div class="pi-season-wrap" style="margin-right:8px">
+            <select id="landing-platform-select" class="pi-season-select" title="Platform">
+              ${PLATFORMS.map(p => `<option value="${p.value}"${p.value === currentPlatform ? ' selected' : ''}>${p.label}</option>`).join('')}
+            </select>
+            <span class="pi-season-chevron">${Icon.chevronD(14)}</span>
           </div>
           <div class="pi-season-wrap" style="margin-right:8px">
             <select id="landing-season-select" class="pi-season-select"></select>
@@ -208,11 +303,19 @@ function renderLanding() {
 
   populateSeasonSelect('landing-season-select');
   document.getElementById('landing-form').addEventListener('submit', e => { e.preventDefault(); doSearch(); });
+  document.getElementById('landing-platform-select')?.addEventListener('change', e => changePlatform(e.target.value));
   document.querySelectorAll('.recent-chip').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const n = btn.dataset.name;
+    btn.addEventListener('click', e => {
+      if (e.target.closest('.recent-chip-x')) {
+        const n = btn.dataset.name;
+        recentSearches = recentSearches.filter(x => x !== n);
+        try { localStorage.setItem('pi_recents', JSON.stringify(recentSearches)); } catch(e) {}
+        renderLanding();
+        return;
+      }
       const inp = document.getElementById('landing-player-name');
-      if (inp) { inp.value = n; inp.focus(); }
+      if (inp) inp.value = btn.dataset.name;
+      doSearch();
     });
   });
 }
@@ -269,17 +372,20 @@ function renderPlayerHeader(name, seasonId) {
       <div style="flex:1;min-width:0">
         <div class="player-name-row">
           <h1 class="player-name" id="player-name-display">${name}</h1>
-          <span class="steam-badge">${Icon.steam(11)} STEAM</span>
+          <span class="steam-badge">${Icon.steam(11)} ${platformLabel().toUpperCase()}</span>
         </div>
         <div class="player-meta">
           <span class="mono">${seasonLabel.toUpperCase()}</span>
           <span>·</span>
-          <span>Steam account</span>
+          <span>${platformLabel()} account</span>
         </div>
       </div>
-      <button class="pi-btn ghost">${Icon.star(14)} Save</button>
-      <button class="pi-btn ghost">${Icon.share(14)} Share</button>
+      <button id="btn-save-player" class="pi-btn ghost" type="button">${Icon.star(14)} Save</button>
+      <button id="btn-share-player" class="pi-btn ghost" type="button">${Icon.share(14)} Share</button>
     </div>`;
+  document.getElementById('btn-save-player').addEventListener('click', () => toggleSavePlayer(currentPlayerName));
+  document.getElementById('btn-share-player').addEventListener('click', () => copyToClipboard(buildPlayerShareUrl()));
+  updateSaveButtonState();
 }
 
 function renderModeTabs() {
@@ -328,25 +434,23 @@ function renderStatsGrid() {
   const kills = (s.kills || 0) - (s.teamKills || 0);
   const deaths = s.losses || 1;
   const assists = s.assists || 0;
-  const top10s = s.top10s || 0;
 
   const cards = [
-    { label: 'K/D',          value: (kills/deaths).toFixed(2),                       accent: true },
+    { label: 'K/D',          value: (kills/deaths).toFixed(2),                       accent: true, wide: true },
+    { label: 'AVG. KILLS',   value: (kills/total).toFixed(2) },
     { label: 'AVG. DAMAGE',  value: Math.round((s.damageDealt||0)/total) },
-    { label: 'ASSIST',       value: assists },
+    { label: 'KILLS',        value: kills },
     { label: 'GAMES',        value: total },
-    { label: 'WIN %',        value: (((s.wins||0)/total)*100).toFixed(2)+'%',         accent: true },
+    { label: 'WIN %',        value: (((s.wins||0)/total)*100).toFixed(2)+'%',        accent: true },
     { label: 'WINS',         value: s.wins || 0 },
-    { label: 'KDA',          value: ((kills+assists)/deaths).toFixed(2) },
+    { label: 'ASSISTS',      value: assists },
     { label: 'HEADSHOT %',   value: kills ? (((s.headshotKills||0)/kills)*100).toFixed(2)+'%' : '0.00%' },
     { label: 'MOST KILLS',   value: s.roundMostKills || 0 },
     { label: 'LONGEST KILL', value: s.longestKill ? Math.round(s.longestKill)+'m' : '0m' },
-    { label: 'TOP 10 %',     value: ((top10s/total)*100).toFixed(2)+'%' },
-    { label: 'TOP 10',       value: top10s },
   ];
 
   container.innerHTML = `<div class="stats-grid-new">${cards.map(c => `
-    <div class="stat-card-new">
+    <div class="stat-card-new${c.wide ? ' wide' : ''}">
       <div class="stat-label">${c.label}</div>
       <div class="stat-value${c.accent ? ' accent' : ''}">${c.value}</div>
     </div>`).join('')}</div>`;
@@ -355,6 +459,46 @@ function renderStatsGrid() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Match list
 // ─────────────────────────────────────────────────────────────────────────────
+let filterPanelOpen = false;
+
+function getFilteredMatches() {
+  return allMatches.filter(m => {
+    const attr = m.data.attributes;
+    const mapName = translateMapName(attr.mapName);
+    if (mapFilter.size > 0 && !mapFilter.has(mapName)) return false;
+    const gm = (attr.gameMode || '').toLowerCase();
+    const isFpp = gm.includes('fpp');
+    const isRanked = attr.matchType === 'competitive';
+    if (perspectiveFilter === 'fpp' && !isFpp) return false;
+    if (perspectiveFilter === 'tpp' && isFpp) return false;
+    if (perspectiveFilter === 'ranked' && !isRanked) return false;
+    if (perspectiveFilter === 'normal' && isRanked) return false;
+    return true;
+  });
+}
+
+function getUniqueMaps() {
+  const set = new Set();
+  allMatches.forEach(m => set.add(translateMapName(m.data.attributes.mapName)));
+  return [...set].sort();
+}
+
+function perspectiveLabel() {
+  return ({
+    all:    'All modes',
+    fpp:    'FPP only',
+    tpp:    'TPP only',
+    ranked: 'Ranked',
+    normal: 'Normal',
+  })[perspectiveFilter];
+}
+
+function cyclePerspective() {
+  const order = ['all', 'fpp', 'tpp', 'ranked', 'normal'];
+  perspectiveFilter = order[(order.indexOf(perspectiveFilter) + 1) % order.length];
+  renderMatchList();
+}
+
 function renderMatchList() {
   currentIndex = 0;
   const container = document.getElementById('match-list-area');
@@ -363,30 +507,69 @@ function renderMatchList() {
 }
 
 function appendMatches(container, reset = false) {
-  const nextBatch = allMatches.slice(currentIndex, currentIndex + MATCHES_PER_PAGE);
+  const filtered = getFilteredMatches();
+  const nextBatch = filtered.slice(currentIndex, currentIndex + MATCHES_PER_PAGE);
   currentIndex += nextBatch.length;
 
   if (reset) {
-    const rows = allMatches.slice(0, currentIndex).map(m => buildMatchRow(m)).filter(Boolean).join('');
+    const rows = filtered.slice(0, currentIndex).map(m => buildMatchRow(m)).filter(Boolean).join('');
     container.innerHTML = `
       <div class="match-section-header">
-        <h2 class="match-section-title">Last matches <span class="match-section-count" id="match-count">${currentIndex}/${allMatches.length}</span></h2>
+        <h2 class="match-section-title">Last matches <span class="match-section-count" id="match-count">${currentIndex}/${filtered.length}${filtered.length !== allMatches.length ? ` <span class="match-section-filtered">(of ${allMatches.length})</span>` : ''}</span></h2>
         <div class="match-section-actions">
-          <button class="pi-btn subtle">${Icon.filter(13)} Filter</button>
-          <button class="pi-btn subtle">All modes</button>
+          <button id="btn-filter" class="pi-btn subtle${mapFilter.size > 0 ? ' active' : ''}" type="button">${Icon.filter(13)} Filter${mapFilter.size > 0 ? ` · ${mapFilter.size}` : ''}</button>
+          <button id="btn-mode" class="pi-btn subtle${perspectiveFilter !== 'all' ? ' active' : ''}" type="button">${perspectiveLabel()}</button>
         </div>
       </div>
-      <div class="match-list-new" id="match-list-inner">${rows}</div>
-      ${currentIndex < allMatches.length ? `<div class="load-more-wrap"><button id="load-more-btn" class="pi-btn ghost">Load more ${Icon.chevronD(14)}</button></div>` : ''}`;
+      ${filterPanelOpen ? renderFilterPanel() : ''}
+      <div class="match-list-new" id="match-list-inner">${rows || '<div class="match-empty-filter">No matches match the current filter.</div>'}</div>
+      ${currentIndex < filtered.length ? `<div class="load-more-wrap"><button id="load-more-btn" class="pi-btn ghost">Load more ${Icon.chevronD(14)}</button></div>` : ''}`;
     bindMatchRows(container);
     document.getElementById('load-more-btn')?.addEventListener('click', () => appendMatches(container, false));
+    document.getElementById('btn-filter')?.addEventListener('click', () => {
+      filterPanelOpen = !filterPanelOpen;
+      renderMatchList();
+    });
+    document.getElementById('btn-mode')?.addEventListener('click', cyclePerspective);
+    if (filterPanelOpen) bindFilterPanel();
   } else {
     const list = container.querySelector('#match-list-inner');
     nextBatch.forEach(m => { const r = buildMatchRow(m); if(r){ const div=document.createElement('div'); div.innerHTML=r; const btn=div.firstElementChild; list.appendChild(btn); bindRow(btn); } });
     const cnt = container.querySelector('#match-count');
-    if (cnt) cnt.textContent = `${currentIndex}/${allMatches.length}`;
-    if (currentIndex >= allMatches.length) container.querySelector('.load-more-wrap')?.remove();
+    if (cnt) {
+      cnt.innerHTML = `${currentIndex}/${filtered.length}${filtered.length !== allMatches.length ? ` <span class="match-section-filtered">(of ${allMatches.length})</span>` : ''}`;
+    }
+    if (currentIndex >= filtered.length) container.querySelector('.load-more-wrap')?.remove();
   }
+}
+
+function renderFilterPanel() {
+  const maps = getUniqueMaps();
+  const chips = maps.map(m => `
+    <button class="pi-chip filter-map-chip${mapFilter.has(m) ? ' active' : ''}" data-map="${escapeAttr(m)}" type="button">${m}</button>`
+  ).join('');
+  return `
+    <div class="filter-panel">
+      <div class="filter-panel-row">
+        <span class="micro filter-panel-label">MAPS</span>
+        <div class="filter-panel-chips">${chips}</div>
+        ${mapFilter.size > 0 ? '<button id="btn-clear-maps" class="pi-btn subtle" type="button">Clear</button>' : ''}
+      </div>
+    </div>`;
+}
+
+function bindFilterPanel() {
+  document.querySelectorAll('.filter-map-chip').forEach(c => {
+    c.addEventListener('click', () => {
+      const m = c.dataset.map;
+      if (mapFilter.has(m)) mapFilter.delete(m); else mapFilter.add(m);
+      renderMatchList();
+    });
+  });
+  document.getElementById('btn-clear-maps')?.addEventListener('click', () => {
+    mapFilter.clear();
+    renderMatchList();
+  });
 }
 
 function bindMatchRows(container) {
@@ -469,7 +652,7 @@ function renderDrawer(matchData) {
   const isWin = winPlace === 1;
   const ago = timeAgo(attr.createdAt);
 
-  // Find teammates via roster
+  // Find teammates via roster (includes searched player)
   const rosters = matchData.included.filter(i => i.type === 'roster');
   const myRoster = rosters.find(r =>
     r.relationships?.participants?.data?.some(pd => {
@@ -477,13 +660,12 @@ function renderDrawer(matchData) {
       return p?.attributes?.stats?.name === currentPlayerName;
     })
   );
-  const teammates = myRoster
+  const teamParticipants = myRoster
     ? myRoster.relationships.participants.data
         .map(pd => matchData.included.find(i => i.id === pd.id && i.type === 'participant'))
         .filter(Boolean)
-        .map(p => p.attributes?.stats?.name)
-        .filter(n => n && n !== currentPlayerName)
-    : [];
+        .sort((a, b) => (b.attributes.stats.damageDealt || 0) - (a.attributes.stats.damageDealt || 0))
+    : [participant];
 
   const statusColor = isWin ? 'var(--accent)' : 'var(--text-dim)';
   const statusLabel = isWin ? 'CHICKEN DINNER' : 'FINISHED';
@@ -512,53 +694,69 @@ function renderDrawer(matchData) {
 
       <div class="micro drawer-section-label">TEAM</div>
       <div class="drawer-teammates">
-        <div class="drawer-teammate">
-          <div class="drawer-teammate-badge self">★</div>
-          <span class="drawer-teammate-name" style="font-weight:600">${currentPlayerName}</span>
-          <span class="drawer-teammate-kills">${kills} K</span>
-        </div>
-        ${teammates.map((name, i) => `
-          <div class="drawer-teammate">
-            <div class="drawer-teammate-badge other">${i + 2}</div>
-            <span class="drawer-teammate-name" style="color:var(--text-dim)">${name}</span>
-          </div>`).join('')}
+        ${teamParticipants.map(p => {
+          const ts = p.attributes.stats;
+          const isSelf = ts.name === currentPlayerName;
+          return `
+          <div class="drawer-teammate${isSelf ? ' self' : ''}">
+            <div class="drawer-teammate-badge ${isSelf ? 'self' : 'other'}">${isSelf ? '★' : '·'}</div>
+            <a class="drawer-teammate-name" href="${escapeAttr(buildPlayerLinkFor(ts.name))}" target="_blank" rel="noopener noreferrer" title="Open ${escapeAttr(ts.name)} in a new tab">${ts.name}</a>
+            <span class="drawer-teammate-kills">${ts.kills}K · ${Math.round(ts.damageDealt)} DMG</span>
+          </div>`;
+        }).join('')}
       </div>
 
-      <div class="micro drawer-section-label">MATCH TIMELINE</div>
-      <div class="drawer-timeline">
-        <div class="drawer-timeline-track">
-          ${[10,25,40,55,70,88].map((p, i) =>
-            `<div class="drawer-timeline-dot" style="left:${p}%;background:${i===5&&isWin?'var(--accent)':'var(--text-dim)'}"></div>`
-          ).join('')}
-        </div>
-        <div class="drawer-timeline-labels">
-          <span>00:00</span><span>${formatTime(timeSurvived)}</span>
-        </div>
+      <div class="micro drawer-section-label">DETAILS</div>
+      <div class="drawer-detail-list">
+        ${drawerDetailRows(participant.attributes.stats, attr.duration).map(([label, value]) => `
+          <div class="drawer-detail-row">
+            <span class="drawer-detail-label">${label}</span>
+            <span class="drawer-detail-value">${value}</span>
+          </div>`).join('')}
       </div>
     </div>
 
     <div class="drawer-footer">
-      <button class="pi-btn ghost">${Icon.share(14)} Share</button>
+      <button id="btn-share-match" class="pi-btn ghost" type="button">${Icon.share(14)} Share</button>
       <div style="flex:1"></div>
-      <button class="pi-btn primary" id="open-replay-btn">${Icon.play(12)} Open 2D replay</button>
+      <button class="pi-btn primary" id="open-replay-btn" type="button">${Icon.play(12)} Open 2D replay</button>
     </div>`;
 
   document.getElementById('drawer-close-btn').addEventListener('click', closeDrawer);
+  document.getElementById('btn-share-match').addEventListener('click', () => copyToClipboard(buildMatchShareUrl(matchData.data.id)));
   document.getElementById('open-replay-btn').addEventListener('click', () => {
     window.globalMatchData = matchData;
     showModal(matchData);
   });
 }
 
+function drawerDetailRows(s, matchDuration) {
+  // walk/ride/swim distances are in METERS (per PUBG API docs)
+  const distM = (s.walkDistance || 0) + (s.rideDistance || 0) + (s.swimDistance || 0);
+  const distLabel = distM >= 1000
+    ? (distM / 1000).toFixed(2) + ' km'
+    : Math.round(distM) + ' m';
+  return [
+    ['Headshots',      s.headshotKills ?? 0],
+    ['Knocks',         s.DBNOs ?? 0],
+    ['Weapons picked', s.weaponsAcquired ?? 0],
+    ['Distance',       distLabel],
+    ['Match length',   formatTime(matchDuration || 0)],
+  ];
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Search / fetch
 // ─────────────────────────────────────────────────────────────────────────────
-async function doSearch() {
-  const name = getQuery();
-  const seasonId = getCurrentSeason();
+async function doSearch(opts = {}) {
+  const name = opts.name || getQuery();
+  const seasonId = opts.seasonId || getCurrentSeason();
   if (!name) return;
 
   currentPlayerName = name;
+  mapFilter.clear();
+  perspectiveFilter = 'all';
+  filterPanelOpen = false;
   recentSearches = [name, ...recentSearches.filter(n => n !== name)].slice(0, 6);
   try { localStorage.setItem('pi_recents', JSON.stringify(recentSearches)); } catch(e) {}
 
@@ -567,8 +765,8 @@ async function doSearch() {
 
   try {
     const [statsRes, matchesRes] = await Promise.all([
-      fetch(`/api/player/${encodeURIComponent(name)}?season=${encodeURIComponent(seasonId)}`),
-      fetch(`/api/player/${encodeURIComponent(name)}/matches`),
+      fetch(`/api/player/${encodeURIComponent(name)}?season=${encodeURIComponent(seasonId)}&platform=${currentPlatform}`),
+      fetch(`/api/player/${encodeURIComponent(name)}/matches?platform=${currentPlatform}`),
     ]);
 
     const statsData = await statsRes.json();
@@ -585,6 +783,18 @@ async function doSearch() {
     activeMode = getBestMode(fppStats, tppStats);
 
     showPlayerPage(name, seasonId);
+
+    // Reflect search in URL (without reloading)
+    const url = new URL(window.location.href);
+    url.searchParams.set('p', name);
+    if (seasonId) url.searchParams.set('s', seasonId);
+    if (!opts.matchId) url.searchParams.delete('m');
+    window.history.replaceState({}, '', url.toString());
+
+    if (opts.matchId) {
+      const match = allMatches.find(m => m.data.id === opts.matchId);
+      if (match) openDrawer(match);
+    }
   } catch (err) {
     console.error(err);
     alert('Failed to load player data.');
@@ -604,9 +814,149 @@ function getBestMode(fpp, tpp) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Popovers (History / Saved)
+// ─────────────────────────────────────────────────────────────────────────────
+function closeAllPopovers() {
+  document.querySelectorAll('.pi-popover').forEach(p => p.remove());
+}
+
+function togglePlayerListPopover(anchorId, title, items, onRemove) {
+  const existing = document.querySelector(`.pi-popover[data-anchor="${anchorId}"]`);
+  closeAllPopovers();
+  if (existing) return;
+
+  const anchor = document.getElementById(anchorId);
+  if (!anchor) return;
+  const rect = anchor.getBoundingClientRect();
+
+  const pop = document.createElement('div');
+  pop.className = 'pi-popover';
+  pop.dataset.anchor = anchorId;
+  pop.style.top = `${rect.bottom + 6 + window.scrollY}px`;
+  pop.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
+
+  const list = items.length === 0
+    ? `<div class="pi-popover-empty">No ${title.toLowerCase()} yet</div>`
+    : items.map(name => `
+        <div class="pi-popover-row" data-name="${escapeAttr(name)}">
+          <button class="pi-popover-pick" type="button">${Icon.search(12)} ${name}</button>
+          <button class="pi-popover-remove" type="button" title="Remove">${Icon.x(12)}</button>
+        </div>`).join('');
+
+  pop.innerHTML = `
+    <div class="pi-popover-title">${title}</div>
+    <div class="pi-popover-body">${list}</div>`;
+
+  document.body.appendChild(pop);
+
+  pop.querySelectorAll('.pi-popover-row').forEach(row => {
+    const name = row.dataset.name;
+    row.querySelector('.pi-popover-pick').addEventListener('click', () => {
+      closeAllPopovers();
+      const inp = document.getElementById('header-player-name');
+      if (inp) inp.value = name;
+      doSearch();
+    });
+    row.querySelector('.pi-popover-remove').addEventListener('click', e => {
+      e.stopPropagation();
+      onRemove?.(name);
+      // Re-render this popover with updated items
+      const updated = anchorId === 'btn-history' ? recentSearches : savedPlayers;
+      togglePlayerListPopover(anchorId, title, updated, onRemove);
+    });
+  });
+
+  setTimeout(() => {
+    const handler = (e) => {
+      if (!pop.contains(e.target) && e.target.id !== anchorId) {
+        closeAllPopovers();
+        document.removeEventListener('click', handler);
+      }
+    };
+    document.addEventListener('click', handler);
+  }, 0);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Save / Share
+// ─────────────────────────────────────────────────────────────────────────────
+function isSaved(name) { return savedPlayers.includes(name); }
+
+function toggleSavePlayer(name) {
+  if (isSaved(name)) savedPlayers = savedPlayers.filter(x => x !== name);
+  else savedPlayers = [name, ...savedPlayers].slice(0, 50);
+  try { localStorage.setItem('pi_saved', JSON.stringify(savedPlayers)); } catch (_) {}
+  updateSaveButtonState();
+}
+
+function updateSaveButtonState() {
+  const btn = document.getElementById('btn-save-player');
+  if (!btn) return;
+  const active = isSaved(currentPlayerName);
+  btn.classList.toggle('active', active);
+  btn.innerHTML = `${Icon.star(14)} ${active ? 'Saved' : 'Save'}`;
+}
+
+function buildPlayerShareUrl() {
+  return buildPlayerLinkFor(currentPlayerName);
+}
+
+function buildPlayerLinkFor(name) {
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('p', name);
+  const season = getCurrentSeason();
+  if (season) url.searchParams.set('s', season);
+  url.searchParams.set('platform', currentPlatform);
+  return url.toString();
+}
+
+function buildMatchShareUrl(matchId) {
+  const url = new URL(buildPlayerShareUrl());
+  url.searchParams.set('m', matchId);
+  return url.toString();
+}
+
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('Link copied to clipboard');
+  } catch (_) {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast('Link copied to clipboard'); }
+    catch (_) { toast('Could not copy'); }
+    ta.remove();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Toast
+// ─────────────────────────────────────────────────────────────────────────────
+function toast(message) {
+  let el = document.getElementById('pi-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'pi-toast';
+    el.className = 'pi-toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = message;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Keyboard
 // ─────────────────────────────────────────────────────────────────────────────
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeDrawer(); closeAllPopovers(); }
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // App shell + boot
@@ -635,16 +985,28 @@ function buildAppShell() {
 async function init() {
   buildAppShell();
   try {
-    const res = await fetch('/api/seasons');
-    const seasons = await res.json();
-    if (!seasons || seasons.error) throw new Error('seasons failed');
+    // Honor ?platform= from URL before loading seasons (so deep links to other platforms work)
+    const params = new URLSearchParams(window.location.search);
+    const linkedPlatform = params.get('platform');
+    if (linkedPlatform && PLATFORMS.some(p => p.value === linkedPlatform)) {
+      currentPlatform = linkedPlatform;
+      try { localStorage.setItem('pi_platform', linkedPlatform); } catch (_) {}
+    }
 
-    allSeasons = seasons
-      .filter(s => s.id.includes('pc') && !s.id.includes('console'))
-      .sort((a, b) => parseInt(b.id.split('-').pop(), 10) - parseInt(a.id.split('-').pop(), 10));
+    await loadSeasonsForCurrentPlatform();
 
-    renderHeader('', allSeasons.find(s => s.attributes.isCurrentSeason)?.id || '');
-    showLanding();
+    const defaultSeason = allSeasons.find(s => s.attributes.isCurrentSeason)?.id || '';
+    renderHeader('', defaultSeason);
+
+    // Deep link: ?p=<name>&s=<season>&m=<matchId>&platform=<platform>
+    const linkedPlayer = params.get('p');
+    if (linkedPlayer) {
+      const linkedSeason = params.get('s') || defaultSeason;
+      const linkedMatch = params.get('m') || null;
+      doSearch({ name: linkedPlayer, seasonId: linkedSeason, matchId: linkedMatch });
+    } else {
+      showLanding();
+    }
   } catch (err) {
     console.error(err);
     alert('Failed to load seasons.');
