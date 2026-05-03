@@ -988,7 +988,7 @@ function renderDrawer(matchData) {
   document.getElementById('btn-share-match').addEventListener('click', () => copyToClipboard(buildMatchShareUrl(matchData.data.id)));
   document.getElementById('open-replay-btn').addEventListener('click', () => {
     window.globalMatchData = matchData;
-    showModal(matchData);
+    showModal(matchData, currentPlatform);
   });
 }
 

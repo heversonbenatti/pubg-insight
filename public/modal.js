@@ -15,11 +15,11 @@ function buildPlayerLink(name) {
     return url.toString();
 }
 
-export function showModal(matchData) {
+export function showModal(matchData, platform = 'steam') {
     const existingModal = document.querySelector('.modal-custom');
     if (existingModal) existingModal.remove();
 
-    const telemetryUrl = matchData.included.find(item => item.type === "asset").attributes.URL;
+    const matchId = matchData.data.id;
 
     // ── Outer modal backdrop ─────────────────────────────────────────────────
     const modal = document.createElement('div');
@@ -373,8 +373,7 @@ export function showModal(matchData) {
     window.teamNameVisibility = {};
     window.pinnedTeams = [null, null];
 
-    startModal(telemetryUrl, matchData.data.attributes.mapName);
-    fetch(`/api/telemetry/save?url=${encodeURIComponent(telemetryUrl)}`).catch(() => {});
+    startModal(matchId, platform, matchData.data.attributes.mapName);
     populateTeams(matchData, teamListScroll);
 
     modal.addEventListener('click', function (e) {

@@ -59,18 +59,6 @@ async function pubgGet(url, opts = {}) {
     }
 }
 
-async function publicGet(url, opts = {}) {
-    _logApi('PUBLIC', url);
-    try {
-        const r = await axios.get(url, opts);
-        console.log(`       \x1b[32m→ ${r.status}\x1b[0m`);
-        return r;
-    } catch (e) {
-        const code = e.response?.status ?? 'ERR';
-        console.log(`       \x1b[31m→ ${code} ${e.message}\x1b[0m`);
-        throw e;
-    }
-}
 
 app.use(express.static('public'));
 
@@ -80,9 +68,11 @@ const matchCacheDir = path.join(cacheDir, 'matches');
 if (!fs.existsSync(matchCacheDir)) fs.mkdirSync(matchCacheDir, { recursive: true });
 
 const SEASONS_TTL      = 24 * 60 * 60 * 1000;   // 24h
-const PLAYER_TTL       = 10 * 60 * 1000;        // 10min
+const PLAYERID_TTL     = 24 * 60 * 60 * 1000;   // 24h — playerId is stable
+const PLAYER_TTL       = 10 * 60 * 1000;        // 10min (current season only)
 const MATCHES_LIST_TTL = 5  * 60 * 1000;        // 5min
 const MATCH_TTL        = 7  * 24 * 60 * 60 * 1000; // 7d (matches are immutable)
+const FOREVER          = Number.MAX_SAFE_INTEGER; // past seasons are immutable
 
 function safeName(s) { return String(s).replace(/[^a-zA-Z0-9_-]/g, '_'); }
 
@@ -122,7 +112,9 @@ app.get('/api/player/:playerName', async (req, res) => {
     if (!VALID_PLATFORMS.has(platform)) return res.status(400).json({ error: 'Invalid platform' });
 
     const cacheFile = path.join(cacheDir, `player_${platform}_${safeName(playerName)}_${safeName(season)}.json`);
-    const cached = readCache(cacheFile, PLAYER_TTL);
+    const seasonsMeta = readCache(path.join(cacheDir, `seasons_${platform}.json`), SEASONS_TTL) || [];
+    const isCurrent = seasonsMeta.find(s => s.id === season)?.attributes?.isCurrentSeason ?? true;
+    const cached = readCache(cacheFile, isCurrent ? PLAYER_TTL : FOREVER);
     if (cached) return res.json(cached);
 
     try {
@@ -207,7 +199,7 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
 const playerIdInflight = new Map();
 async function getPlayerId(platform, playerName) {
     const cacheFile = path.join(cacheDir, `playerid_${platform}_${safeName(playerName)}.json`);
-    const cached = readCache(cacheFile, 24 * 60 * 60 * 1000); // 1d — playerId is stable
+    const cached = readCache(cacheFile, PLAYERID_TTL);
     if (cached) return cached;
 
     const key = `${platform}_${playerName}`;
@@ -234,9 +226,9 @@ async function getPlayerId(platform, playerName) {
     return promise;
 }
 
-async function getPlayerSeason(platform, playerName, seasonId) {
+async function getPlayerSeason(platform, playerName, seasonId, isCurrent = false) {
     const cacheFile = path.join(cacheDir, `player_${platform}_${safeName(playerName)}_${safeName(seasonId)}.json`);
-    const cached = readCache(cacheFile, PLAYER_TTL);
+    const cached = readCache(cacheFile, isCurrent ? PLAYER_TTL : FOREVER);
     if (cached) return cached;
 
     const playerId = await getPlayerId(platform, playerName);
@@ -284,8 +276,9 @@ app.get('/api/player/:playerName/career', async (req, res) => {
             .slice(0, limit);
 
         const results = await Promise.all(filtered.map(async s => {
-            const data = await getPlayerSeason(platform, playerName, s.id);
-            return data ? { seasonId: s.id, isCurrent: !!s.attributes?.isCurrentSeason, stats: data.stats } : null;
+            const isCurrent = !!s.attributes?.isCurrentSeason;
+            const data = await getPlayerSeason(platform, playerName, s.id, isCurrent);
+            return data ? { seasonId: s.id, isCurrent, stats: data.stats } : null;
         }));
 
         // Return oldest → newest so client can plot left-to-right
@@ -297,17 +290,39 @@ app.get('/api/player/:playerName/career', async (req, res) => {
     }
 });
 
-app.get('/api/telemetry/save', async (req, res) => {
-    const { url } = req.query;
-    if (!url) return res.status(400).json({ error: 'url param required' });
+
+const PORT = process.env.PORT || 8080;
+app.get('/api/telemetry/:matchId', async (req, res) => {
+    const { matchId } = req.params;
+    const { platform = 'steam' } = req.query;
+    if (!VALID_PLATFORMS.has(platform)) return res.status(400).json({ error: 'Invalid platform' });
+
+    const telemetryCacheFile = path.join(matchCacheDir, `telemetry_${matchId}.json`);
+    if (fs.existsSync(telemetryCacheFile)) {
+        const raw = fs.readFileSync(telemetryCacheFile, 'utf8');
+        res.setHeader('Content-Type', 'application/json');
+        return res.send(raw);
+    }
+
+    // Get telemetry URL from match cache
+    const matchCacheFile = path.join(matchCacheDir, `${platform}_${matchId}.json`);
+    let telemetryUrl;
+    if (fs.existsSync(matchCacheFile)) {
+        const match = JSON.parse(fs.readFileSync(matchCacheFile, 'utf8'));
+        telemetryUrl = match.included?.find(i => i.type === 'asset')?.attributes?.URL;
+    }
+    if (!telemetryUrl) return res.status(404).json({ error: 'Match not cached — load match history first' });
+
     try {
-        const response = await publicGet(url, { responseType: 'arraybuffer' });
-        fs.writeFileSync(path.join(cacheDir, 'last_telemetry.json'), response.data);
-        res.json({ ok: true });
+        _logApi('PUBLIC', telemetryUrl);
+        const r = await axios.get(telemetryUrl);
+        console.log(`       \x1b[32m→ ${r.status}\x1b[0m`);
+        fs.writeFileSync(telemetryCacheFile, JSON.stringify(r.data), 'utf8');
+        res.json(r.data);
     } catch (err) {
+        console.error('Telemetry fetch error:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
-const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

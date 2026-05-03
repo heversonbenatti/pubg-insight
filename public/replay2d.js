@@ -1,6 +1,6 @@
 import { translateMapName } from './utils.js';
 
-export function startModal(telemetryUrl, mapName) {
+export function startModal(matchId, platform, mapName) {
 
   const mapCanvas = document.getElementById("mapCanvas");
   const mapCtx = mapCanvas.getContext("2d");
@@ -46,7 +46,7 @@ export function startModal(telemetryUrl, mapName) {
 
   function interpolate(a, b, t) { return a + (b - a) * t; }
 
-  fetch(telemetryUrl)
+  fetch(`/api/telemetry/${matchId}?platform=${platform}`)
     .then(r => r.json())
     .then(data => {
       const gameStateData = data.filter(item => item.gameState);
