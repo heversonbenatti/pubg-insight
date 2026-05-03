@@ -3,3 +3,5 @@ node_modules/
 /public/jsons/
 /public/api-assets-master/
 /.claude
+api-documentation.md
+CLAUDE.md

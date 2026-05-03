@@ -498,8 +498,8 @@ function aggregateSeasonStats(stats) {
 }
 
 const CAREER_MIN_MATCHES = 20;
-const CAREER_SCAN_LIMIT  = 20;
-const CAREER_TARGET      = 20;
+const CAREER_SCAN_LIMIT  = 7;
+const CAREER_TARGET      = 5;
 
 async function loadCareerData(playerName) {
   careerData = null;
