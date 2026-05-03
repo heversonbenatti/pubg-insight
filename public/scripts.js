@@ -358,7 +358,9 @@ function showPlayerPage(playerName, seasonId) {
   renderPlayerHeader(playerName, seasonId);
   renderModeTabs();
   renderStatsGrid();
+  renderCareerChart();      // skeleton first; data fills in async
   renderMatchList();
+  loadCareerData(playerName);
 }
 
 function renderPlayerHeader(name, seasonId) {
@@ -454,6 +456,266 @@ function renderStatsGrid() {
       <div class="stat-label">${c.label}</div>
       <div class="stat-value${c.accent ? ' accent' : ''}">${c.value}</div>
     </div>`).join('')}</div>`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Career chart (across seasons)
+// ─────────────────────────────────────────────────────────────────────────────
+let careerData = null;
+let careerLoading = false;
+let careerVisible = { kd: true, avgKills: true, avgDamage: true, winRate: true, headshotRate: true };
+
+const CAREER_METRICS = [
+  { key: 'kd',           label: 'K/D',       color: '#ffd866', fmt: v => v.toFixed(2)            },
+  { key: 'avgKills',     label: 'Avg Kills', color: '#7dd3fc', fmt: v => v.toFixed(2)            },
+  { key: 'avgDamage',    label: 'Avg DMG',   color: '#86efac', fmt: v => Math.round(v).toString() },
+  { key: 'winRate',      label: 'Win %',     color: '#c084fc', fmt: v => v.toFixed(1) + '%'      },
+  { key: 'headshotRate', label: 'HS %',      color: '#f87171', fmt: v => v.toFixed(1) + '%'      },
+];
+
+function aggregateSeasonStats(stats) {
+  const buckets = [];
+  for (const persp of ['fpp', 'tpp']) {
+    for (const mode of ['solo', 'duo', 'squad']) {
+      buckets.push(stats?.[persp]?.[mode] || {});
+    }
+  }
+  const sum = (k) => buckets.reduce((acc, s) => acc + (s[k] || 0), 0);
+  const rounds = sum('roundsPlayed');
+  const kills = sum('kills') - sum('teamKills');
+  const losses = sum('losses');
+  const wins = sum('wins');
+  const damageDealt = sum('damageDealt');
+  const headshotKills = sum('headshotKills');
+  return {
+    rounds,
+    kd: losses ? kills / losses : 0,
+    avgKills: rounds ? kills / rounds : 0,
+    avgDamage: rounds ? damageDealt / rounds : 0,
+    winRate: rounds ? (wins / rounds) * 100 : 0,
+    headshotRate: kills ? (headshotKills / kills) * 100 : 0,
+  };
+}
+
+const CAREER_MIN_MATCHES = 20;
+const CAREER_SCAN_LIMIT  = 20;
+const CAREER_TARGET      = 20;
+
+async function loadCareerData(playerName) {
+  careerData = null;
+  careerLoading = true;
+  renderCareerChart();
+  try {
+    const r = await fetch(`/api/player/${encodeURIComponent(playerName)}/career?platform=${currentPlatform}&limit=${CAREER_SCAN_LIMIT}`);
+    const data = await r.json();
+    careerLoading = false;
+
+    const aggregated = (data.seasons || []).map(s => ({
+      seasonId: s.seasonId,
+      n: parseInt(s.seasonId.split('-').pop(), 10),
+      isCurrent: s.isCurrent,
+      agg: aggregateSeasonStats(s.stats),
+    }));
+
+    // Take the up-to-CAREER_TARGET most recent seasons that meet the minimum,
+    // then re-sort oldest → newest so the chart plots left-to-right.
+    const newestFirst = [...aggregated].sort((a, b) => b.n - a.n);
+    const qualifying = newestFirst
+      .filter(s => s.agg.rounds >= CAREER_MIN_MATCHES)
+      .slice(0, CAREER_TARGET)
+      .sort((a, b) => a.n - b.n);
+
+    careerData = {
+      seasons: qualifying,
+      scanned: aggregated.length,
+      minMatches: CAREER_MIN_MATCHES,
+    };
+    renderCareerChart();
+  } catch (e) {
+    console.error('career fetch failed', e);
+    careerLoading = false;
+    careerData = { seasons: [], scanned: 0, minMatches: CAREER_MIN_MATCHES };
+    renderCareerChart();
+  }
+}
+
+function renderCareerChart() {
+  const c = document.getElementById('career-chart-area');
+  if (!c) return;
+  if (careerLoading) {
+    c.innerHTML = `
+      <div class="career-section">
+        <div class="career-header">
+          <h2 class="match-section-title">Across seasons <span class="match-section-count">loading…</span></h2>
+        </div>
+        <div class="career-skeleton skel"></div>
+      </div>`;
+    return;
+  }
+  if (!careerData) { c.innerHTML = ''; return; }
+
+  // Zero qualifying seasons → big message
+  if (careerData.seasons.length === 0) {
+    c.innerHTML = `
+      <div class="career-section">
+        <div class="career-empty">
+          <div class="career-empty-label">NOT ENOUGH DATA</div>
+          <div class="career-empty-message">
+            Career trends need at least <strong>${careerData.minMatches} matches</strong> in a season.
+            ${careerData.scanned > 0
+              ? `Scanned the last ${careerData.scanned} seasons — none reached that.`
+              : 'No season data found for this player.'}
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  c.innerHTML = renderCareerHTML();
+  bindCareerLegend();
+}
+
+function renderCareerHTML() {
+  const seasons = careerData.seasons;
+  const W = 800, H = 280;
+  const padL = 16, padR = 16, padT = 24, padB = 56;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+
+  const xAt = i => seasons.length === 1
+    ? padL + innerW / 2
+    : padL + (i / (seasons.length - 1)) * innerW;
+
+  // Per-stat min/max for normalization (each line uses its own scale)
+  const ranges = {};
+  CAREER_METRICS.forEach(m => {
+    const vals = seasons.map(s => s.agg[m.key]);
+    const min = Math.min(...vals);
+    const max = Math.max(...vals);
+    ranges[m.key] = { min, max, span: Math.max(0.0001, max - min) };
+  });
+
+  const yAt = (val, range) => {
+    const norm = (val - range.min) / range.span;  // 0..1
+    return padT + innerH - norm * innerH;          // 0 at top
+  };
+
+  // Background grid
+  const gridLines = [0.25, 0.5, 0.75].map(p => {
+    const y = padT + innerH * p;
+    return `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--divider)" stroke-width="0.5" stroke-dasharray="2 4" />`;
+  }).join('');
+
+  // Per-metric polyline + dots
+  const lines = CAREER_METRICS.map(m => {
+    if (!careerVisible[m.key]) return '';
+    const r = ranges[m.key];
+    const pts = seasons.map((s, i) => `${xAt(i)},${yAt(s.agg[m.key], r)}`).join(' ');
+    const dots = seasons.map((s, i) =>
+      `<circle data-key="${m.key}" data-idx="${i}" cx="${xAt(i)}" cy="${yAt(s.agg[m.key], r)}" r="3.5" fill="${m.color}" stroke="var(--bg)" stroke-width="1.5" />`
+    ).join('');
+    return `
+      <polyline points="${pts}" fill="none" stroke="${m.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.9" />
+      ${dots}`;
+  }).join('');
+
+  // X-axis labels
+  const xLabels = seasons.map((s, i) =>
+    `<text x="${xAt(i)}" y="${H - 32}" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="10.5">S${s.n}</text>` +
+    (s.isCurrent ? `<text x="${xAt(i)}" y="${H - 18}" text-anchor="middle" fill="var(--accent)" font-family="JetBrains Mono, monospace" font-size="9" letter-spacing="0.06em">CURRENT</text>` : '')
+  ).join('');
+
+  // Cursor line + per-season hover hit areas
+  const cursor = `<line id="career-cursor" x1="0" y1="${padT}" x2="0" y2="${padT + innerH}" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="3 3" opacity="0" pointer-events="none" />`;
+  const hoverRects = seasons.map((s, i) => {
+    const x0 = i === 0 ? padL : (xAt(i - 1) + xAt(i)) / 2;
+    const x1 = i === seasons.length - 1 ? W - padR : (xAt(i) + xAt(i + 1)) / 2;
+    return `<rect class="career-hover-rect" data-idx="${i}" x="${x0}" y="${padT}" width="${x1 - x0}" height="${innerH + 12}" fill="transparent" />`;
+  }).join('');
+
+  // Legend
+  const cur = seasons[seasons.length - 1];
+  const legend = CAREER_METRICS.map(m => {
+    const visible = careerVisible[m.key];
+    return `
+      <button class="career-legend-chip${visible ? '' : ' off'}" data-key="${m.key}" type="button" title="Toggle ${m.label}">
+        <span class="legend-dot" style="background:${m.color}"></span>
+        <span class="legend-label">${m.label}</span>
+        <span class="legend-value">${m.fmt(cur.agg[m.key])}</span>
+      </button>`;
+  }).join('');
+
+  return `
+    <div class="career-section">
+      <div class="career-header">
+        <div>
+          <h2 class="match-section-title">
+            Across seasons
+            <span class="match-section-count">${seasons.length} season${seasons.length === 1 ? '' : 's'}</span>
+            <span class="career-min-note" title="Seasons under ${careerData.minMatches} matches are skipped to keep averages meaningful">· min ${careerData.minMatches} matches</span>
+          </h2>
+          <div class="career-section-label" data-default="Latest: Season ${cur.n} · ${cur.agg.rounds} matches">Latest: Season ${cur.n} · ${cur.agg.rounds} matches</div>
+        </div>
+        <div class="career-legend">${legend}</div>
+      </div>
+      <div class="career-chart">
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" id="career-svg">
+          ${gridLines}
+          ${lines}
+          ${xLabels}
+          ${cursor}
+          ${hoverRects}
+        </svg>
+      </div>
+    </div>`;
+}
+
+function bindCareerLegend() {
+  document.querySelectorAll('.career-legend-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const key = chip.dataset.key;
+      careerVisible[key] = !careerVisible[key];
+      // Don't allow all-off — re-enable the just-clicked one
+      if (Object.values(careerVisible).every(v => !v)) careerVisible[key] = true;
+      renderCareerChart();
+    });
+  });
+  document.querySelectorAll('#career-svg .career-hover-rect').forEach(r => {
+    r.addEventListener('mouseenter', () => updateCareerHover(parseInt(r.dataset.idx, 10)));
+    r.addEventListener('mouseleave', () => updateCareerHover(null));
+  });
+}
+
+function updateCareerHover(idx) {
+  if (!careerData) return;
+  const seasons = careerData.seasons;
+  const target = idx == null ? seasons[seasons.length - 1] : seasons[idx];
+  if (!target) return;
+
+  document.querySelectorAll('.career-legend-chip').forEach(chip => {
+    const key = chip.dataset.key;
+    const m = CAREER_METRICS.find(mm => mm.key === key);
+    const v = chip.querySelector('.legend-value');
+    if (v) v.textContent = m.fmt(target.agg[key]);
+  });
+
+  const lbl = document.querySelector('.career-section-label');
+  if (lbl) {
+    lbl.textContent = idx == null
+      ? lbl.dataset.default
+      : `Season ${target.n}${target.isCurrent ? ' · current' : ''} · ${target.agg.rounds} matches`;
+  }
+
+  const cursor = document.getElementById('career-cursor');
+  if (cursor) {
+    if (idx == null) { cursor.setAttribute('opacity', '0'); return; }
+    const W = 800, padL = 16, padR = 16;
+    const innerW = W - padL - padR;
+    const x = seasons.length === 1 ? padL + innerW / 2 : padL + (idx / (seasons.length - 1)) * innerW;
+    cursor.setAttribute('x1', x);
+    cursor.setAttribute('x2', x);
+    cursor.setAttribute('opacity', '1');
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -973,6 +1235,7 @@ function buildAppShell() {
         <div id="player-header-area"></div>
         <div id="mode-tabs-area"></div>
         <div id="stats-grid-area"></div>
+        <div id="career-chart-area"></div>
         <div id="match-list-area"></div>
       </div>
     </div>

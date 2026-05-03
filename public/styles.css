@@ -410,6 +410,110 @@ button { font-family: inherit; }
   color: var(--text-faint); margin-bottom: 8px;
 }
 
+/* ── Career chart ────────────────────────────── */
+.career-section {
+  margin-bottom: 36px;
+  background: var(--surface);
+  border: 1px solid var(--divider);
+  border-radius: var(--r-md);
+  padding: 18px 18px 12px;
+}
+.career-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.career-section-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  margin-top: 4px;
+  min-height: 16px;
+}
+.career-legend {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.career-legend-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--divider);
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-size: 11.5px;
+  color: var(--text);
+  transition: opacity 140ms, background 140ms;
+  user-select: none;
+}
+.career-legend-chip:hover { background: var(--surface-3); }
+.career-legend-chip.off {
+  opacity: 0.4;
+  filter: grayscale(0.6);
+}
+.legend-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.career-legend-chip.off .legend-dot { background: var(--text-faint) !important; }
+.legend-label { color: var(--text-dim); }
+.legend-value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  margin-left: 2px;
+}
+.career-chart {
+  width: 100%;
+  margin-top: 10px;
+}
+.career-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 320px;
+}
+.career-hover-rect { cursor: crosshair; }
+.career-skeleton {
+  height: 280px;
+  border-radius: var(--r-sm);
+  margin-top: 10px;
+}
+.career-min-note {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  font-weight: 400;
+  margin-left: 6px;
+  letter-spacing: 0.04em;
+  cursor: help;
+}
+.career-empty {
+  border: 1px dashed var(--border);
+  border-radius: var(--r-md);
+  padding: 56px 28px;
+  text-align: center;
+  background: var(--surface);
+}
+.career-empty-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  margin-bottom: 10px;
+}
+.career-empty-message {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  max-width: 420px;
+  margin: 0 auto;
+}
+.career-empty-message strong { color: var(--text); }
+
 /* ── Match list ──────────────────────────────── */
 .match-section-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -874,6 +978,11 @@ input[type="range"]::-moz-range-thumb {
 }
 
 @media (max-width: 720px) {
+  .career-section { padding: 14px; }
+  .career-header { flex-direction: column; }
+  .career-legend { width: 100%; }
+  .career-legend-chip { font-size: 11px; padding: 4px 9px; }
+
   .pi-header {
     flex-wrap: wrap;
     padding: 12px 16px;

@@ -153,6 +153,98 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
     }
 });
 
+// ── Career: stats across the last N seasons ──────────────────────────────────
+// Reuses the per-season cache file used by /api/player/:name (PLAYER_TTL).
+const playerIdInflight = new Map();
+async function getPlayerId(platform, playerName) {
+    const cacheFile = path.join(cacheDir, `playerid_${platform}_${safeName(playerName)}.json`);
+    const cached = readCache(cacheFile, 24 * 60 * 60 * 1000); // 1d — playerId is stable
+    if (cached) return cached;
+
+    const key = `${platform}_${playerName}`;
+    if (playerIdInflight.has(key)) return playerIdInflight.get(key);
+
+    const promise = (async () => {
+        try {
+            const r = await axios.get(
+                `${shardUrl(platform)}/players?filter[playerNames]=${encodeURIComponent(playerName)}`,
+                { headers: pubgHeaders() }
+            );
+            if (!r.data.data.length) return null;
+            const id = r.data.data[0].id;
+            writeCache(cacheFile, id);
+            return id;
+        } catch { return null; }
+        finally { playerIdInflight.delete(key); }
+    })();
+    playerIdInflight.set(key, promise);
+    return promise;
+}
+
+async function getPlayerSeason(platform, playerName, seasonId) {
+    const cacheFile = path.join(cacheDir, `player_${platform}_${safeName(playerName)}_${safeName(seasonId)}.json`);
+    const cached = readCache(cacheFile, PLAYER_TTL);
+    if (cached) return cached;
+
+    const playerId = await getPlayerId(platform, playerName);
+    if (!playerId) return null;
+
+    try {
+        const statsResponse = await axios.get(
+            `${shardUrl(platform)}/players/${playerId}/seasons/${seasonId}`,
+            { headers: pubgHeaders() }
+        );
+        const s = statsResponse.data.data.attributes.gameModeStats;
+        const result = {
+            player: { name: playerName, id: playerId, platform },
+            stats: {
+                fpp: { solo: s['solo-fpp'] || {}, duo: s['duo-fpp'] || {}, squad: s['squad-fpp'] || {} },
+                tpp: { solo: s['solo']     || {}, duo: s['duo']     || {}, squad: s['squad']     || {} }
+            }
+        };
+        writeCache(cacheFile, result);
+        return result;
+    } catch (e) {
+        return null;
+    }
+}
+
+app.get('/api/player/:playerName/career', async (req, res) => {
+    const { playerName } = req.params;
+    const { platform = 'steam' } = req.query;
+    const limit = Math.max(2, Math.min(20, parseInt(req.query.limit, 10) || 8));
+    if (!VALID_PLATFORMS.has(platform)) return res.status(400).json({ error: 'Invalid platform' });
+
+    try {
+        // Seasons (cached)
+        const seasonsCacheFile = path.join(cacheDir, `seasons_${platform}.json`);
+        let seasons = readCache(seasonsCacheFile, SEASONS_TTL);
+        if (!seasons) {
+            const r = await axios.get(`${shardUrl(platform)}/seasons`, { headers: pubgHeaders() });
+            seasons = r.data.data;
+            writeCache(seasonsCacheFile, seasons);
+        }
+
+        const isConsole = platform === 'psn' || platform === 'xbox' || platform === 'stadia';
+        const filtered = seasons
+            .filter(s => isConsole ? !s.id.includes('pc') || s.id.includes('console') : (s.id.includes('pc') && !s.id.includes('console')))
+            .sort((a, b) => parseInt(b.id.split('-').pop(), 10) - parseInt(a.id.split('-').pop(), 10))
+            .slice(0, limit);
+
+        const results = await Promise.all(filtered.map(async s => {
+            const data = await getPlayerSeason(platform, playerName, s.id);
+            return data ? { seasonId: s.id, isCurrent: !!s.attributes?.isCurrentSeason, stats: data.stats } : null;
+        }));
+
+        // Return oldest → newest so client can plot left-to-right
+        const out = results.filter(Boolean).reverse();
+        res.json({ seasons: out });
+    } catch (error) {
+        console.error('Error fetching career:', error.message);
+        res.status(500).json({ error: 'Failed to fetch career' });
+    }
+});
+
 app.get('/api/telemetry/save', async (req, res) => {
     const { url } = req.query;
     if (!url) return res.status(400).json({ error: 'url param required' });
