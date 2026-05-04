@@ -781,22 +781,14 @@ function populateTeams(matchData, teamListEl) {
             const isSelf = name === searchedPlayerName;
             const playerDiv = document.createElement('span');
             playerDiv.textContent = name;
-            playerDiv.title = `Open ${name} in a new tab`;
             playerDiv.style.cssText = `
                 font-size:11.5px;
                 font-weight:${isSelf ? '600' : '400'};
                 color:${isSelf ? 'var(--accent)' : 'inherit'};
                 white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-                cursor:pointer;
                 display:block;
                 padding:1px 0;
             `;
-            playerDiv.addEventListener('mouseenter', () => { playerDiv.style.textDecoration = 'underline'; });
-            playerDiv.addEventListener('mouseleave', () => { playerDiv.style.textDecoration = ''; });
-            playerDiv.addEventListener('click', (e) => {
-                e.stopPropagation();
-                window.open(buildPlayerLink(name), '_blank', 'noopener');
-            });
             playersDiv.appendChild(playerDiv);
         });
 
