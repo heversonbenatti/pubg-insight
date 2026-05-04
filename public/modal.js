@@ -347,6 +347,27 @@ export function showModal(matchData, platform = 'steam') {
     speedDisplay.textContent = '1x';
     speedDisplay.style.cssText = 'font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:11px;color:var(--accent);min-width:34px;text-align:right;flex-shrink:0;';
 
+    // ── Player size control ───────────────────────────────────────────────────
+    const sizeDivider = document.createElement('div');
+    sizeDivider.style.cssText = 'width:1px;height:18px;background:var(--border);flex-shrink:0;';
+
+    const sizeLabel = document.createElement('span');
+    sizeLabel.style.cssText = 'font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;font-size:9.5px;color:var(--text-muted);flex-shrink:0;';
+    sizeLabel.textContent = 'SIZE';
+
+    const savedSize = parseInt(localStorage.getItem('pi_playerSize') ?? '6');
+    window._replayPlayerSize = Math.max(4, Math.min(8, isNaN(savedSize) ? 6 : savedSize));
+
+    const sizeSlider = document.createElement('input');
+    sizeSlider.type = 'range';
+    sizeSlider.min = '4'; sizeSlider.max = '8'; sizeSlider.step = '1';
+    sizeSlider.value = String(window._replayPlayerSize);
+    sizeSlider.style.cssText = 'width:64px;flex-shrink:0;';
+    sizeSlider.addEventListener('input', () => {
+        window._replayPlayerSize = parseInt(sizeSlider.value);
+        try { localStorage.setItem('pi_playerSize', sizeSlider.value); } catch (_) {}
+    });
+
     controlsBar.appendChild(playButton);
     controlsBar.appendChild(currentTimeDisplay);
     controlsBar.appendChild(progressBar);
@@ -355,6 +376,9 @@ export function showModal(matchData, platform = 'steam') {
     controlsBar.appendChild(speedLabel);
     controlsBar.appendChild(speedSlider);
     controlsBar.appendChild(speedDisplay);
+    controlsBar.appendChild(sizeDivider);
+    controlsBar.appendChild(sizeLabel);
+    controlsBar.appendChild(sizeSlider);
 
     // Sync timer el → currentTimeDisplay (replay2d writes to #timer)
     const timerObserver = new MutationObserver(() => {

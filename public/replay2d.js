@@ -716,8 +716,9 @@ export function startModal(matchId, platform, mapName) {
           });
         }
 
-        const pointSize = 7 / (scaleFactor * zoomScale);
-        const borderWidth = 1.5 / (scaleFactor * zoomScale);
+        const ps = window._replayPlayerSize ?? 6;
+        const pointSize  = ps / (scaleFactor * zoomScale);
+        const borderWidth = Math.max(1, ps * 0.22) / (scaleFactor * zoomScale);
         const nextIndex = Math.min(currentIndex + 1, interpolatedData.length - 1);
 
         bulletEvents.filter(b => b.t <= currentTimeSmooth && b.t + b.duration > currentTimeSmooth).forEach(bullet => {
@@ -780,7 +781,7 @@ export function startModal(matchId, platform, mapName) {
           if (hpRatio > 0) {
             drawCtx.beginPath();
             drawCtx.moveTo(px, py);
-            drawCtx.arc(px, py, pointSize, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * hpRatio);
+            drawCtx.arc(px, py, pointSize, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * hpRatio, true);
             drawCtx.closePath();
             drawCtx.fillStyle = fillColor;
             drawCtx.fill();
