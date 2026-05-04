@@ -277,12 +277,17 @@ export function showModal(matchData, platform = 'steam') {
     controlsBar.id = 'controlsConatiner';
     controlsBar.style.cssText = `
         display:flex;align-items:center;gap:10px;
-        width:100%;padding:8px 12px;box-sizing:border-box;
+        min-width:0;padding:8px 12px;box-sizing:border-box;
         background:var(--surface-2);
         border:1px solid var(--border);
         border-radius:var(--r-md);
         flex-shrink:0;
     `;
+    /* NOTE: width is intentionally NOT set to 100% here.
+       The parent (innerColumn) has align-items:stretch so the bar fills the
+       full width anyway — but letting CSS drive it (instead of width:100%)
+       breaks the circular flex dependency that caused innerColumn to be
+       wider than the square viewport, resulting in letterboxing. */
 
     // Play/pause — amber 32×32
     const playButton = document.createElement('button');

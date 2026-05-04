@@ -111,8 +111,22 @@ export function startModal(matchId, platform, mapName) {
     }
   }
 
-  // ── Initial view — computed immediately from MAP dimensions ──────────────────
-  {
+  // ── Initial view ──────────────────────────────────────────────────────────────
+  // Re-reads canvas/viewport dimensions and snaps zoom+pan to fit the full map.
+  // Called immediately AND after one rAF so CSS layout has time to settle —
+  // this fixes the intermittent "map doesn't fill viewport" bug caused by the
+  // flex layout not being fully computed when startModal() is first invoked.
+  function snapToFitView() {
+    const w = viewport.offsetWidth;
+    const h = viewport.offsetHeight;
+    if (!w || !h) return; // layout not ready yet — rAF will retry
+    VIEWPORT_WIDTH  = w;
+    VIEWPORT_HEIGHT = h;
+    mapCanvas.width  = VIEWPORT_WIDTH;
+    mapCanvas.height = VIEWPORT_HEIGHT;
+    drawCanvas.width  = VIEWPORT_WIDTH;
+    drawCanvas.height = VIEWPORT_HEIGHT;
+    scaleFactor = BASE_SCALE * (VIEWPORT_WIDTH / 800) * (816000 / Math.max(MAP_WIDTH, MAP_HEIGHT));
     const fitZoomX = VIEWPORT_WIDTH  / (MAP_WIDTH  * scaleFactor);
     const fitZoomY = VIEWPORT_HEIGHT / (MAP_HEIGHT * scaleFactor);
     zoomScale = Math.min(fitZoomX, fitZoomY);
@@ -120,6 +134,8 @@ export function startModal(matchId, platform, mapName) {
     panX = (MAP_WIDTH  - VIEWPORT_WIDTH  / (scaleFactor * zoomScale)) / 2;
     panY = (MAP_HEIGHT - VIEWPORT_HEIGHT / (scaleFactor * zoomScale)) / 2;
   }
+  snapToFitView();
+  requestAnimationFrame(snapToFitView); // re-read after CSS layout fully settles
 
   // ── Early render loop — shows map while telemetry is loading ─────────────────
   // Cancelled as soon as telemetry data is ready.
@@ -591,13 +607,14 @@ export function startModal(matchId, platform, mapName) {
       document.addEventListener('mouseup', () => { isDragging = false; });
 
       window.addEventListener('resize', () => {
-        VIEWPORT_WIDTH = viewport.offsetWidth;
-        VIEWPORT_HEIGHT = viewport.offsetHeight;
-        mapCanvas.width = VIEWPORT_WIDTH; mapCanvas.height = VIEWPORT_HEIGHT;
-        drawCanvas.width = VIEWPORT_WIDTH; drawCanvas.height = VIEWPORT_HEIGHT;
-        scaleFactor = BASE_SCALE * (VIEWPORT_WIDTH / 800) * (816000 / Math.max(MAP_WIDTH, MAP_HEIGHT));
-        panX = (MAP_WIDTH - VIEWPORT_WIDTH / (scaleFactor * zoomScale)) / 2;
-        panY = (MAP_HEIGHT - VIEWPORT_HEIGHT / (scaleFactor * zoomScale)) / 2;
+        const prevZoom = zoomScale;
+        const prevMin  = minZoom;
+        snapToFitView();
+        // If user had zoomed in, preserve the relative zoom level
+        if (prevMin > 0 && prevZoom > prevMin) {
+          zoomScale = Math.max(minZoom, zoomScale * (prevZoom / prevMin));
+        }
+        updatePanLimits();
         updateSafeZone();
       });
 
