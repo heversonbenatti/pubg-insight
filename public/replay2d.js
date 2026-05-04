@@ -925,8 +925,13 @@ export function startModal(matchId, platform, mapName) {
       globalPlayButton.addEventListener('click', function () {
         isPlaying = !isPlaying;
         globalPlayButton.innerHTML = isPlaying ? ICON_PAUSE : ICON_PLAY;
-        if (isPlaying && currentIndex >= interpolatedData.length - 1) {
-          currentIndex = 0; frameAccumulator = 0; timeAccumulator = 0; lastTimestamp = null;
+        if (isPlaying) {
+          // Garante estado limpo ao retomar — evita NaN em timeAccumulator
+          lastTimestamp = null;
+          if (!isFinite(timeAccumulator)) timeAccumulator = 0;
+          if (currentIndex >= interpolatedData.length - 1) {
+            currentIndex = 0; frameAccumulator = 0; timeAccumulator = 0;
+          }
         }
       });
 
@@ -936,9 +941,14 @@ export function startModal(matchId, platform, mapName) {
       speedDisplay.textContent = '8x';
       playbackSpeed = 8;
       isPlaying = true;
+      lastTimestamp = null;   // garante que o primeiro frame via RAF não compute delta inválido
+      timeAccumulator = 0;
       globalPlayButton.innerHTML = ICON_PAUSE;
 
-      animate();
+      // Usar requestAnimationFrame em vez de animate() direto:
+      // chamada direta passa timestamp=undefined → lastTimestamp=undefined →
+      // na próxima iteração undefined!==null é true → delta=NaN → tudo quebra.
+      animationFrameId = requestAnimationFrame(animate);
     })
     .catch(err => console.error('Error loading telemetry:', err));
 }
