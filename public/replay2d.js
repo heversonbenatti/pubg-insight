@@ -179,9 +179,15 @@ export function startModal(matchId, platform, mapName) {
 
   // ── Early render loop — shows map while telemetry is loading ─────────────────
   // Cancelled as soon as telemetry data is ready.
+  // telemetryReady guards against the race where z=0 tile loads AFTER the
+  // telemetry promise resolves: without it, earlyRender would start after
+  // animate() and clear the canvas every frame (showing only "Loading…").
   let earlyFrameId = null;
+  let telemetryReady = false;
 
   function earlyRender() {
+    if (telemetryReady) { earlyFrameId = null; return; }
+
     mapCtx.save();
     mapCtx.setTransform(1, 0, 0, 1, 0, 0);
     mapCtx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
@@ -194,7 +200,7 @@ export function startModal(matchId, platform, mapName) {
     drawCtx.setTransform(1, 0, 0, 1, 0, 0);
     drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
     drawCtx.font = 'bold 13px "JetBrains Mono", monospace';
-    drawCtx.fillStyle = 'rgba(255,255,255,0.5)';
+    drawCtx.fillStyle = 'rgba(255,255,255,1)';
     drawCtx.textAlign = 'center';
     drawCtx.fillText('Loading telemetry…', VIEWPORT_WIDTH / 2, VIEWPORT_HEIGHT / 2);
     drawCtx.restore();
@@ -202,13 +208,15 @@ export function startModal(matchId, platform, mapName) {
     earlyFrameId = requestAnimationFrame(earlyRender);
   }
 
-  // Start as soon as z=0 tile is available (cached tile fires instantly)
+  // Start as soon as z=0 tile is available (cached tile fires instantly).
+  // Guard with telemetryReady so earlyRender never starts if telemetry
+  // already resolved before the tile loaded.
   const z0tile = getTile(0, 0, 0);
   if (z0tile.complete && z0tile.naturalWidth > 0) {
-    earlyFrameId = requestAnimationFrame(earlyRender);
+    if (!telemetryReady) earlyFrameId = requestAnimationFrame(earlyRender);
   } else {
     z0tile.addEventListener('load', () => {
-      earlyFrameId = requestAnimationFrame(earlyRender);
+      if (!telemetryReady) earlyFrameId = requestAnimationFrame(earlyRender);
     }, { once: true });
   }
 
@@ -219,7 +227,10 @@ export function startModal(matchId, platform, mapName) {
   const _preloadedTelemetry = window._telemetryPreload?.[matchId];
   (_preloadedTelemetry ? _preloadedTelemetry.then(d => d ?? _fetchFresh()) : _fetchFresh())
     .then(data => {
-      // Stop the early "loading" render loop now that we have data
+      // Stop the early "loading" render loop now that we have data.
+      // Set the flag first so earlyRender exits immediately even if it's
+      // already queued (covers the race where z0 tile loads after telemetry).
+      telemetryReady = true;
       if (earlyFrameId !== null) { cancelAnimationFrame(earlyFrameId); earlyFrameId = null; }
 
       const gameStateData = data.filter(item => item.gameState);
