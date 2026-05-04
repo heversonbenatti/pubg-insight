@@ -705,8 +705,8 @@ export function startModal(matchId, platform, mapName) {
           });
         }
 
-        const pointSize = 7 / (scaleFactor * zoomScale);
-        const borderWidth = 2 / (scaleFactor * zoomScale);
+        const pointSize = 6 / (scaleFactor * zoomScale);   // ~15% menor que 7
+        const borderWidth = 1.5 / (scaleFactor * zoomScale);
         const nextIndex = Math.min(currentIndex + 1, interpolatedData.length - 1);
 
         bulletEvents.filter(b => b.t <= currentTimeSmooth && b.t + b.duration > currentTimeSmooth).forEach(bullet => {
@@ -750,17 +750,32 @@ export function startModal(matchId, platform, mapName) {
           const px = locA.x + (locB.x - locA.x) * subProgress;
           const py = locA.y + (locB.y - locA.y) * subProgress;
 
-          drawCtx.fillStyle = color;
-          drawCtx.strokeStyle = 'black';
-          drawCtx.lineWidth = borderWidth;
+          // Círculo do player com contorno branco (mais destacado que preto)
           drawCtx.beginPath();
           drawCtx.arc(px, py, pointSize, 0, 2 * Math.PI);
+          drawCtx.fillStyle = color;
           drawCtx.fill();
+          drawCtx.strokeStyle = 'rgba(255,255,255,0.85)';
+          drawCtx.lineWidth = borderWidth;
           drawCtx.stroke();
 
           const hp = playerHpByTime[accountId]?.[currentElapsed] ?? 100;
           const knocked = isPlayerKnocked(accountId, currentElapsed);
           const displayHp = knocked ? 0 : hp;
+
+          // Anel de HP interno (dentro do círculo do player)
+          const hpRatio = Math.max(0, Math.min(1, displayHp / 100));
+          if (hpRatio > 0) {
+            const hpColor = hpRatio > 0.6 ? 'rgba(80,255,120,0.95)'
+                          : hpRatio > 0.3 ? 'rgba(255,200,50,0.95)'
+                          :                  'rgba(255,60,60,0.95)';
+            drawCtx.beginPath();
+            drawCtx.arc(px, py, pointSize * 0.58, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * hpRatio);
+            drawCtx.strokeStyle = hpColor;
+            drawCtx.lineWidth = borderWidth * 1.3;
+            drawCtx.lineCap = 'round';
+            drawCtx.stroke();
+          }
 
           if (knocked) {
             drawCtx.save();
@@ -772,16 +787,6 @@ export function startModal(matchId, platform, mapName) {
             drawCtx.beginPath(); drawCtx.moveTo(0, -r); drawCtx.lineTo(0, r); drawCtx.stroke();
             drawCtx.beginPath(); drawCtx.moveTo(-r * 0.6, r * 0.3); drawCtx.lineTo(0, r); drawCtx.lineTo(r * 0.6, r * 0.3); drawCtx.stroke();
             drawCtx.restore();
-          }
-
-          const hpRatio = Math.max(0, Math.min(1, displayHp / 100));
-          if (hpRatio > 0) {
-            drawCtx.beginPath();
-            drawCtx.arc(px, py, pointSize + borderWidth * 1.2, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * hpRatio);
-            drawCtx.strokeStyle = 'rgba(255,255,255,0.9)';
-            drawCtx.lineWidth = borderWidth * 1.2;
-            drawCtx.lineCap = 'round';
-            drawCtx.stroke();
           }
 
           if (playerVehicleByTime[accountId]?.[currentElapsed]) {
