@@ -72,7 +72,7 @@ const SEASONS_TTL      = 24 * 60 * 60 * 1000;   // 24h
 const PLAYERID_TTL     = 24 * 60 * 60 * 1000;   // 24h — playerId is stable
 const PLAYER_TTL       = 10 * 60 * 1000;        // 10min (current season only)
 const MATCHES_LIST_TTL = 5  * 60 * 1000;        // 5min
-const MATCH_TTL        = 7  * 24 * 60 * 60 * 1000; // 7d (matches are immutable)
+const MATCH_TTL        = Number.MAX_SAFE_INTEGER;   // forever — matches are immutable and API drops them after 14d
 const FOREVER          = Number.MAX_SAFE_INTEGER; // past seasons are immutable
 
 function safeName(s) { return String(s).replace(/[^a-zA-Z0-9_-]/g, '_'); }
