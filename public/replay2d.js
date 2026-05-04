@@ -51,6 +51,40 @@ export function startModal(matchId, platform, mapName) {
   const MAP_MAX_Z = 5; // all maps are 16384×16384
   const tileImages = new Map();
 
+  // ── Killfeed icon preload ────────────────────────────────────────────────────
+  const _KF_NAMES = [
+    'Blackzone','Bluezone','DBNO','Death','Drown','Fall','Ferry','Groggy',
+    'Headshot','Headshot_DBNO','Kill_Truck','Kill_Truck_Turret','Loot_Truck',
+    'Melee_Throw','Punch','Redzone','Train','Vehicle','Vehicle_Explosion','Zombie_Punch',
+  ];
+  const KF_ICONS = {};
+  _KF_NAMES.forEach(name => {
+    const img = new Image();
+    img.src = `/pubg-api-assets/Assets/Icons/Killfeed/${name}.png`;
+    KF_ICONS[name] = img;
+  });
+
+  function killfeedIconKey(causerName, damageType, damageReason, isKnock) {
+    const head = damageReason === 'HeadShot';
+    if (isKnock) return head ? 'Headshot_DBNO' : 'DBNO';
+    if (head) return 'Headshot';
+    if (damageType === 'Damage_BlueZone' || damageType === 'Damage_BlueZoneGrenade' || damageType === 'Damage_Blizzard') return 'Bluezone';
+    if (damageType === 'Damage_Explosion_BlackZone') return 'Blackzone';
+    if (damageType === 'Damage_Explosion_RedZone') return 'Redzone';
+    if (damageType === 'Damage_Drown') return 'Drown';
+    if (damageType === 'Damage_Instant_Fall') return 'Fall';
+    if (damageType === 'Damage_ShipHit') return 'Ferry';
+    if (damageType === 'Damage_TrainHit') return 'Train';
+    if (damageType === 'Damage_KillTruckHit') return 'Kill_Truck';
+    if (damageType === 'Damage_KillTruckTurret') return 'Kill_Truck_Turret';
+    if (damageType === 'Damage_LootTruckHit' || damageType === 'Damage_Explosion_LootTruck') return 'Loot_Truck';
+    if (damageType === 'Damage_Explosion_Vehicle' || damageType === 'Damage_VehicleHit' || damageType === 'Damage_VehicleCrashHit' || damageType === 'Damage_MotorGlider') return 'Vehicle';
+    if (damageType === 'Damage_Punch') return 'Punch';
+    if (damageType === 'Damage_MeleeThrow' || damageType === 'Damage_Melee') return 'Melee_Throw';
+    if (damageType === 'Damage_Monster') return 'Zombie_Punch';
+    return 'Death';
+  }
+
   function getTile(z, tx, ty) {
     const key = `${z}/${tx}/${ty}`;
     if (!tileImages.has(key)) {
@@ -448,10 +482,13 @@ export function startModal(matchId, platform, mapName) {
         const victim   = item.victim   || {};
         if (!attacker.name || !victim.name || !victim.accountId) return;
         const t = dMsToElapsed(new Date(item._D).getTime());
+        const kDmgType = item.damageTypeCategory || '';
+        const kDmgReason = item.damageReason || '';
         feedEvents.push({
           killerName: attacker.name, killerAccountId: attacker.accountId,
           victimName: victim.name,   victimAccountId: victim.accountId,
           isKnock: true, t,
+          iconKey: killfeedIconKey(item.damageCauserName, kDmgType, kDmgReason, true),
         });
       });
 
@@ -460,12 +497,18 @@ export function startModal(matchId, platform, mapName) {
         if ((item._T !== 'LogPlayerKillV2' && item._T !== 'LogPlayerKill') || !item._D) return;
         const killer = item.killer || item.attacker || {};
         const victim = item.victim || {};
-        if (!killer.name || !victim.name || !victim.accountId) return;
+        if (!victim.name || !victim.accountId) return;
         const t = dMsToElapsed(new Date(item._D).getTime());
+        // LogPlayerKillV2 stores damage details in finishDamageInfo / killerDamageInfo
+        const dmgInfo = item.finishDamageInfo || item.killerDamageInfo || {};
+        const dmgType   = dmgInfo.damageTypeCategory   || item.damageTypeCategory   || '';
+        const dmgReason = dmgInfo.damageReason          || item.damageReason          || '';
+        const causerName = dmgInfo.damageCauserName     || item.damageCauserName      || '';
         feedEvents.push({
-          killerName: killer.name, killerAccountId: killer.accountId,
+          killerName: killer.name || '', killerAccountId: killer.accountId || '',
           victimName: victim.name,  victimAccountId: victim.accountId,
           isKnock: false, t,
+          iconKey: killfeedIconKey(causerName, dmgType, dmgReason, false),
         });
       });
 
@@ -832,14 +875,21 @@ export function startModal(matchId, platform, mapName) {
 
         // Kill/knock feed — JetBrains Mono, styled box
         const feedDuration = 5;
-        const activeFeed = feedEvents.filter(e => e.t <= currentTime && e.t + feedDuration > currentTime).slice(-5);
+        const activeFeed = feedEvents.filter(e => e.t <= currentTime && e.t + feedDuration > currentTime).slice(-(window._replayFeedMax ?? 5));
         if (activeFeed.length > 0) {
-          const fs = 11, lineH = 18, padX = 8, padY = 6, margin = 8;
+          const _fs = window._replayFeedScale ?? 1;
+          const fs = Math.round(11 * _fs), lineH = Math.round(18 * _fs);
+          const padX = Math.round(8 * _fs), padY = Math.round(6 * _fs), margin = 8;
+          const iconW = Math.round(13 * _fs), iconGap = Math.round(5 * _fs);
           drawCtx.save();
           drawCtx.setTransform(1, 0, 0, 1, 0, 0);
           drawCtx.font = `bold ${fs}px "JetBrains Mono", monospace`;
           let maxW = 0;
-          activeFeed.forEach(e => { maxW = Math.max(maxW, drawCtx.measureText(`${e.killerName}  X  ${e.victimName}`).width); });
+          activeFeed.forEach(e => {
+            const kW = e.killerName ? drawCtx.measureText(e.killerName).width + iconGap : 0;
+            const vW = drawCtx.measureText(e.victimName).width;
+            maxW = Math.max(maxW, kW + iconW + iconGap + vW);
+          });
           const boxW = maxW + padX * 2, boxH = activeFeed.length * lineH + padY * 2;
           const boxX = VIEWPORT_WIDTH - boxW - margin, boxY = margin + 48;
           // Box with subtle border
@@ -861,18 +911,34 @@ export function startModal(matchId, platform, mapName) {
             const age = (currentTime - e.t) / feedDuration;
             drawCtx.globalAlpha = age > 0.7 ? 1 - (age - 0.7) / 0.3 : 1;
             const y = boxY + padY + i * lineH + fs;
+            const iconTopY = y - fs * 0.8;
             drawCtx.textBaseline = 'alphabetic';
-            drawCtx.fillStyle = getColor(e.killerAccountId);
             drawCtx.textAlign = 'left';
-            const kW = drawCtx.measureText(e.killerName).width;
-            drawCtx.fillText(e.killerName, boxX + padX, y);
-            drawCtx.fillStyle = e.isKnock ? '#f0c040' : '#ff4444';
-            drawCtx.textAlign = 'center';
-            const iconX = boxX + padX + kW + 16;
-            drawCtx.fillText(e.isKnock ? '⬇' : '☠', iconX, y);
+
+            // Killer name (empty for environmental kills)
+            let curX = boxX + padX;
+            if (e.killerName) {
+              drawCtx.fillStyle = getColor(e.killerAccountId);
+              drawCtx.fillText(e.killerName, curX, y);
+              curX += drawCtx.measureText(e.killerName).width + iconGap;
+            }
+
+            // Icon — PNG if loaded, emoji fallback
+            const iconKey = e.iconKey || (e.isKnock ? 'DBNO' : 'Death');
+            const iconImg = KF_ICONS[iconKey];
+            if (iconImg?.complete && iconImg.naturalWidth > 0) {
+              drawCtx.drawImage(iconImg, curX, iconTopY, iconW, iconW);
+            } else {
+              drawCtx.fillStyle = e.isKnock ? '#f0c040' : '#ff4444';
+              drawCtx.textAlign = 'center';
+              drawCtx.fillText(e.isKnock ? '⬇' : '☠', curX + iconW / 2, y);
+              drawCtx.textAlign = 'left';
+            }
+            curX += iconW + iconGap;
+
+            // Victim name
             drawCtx.fillStyle = getColor(e.victimAccountId);
-            drawCtx.textAlign = 'left';
-            drawCtx.fillText(e.victimName, iconX + 16, y);
+            drawCtx.fillText(e.victimName, curX, y);
           });
           drawCtx.globalAlpha = 1;
           drawCtx.restore();

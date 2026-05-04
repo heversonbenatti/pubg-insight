@@ -61,6 +61,7 @@ async function pubgGet(url, opts = {}) {
 
 
 app.use(express.static('public'));
+app.use('/pubg-api-assets', express.static('pubg-api-assets'));
 
 const cacheDir = path.join(__dirname, 'public', 'jsons');
 if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
