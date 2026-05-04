@@ -197,13 +197,15 @@ export function showModal(matchData, platform = 'steam') {
         justify-content:center;
     `;
 
-    // innerColumn: sized to content (i.e. the square viewport),
-    // so controls bar inherits the same width and doesn't stretch.
+    // innerColumn: flex-column that wraps viewport + controls.
+    // align-items:flex-start lets the viewport size itself via aspect-ratio:1/1
+    // (align-items:stretch would override aspect-ratio, making the viewport wider than tall).
+    // The controlsBar uses align-self:stretch to still match the viewport width.
     const innerColumn = document.createElement('div');
     innerColumn.style.cssText = `
         display:flex;flex-direction:column;gap:10px;
         height:100%;width:fit-content;
-        align-items:stretch;
+        align-items:flex-start;
     `;
 
     // Viewport
@@ -282,6 +284,7 @@ export function showModal(matchData, platform = 'steam') {
         border:1px solid var(--border);
         border-radius:var(--r-md);
         flex-shrink:0;
+        align-self:stretch;
     `;
     /* NOTE: width is intentionally NOT set to 100% here.
        The parent (innerColumn) has align-items:stretch so the bar fills the
