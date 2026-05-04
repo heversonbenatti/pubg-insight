@@ -41,14 +41,130 @@ export function startModal(matchId, platform, mapName) {
   });
 
   const translatedMapName = translateMapName(mapName);
-  const backgroundImage = new Image();
-  backgroundImage.src = `/images/${translatedMapName.toLowerCase()}map.png`;
+  const mapLower = translatedMapName.toLowerCase();
+
+  // ── Tile system ──────────────────────────────────────────────────────────────
+  // Tiles live at /tiles/{map}/{z}/{tx}_{ty}.jpg
+  // z=0 → 1 tile (512px) covering the whole map, loads in <100ms
+  // z=5 → 32×32 tiles at native 16384px resolution
+  const TILE_PX = 512;
+  const MAP_MAX_Z = 5; // all maps are 16384×16384
+  const tileImages = new Map();
+
+  function getTile(z, tx, ty) {
+    const key = `${z}/${tx}/${ty}`;
+    if (!tileImages.has(key)) {
+      const img = new Image();
+      img.src = `/tiles/${mapLower}/${z}/${tx}_${ty}.jpg`;
+      tileImages.set(key, img);
+    }
+    return tileImages.get(key);
+  }
+
+  function drawTiles(ctx) {
+    const vgW = VIEWPORT_WIDTH  / (scaleFactor * zoomScale);
+    const vgH = VIEWPORT_HEIGHT / (scaleFactor * zoomScale);
+
+    // z=0 covers the entire map — always draw first as the base layer
+    const z0 = getTile(0, 0, 0);
+    if (z0.complete && z0.naturalWidth > 0) {
+      ctx.drawImage(z0, 0, 0, MAP_WIDTH, MAP_HEIGHT);
+    }
+
+    // Choose the zoom level that puts each tile at ~TILE_PX screen pixels
+    const screenSpan = Math.max(MAP_WIDTH, MAP_HEIGHT) * scaleFactor * zoomScale;
+    const optZ = Math.min(MAP_MAX_Z, Math.max(1, Math.ceil(Math.log2(screenSpan / TILE_PX))));
+
+    const count = 1 << optZ;
+    const tgW = MAP_WIDTH  / count;
+    const tgH = MAP_HEIGHT / count;
+
+    // Visible tile range
+    const txMin = Math.max(0,         Math.floor(panX / tgW));
+    const txMax = Math.min(count - 1, Math.floor((panX + vgW) / tgW));
+    const tyMin = Math.max(0,         Math.floor(panY / tgH));
+    const tyMax = Math.min(count - 1, Math.floor((panY + vgH) / tgH));
+
+    for (let ty = tyMin; ty <= tyMax; ty++) {
+      for (let tx = txMin; tx <= txMax; tx++) {
+        const tile = getTile(optZ, tx, ty);
+        if (tile.complete && tile.naturalWidth > 0) {
+          ctx.drawImage(tile, tx * tgW, ty * tgH, tgW, tgH);
+        }
+        // If tile not yet loaded, z=0 base shows through (good enough)
+      }
+    }
+
+    // Pre-load next zoom level for smooth zoom-in
+    const nextZ = Math.min(MAP_MAX_Z, optZ + 1);
+    if (nextZ !== optZ) {
+      const nc   = 1 << nextZ;
+      const ntgW = MAP_WIDTH  / nc;
+      const ntgH = MAP_HEIGHT / nc;
+      const ntxMin = Math.max(0,      Math.floor(panX / ntgW));
+      const ntxMax = Math.min(nc - 1, Math.floor((panX + vgW) / ntgW));
+      const ntyMin = Math.max(0,      Math.floor(panY / ntgH));
+      const ntyMax = Math.min(nc - 1, Math.floor((panY + vgH) / ntgH));
+      for (let ty = ntyMin; ty <= ntyMax; ty++)
+        for (let tx = ntxMin; tx <= ntxMax; tx++)
+          getTile(nextZ, tx, ty); // triggers load without blocking render
+    }
+  }
+
+  // ── Initial view — computed immediately from MAP dimensions ──────────────────
+  {
+    const fitZoomX = VIEWPORT_WIDTH  / (MAP_WIDTH  * scaleFactor);
+    const fitZoomY = VIEWPORT_HEIGHT / (MAP_HEIGHT * scaleFactor);
+    zoomScale = Math.min(fitZoomX, fitZoomY);
+    minZoom   = zoomScale;
+    panX = (MAP_WIDTH  - VIEWPORT_WIDTH  / (scaleFactor * zoomScale)) / 2;
+    panY = (MAP_HEIGHT - VIEWPORT_HEIGHT / (scaleFactor * zoomScale)) / 2;
+  }
+
+  // ── Early render loop — shows map while telemetry is loading ─────────────────
+  // Cancelled as soon as telemetry data is ready.
+  let earlyFrameId = null;
+
+  function earlyRender() {
+    mapCtx.save();
+    mapCtx.setTransform(1, 0, 0, 1, 0, 0);
+    mapCtx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+    mapCtx.scale(scaleFactor * zoomScale, scaleFactor * zoomScale);
+    mapCtx.translate(-panX, -panY);
+    drawTiles(mapCtx);
+    mapCtx.restore();
+
+    drawCtx.save();
+    drawCtx.setTransform(1, 0, 0, 1, 0, 0);
+    drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    drawCtx.font = 'bold 13px "JetBrains Mono", monospace';
+    drawCtx.fillStyle = 'rgba(255,255,255,0.5)';
+    drawCtx.textAlign = 'center';
+    drawCtx.fillText('Loading telemetry…', VIEWPORT_WIDTH / 2, VIEWPORT_HEIGHT / 2);
+    drawCtx.restore();
+
+    earlyFrameId = requestAnimationFrame(earlyRender);
+  }
+
+  // Start as soon as z=0 tile is available (cached tile fires instantly)
+  const z0tile = getTile(0, 0, 0);
+  if (z0tile.complete && z0tile.naturalWidth > 0) {
+    earlyFrameId = requestAnimationFrame(earlyRender);
+  } else {
+    z0tile.addEventListener('load', () => {
+      earlyFrameId = requestAnimationFrame(earlyRender);
+    }, { once: true });
+  }
 
   function interpolate(a, b, t) { return a + (b - a) * t; }
 
-  fetch(`/api/telemetry/${matchId}?platform=${platform}`)
-    .then(r => r.json())
+  // Use preloaded telemetry promise if available (set by scripts.js on drawer open)
+  const _preloadedTelemetry = window._telemetryPreload?.[matchId];
+  (_preloadedTelemetry || fetch(`/api/telemetry/${matchId}?platform=${platform}`).then(r => r.json()))
     .then(data => {
+      // Stop the early "loading" render loop now that we have data
+      if (earlyFrameId !== null) { cancelAnimationFrame(earlyFrameId); earlyFrameId = null; }
+
       const gameStateData = data.filter(item => item.gameState);
       const characterData = data.filter(item => item._T === 'LogPlayerPosition');
 
@@ -427,16 +543,6 @@ export function startModal(matchId, platform, mapName) {
 
       let subProgress = 0;
 
-      backgroundImage.onload = function () {
-        const fitZoomX = VIEWPORT_WIDTH / (MAP_WIDTH * scaleFactor);
-        const fitZoomY = VIEWPORT_HEIGHT / (MAP_HEIGHT * scaleFactor);
-        zoomScale = Math.min(fitZoomX, fitZoomY);
-        minZoom = zoomScale;
-        panX = (MAP_WIDTH - VIEWPORT_WIDTH / (scaleFactor * zoomScale)) / 2;
-        panY = (MAP_HEIGHT - VIEWPORT_HEIGHT / (scaleFactor * zoomScale)) / 2;
-        updateSafeZone();
-      };
-
       const progressBar = document.getElementById('progressBar');
       progressBar.addEventListener('mousedown', e => e.stopPropagation());
       progressBar.addEventListener('touchstart', e => e.stopPropagation());
@@ -535,7 +641,7 @@ export function startModal(matchId, platform, mapName) {
         mapCtx.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
         mapCtx.scale(scaleFactor * zoomScale, scaleFactor * zoomScale);
         mapCtx.translate(-panX, -panY);
-        mapCtx.drawImage(backgroundImage, 0, 0, MAP_WIDTH, MAP_HEIGHT);
+        drawTiles(mapCtx);
         mapCtx.restore();
 
         drawCtx.save();

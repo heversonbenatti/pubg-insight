@@ -892,6 +892,24 @@ function openDrawer(matchData) {
   renderDrawer(matchData);
   document.getElementById('match-drawer').classList.add('open');
   document.getElementById('drawer-backdrop').classList.add('open');
+
+  // ── Preload telemetry so replay opens with zero gray-screen delay ────────────
+  const matchId = matchData.data.id;
+  if (!window._telemetryPreload) window._telemetryPreload = {};
+  if (!window._telemetryPreload[matchId]) {
+    window._telemetryPreload[matchId] = fetch(`/api/telemetry/${matchId}?platform=${currentPlatform}`)
+      .then(r => r.json())
+      .catch(() => null);
+  }
+
+  // ── Preload z=0 map tile (30KB) so the map appears instantly ────────────────
+  const mapLower = translateMapName(matchData.data.attributes.mapName).toLowerCase();
+  const z0url = `/tiles/${mapLower}/0/0_0.jpg`;
+  if (!window._tilePreload) window._tilePreload = new Set();
+  if (!window._tilePreload.has(z0url)) {
+    window._tilePreload.add(z0url);
+    new Image().src = z0url; // browser caches it for replay2d
+  }
 }
 
 function closeDrawer() {
