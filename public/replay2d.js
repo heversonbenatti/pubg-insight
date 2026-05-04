@@ -922,7 +922,12 @@ export function startModal(matchId, platform, mapName) {
             const iconKey = e.iconKey || (e.isKnock ? 'DBNO' : 'Death');
             const iconImg = KF_ICONS[iconKey];
             if (iconImg?.complete && iconImg.naturalWidth > 0) {
-              drawCtx.drawImage(iconImg, curX, iconTopY, iconW, iconW);
+              const ratio = iconImg.naturalWidth / iconImg.naturalHeight;
+              const dw = ratio >= 1 ? iconW : iconW * ratio;
+              const dh = ratio >= 1 ? iconW / ratio : iconW;
+              const dx = curX + (iconW - dw) / 2;
+              const dy = iconTopY + (iconW - dh) / 2;
+              drawCtx.drawImage(iconImg, dx, dy, dw, dh);
             } else {
               drawCtx.fillStyle = e.isKnock ? '#f0c040' : '#ff4444';
               drawCtx.textAlign = 'center';
