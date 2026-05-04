@@ -112,14 +112,12 @@ export function startModal(matchId, platform, mapName) {
   }
 
   // ── Initial view ──────────────────────────────────────────────────────────────
-  // Re-reads canvas/viewport dimensions and snaps zoom+pan to fit the full map.
-  // Called immediately AND after one rAF so CSS layout has time to settle —
-  // this fixes the intermittent "map doesn't fill viewport" bug caused by the
-  // flex layout not being fully computed when startModal() is first invoked.
+  // Reads canvas/viewport dimensions and snaps zoom+pan to fit the full map.
+  // Called via ResizeObserver (not RAF) so aspect-ratio:1/1 is always resolved.
   function snapToFitView() {
     const w = viewport.offsetWidth;
     const h = viewport.offsetHeight;
-    if (!w || !h) return; // layout not ready yet — rAF will retry
+    if (!w || !h) return;
     VIEWPORT_WIDTH  = w;
     VIEWPORT_HEIGHT = h;
     mapCanvas.width  = VIEWPORT_WIDTH;
@@ -134,8 +132,16 @@ export function startModal(matchId, platform, mapName) {
     panX = (MAP_WIDTH  - VIEWPORT_WIDTH  / (scaleFactor * zoomScale)) / 2;
     panY = (MAP_HEIGHT - VIEWPORT_HEIGHT / (scaleFactor * zoomScale)) / 2;
   }
-  snapToFitView();
-  requestAnimationFrame(snapToFitView); // re-read after CSS layout fully settles
+  // ResizeObserver fires during the layout phase, before RAF callbacks, so
+  // viewport.offsetWidth/Height are always the post-layout values (aspect-ratio resolved).
+  // This is the reliable fix for the intermittent "map doesn't fill viewport" bug.
+  const _initRO = new ResizeObserver(() => {
+    if (viewport.offsetWidth && viewport.offsetHeight) {
+      snapToFitView();
+      _initRO.disconnect();
+    }
+  });
+  _initRO.observe(viewport);
 
   // ── Early render loop — shows map while telemetry is loading ─────────────────
   // Cancelled as soon as telemetry data is ready.
@@ -606,17 +612,19 @@ export function startModal(matchId, platform, mapName) {
       });
       document.addEventListener('mouseup', () => { isDragging = false; });
 
-      window.addEventListener('resize', () => {
+      // Use ResizeObserver instead of window.addEventListener('resize') —
+      // fires reliably after layout (aspect-ratio resolved) unlike the resize event.
+      const _resizeRO = new ResizeObserver(() => {
         const prevZoom = zoomScale;
         const prevMin  = minZoom;
         snapToFitView();
-        // If user had zoomed in, preserve the relative zoom level
         if (prevMin > 0 && prevZoom > prevMin) {
-          zoomScale = Math.max(minZoom, zoomScale * (prevZoom / prevMin));
+          zoomScale = Math.max(minZoom, minZoom * (prevZoom / prevMin));
         }
         updatePanLimits();
         updateSafeZone();
       });
+      _resizeRO.observe(viewport);
 
       function updatePanLimits() {
         const vgW = VIEWPORT_WIDTH / (scaleFactor * zoomScale);
