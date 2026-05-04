@@ -180,9 +180,10 @@ export function startModal(matchId, platform, mapName) {
 
   function interpolate(a, b, t) { return a + (b - a) * t; }
 
-  // Use preloaded telemetry promise if available (set by scripts.js on drawer open)
+  // Use preloaded telemetry if available; if it resolved to null (fetch failed), retry fresh.
+  const _fetchFresh = () => fetch(`/api/telemetry/${matchId}?platform=${platform}`).then(r => r.json());
   const _preloadedTelemetry = window._telemetryPreload?.[matchId];
-  (_preloadedTelemetry || fetch(`/api/telemetry/${matchId}?platform=${platform}`).then(r => r.json()))
+  (_preloadedTelemetry ? _preloadedTelemetry.then(d => d ?? _fetchFresh()) : _fetchFresh())
     .then(data => {
       // Stop the early "loading" render loop now that we have data
       if (earlyFrameId !== null) { cancelAnimationFrame(earlyFrameId); earlyFrameId = null; }
@@ -438,34 +439,23 @@ export function startModal(matchId, platform, mapName) {
 
       const feedEvents = [];
 
-      const knockByVictim = {};
+      // Knocks: LogPlayerMakeGroggy tem atacante + timestamp corretos diretamente.
+      // Abordagem anterior cruzava com LogPlayerTakeDamage (saúde=0) e gerava
+      // entradas duplicadas quando múltiplos hits ocorriam no mesmo frame.
       data.forEach(item => {
         if (item._T !== 'LogPlayerMakeGroggy' || !item._D) return;
         const attacker = item.attacker || {};
-        const victim = item.victim || {};
+        const victim   = item.victim   || {};
         if (!attacker.name || !victim.name || !victim.accountId) return;
-        const dBNOId = item.dBNOId || victim.accountId;
-        knockByVictim[`${victim.accountId}_${dBNOId}`] = {
+        const t = dMsToElapsed(new Date(item._D).getTime());
+        feedEvents.push({
           killerName: attacker.name, killerAccountId: attacker.accountId,
-          victimName: victim.name, victimAccountId: victim.accountId,
-          isKnock: true,
-        };
+          victimName: victim.name,   victimAccountId: victim.accountId,
+          isKnock: true, t,
+        });
       });
 
-      const knockSeen = new Set();
-      data.filter(i => i._T === 'LogPlayerTakeDamage' && i._D)
-        .sort((a, b) => a._D.localeCompare(b._D))
-        .forEach(item => {
-          const vic = item.victim || {};
-          if (!vic.accountId || vic.health > 0) return;
-          const t = dMsToElapsed(new Date(item._D).getTime());
-          const matchKey = Object.keys(knockByVictim).find(k => k.startsWith(vic.accountId + '_') && !knockSeen.has(k));
-          if (!matchKey) return;
-          knockSeen.add(matchKey);
-          const info = knockByVictim[matchKey];
-          feedEvents.push({ ...info, t });
-        });
-
+      // Kills
       data.forEach(item => {
         if ((item._T !== 'LogPlayerKillV2' && item._T !== 'LogPlayerKill') || !item._D) return;
         const killer = item.killer || item.attacker || {};
@@ -474,9 +464,8 @@ export function startModal(matchId, platform, mapName) {
         const t = dMsToElapsed(new Date(item._D).getTime());
         feedEvents.push({
           killerName: killer.name, killerAccountId: killer.accountId,
-          victimName: victim.name, victimAccountId: victim.accountId,
-          isKnock: false,
-          t,
+          victimName: victim.name,  victimAccountId: victim.accountId,
+          isKnock: false, t,
         });
       });
 
@@ -940,6 +929,14 @@ export function startModal(matchId, platform, mapName) {
           currentIndex = 0; frameAccumulator = 0; timeAccumulator = 0; lastTimestamp = null;
         }
       });
+
+      // Auto-play em 8x assim que a telemetria carrega
+      const _8xIdx = speedValues.indexOf(8); // = 5
+      speedSlider.value = String(_8xIdx);
+      speedDisplay.textContent = '8x';
+      playbackSpeed = 8;
+      isPlaying = true;
+      globalPlayButton.innerHTML = ICON_PAUSE;
 
       animate();
     })
