@@ -543,6 +543,17 @@ export function startModal(matchId, platform, mapName) {
       window.playerNames = playerNames;
       window.playerHpByTime = playerHpByTime;
 
+      // Determina o teamId do jogador pesquisado (computado uma vez, usado no render)
+      const _searchedName = document.getElementById('player-name-display')?.textContent?.trim() || '';
+      const _searchedParticipant = globalMatchData.included
+        .filter(p => p.type === 'participant')
+        .find(p => p.attributes?.stats?.name === _searchedName);
+      const _searchedRoster = _searchedParticipant
+        ? globalMatchData.included.filter(r => r.type === 'roster')
+            .find(r => r.relationships.participants.data.some(p => p.id === _searchedParticipant.id))
+        : null;
+      const searchedTeamId = _searchedRoster?.attributes?.stats?.teamId ?? null;
+
       const interpolatedData = [];
       for (let i = 0; i < gameStateData.length - 1; i++) {
         const curr = gameStateData[i].gameState, next = gameStateData[i + 1].gameState;
@@ -705,7 +716,7 @@ export function startModal(matchId, platform, mapName) {
           });
         }
 
-        const pointSize = 6 / (scaleFactor * zoomScale);   // ~15% menor que 7
+        const pointSize = 7 / (scaleFactor * zoomScale);
         const borderWidth = 1.5 / (scaleFactor * zoomScale);
         const nextIndex = Math.min(currentIndex + 1, interpolatedData.length - 1);
 
@@ -739,7 +750,6 @@ export function startModal(matchId, platform, mapName) {
           const byTime = playerLocationsByTime[accountId];
           const pid = globalMatchData.included.filter(p => p.type === 'participant').find(p => p.attributes.stats.playerId === accountId)?.id;
           const roster = globalMatchData.included.filter(r => r.type === 'roster').find(r => r.relationships.participants.data.some(p => p.id === pid));
-          const color = roster ? roster.color : 'white';
           const currentElapsed = Math.round(interpolatedData[currentIndex]?.elapsedTime ?? 0);
           const nextElapsed = Math.round(interpolatedData[nextIndex]?.elapsedTime ?? currentElapsed);
           if (isPlayerDead(accountId, currentElapsed)) return;
@@ -750,44 +760,38 @@ export function startModal(matchId, platform, mapName) {
           const px = locA.x + (locB.x - locA.x) * subProgress;
           const py = locA.y + (locB.y - locA.y) * subProgress;
 
-          // Círculo do player com contorno branco (mais destacado que preto)
+          const knocked = isPlayerKnocked(accountId, currentElapsed);
+          const hp      = playerHpByTime[accountId]?.[currentElapsed] ?? 100;
+          const hpRatio = knocked ? 0 : Math.max(0, Math.min(1, hp / 100));
+
+          const isSearchedTeam = roster?.attributes?.stats?.teamId === searchedTeamId;
+          // knocked → vermelho; time do jogador → verde; todos os outros → branco
+          const fillColor = knocked ? 'rgb(215,40,40)'
+                          : isSearchedTeam ? 'rgb(50,215,80)'
+                          : 'rgb(255,255,255)';
+
+          // 1. Fundo vermelho completo (representa vida em falta)
           drawCtx.beginPath();
           drawCtx.arc(px, py, pointSize, 0, 2 * Math.PI);
-          drawCtx.fillStyle = color;
+          drawCtx.fillStyle = 'rgb(200,30,30)';
           drawCtx.fill();
-          drawCtx.strokeStyle = 'rgba(255,255,255,0.85)';
+
+          // 2. Fatia de HP (branco/verde) do topo em sentido horário — efeito "pizza"
+          if (hpRatio > 0) {
+            drawCtx.beginPath();
+            drawCtx.moveTo(px, py);
+            drawCtx.arc(px, py, pointSize, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * hpRatio);
+            drawCtx.closePath();
+            drawCtx.fillStyle = fillColor;
+            drawCtx.fill();
+          }
+
+          // 3. Contorno preto
+          drawCtx.beginPath();
+          drawCtx.arc(px, py, pointSize, 0, 2 * Math.PI);
+          drawCtx.strokeStyle = 'black';
           drawCtx.lineWidth = borderWidth;
           drawCtx.stroke();
-
-          const hp = playerHpByTime[accountId]?.[currentElapsed] ?? 100;
-          const knocked = isPlayerKnocked(accountId, currentElapsed);
-          const displayHp = knocked ? 0 : hp;
-
-          // Anel de HP interno (dentro do círculo do player)
-          const hpRatio = Math.max(0, Math.min(1, displayHp / 100));
-          if (hpRatio > 0) {
-            const hpColor = hpRatio > 0.6 ? 'rgba(80,255,120,0.95)'
-                          : hpRatio > 0.3 ? 'rgba(255,200,50,0.95)'
-                          :                  'rgba(255,60,60,0.95)';
-            drawCtx.beginPath();
-            drawCtx.arc(px, py, pointSize * 0.58, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * hpRatio);
-            drawCtx.strokeStyle = hpColor;
-            drawCtx.lineWidth = borderWidth * 1.3;
-            drawCtx.lineCap = 'round';
-            drawCtx.stroke();
-          }
-
-          if (knocked) {
-            drawCtx.save();
-            drawCtx.translate(px, py);
-            const r = pointSize * 0.6;
-            drawCtx.strokeStyle = 'rgba(255,180,0,0.9)';
-            drawCtx.lineWidth = borderWidth * 1.5;
-            drawCtx.lineCap = 'round';
-            drawCtx.beginPath(); drawCtx.moveTo(0, -r); drawCtx.lineTo(0, r); drawCtx.stroke();
-            drawCtx.beginPath(); drawCtx.moveTo(-r * 0.6, r * 0.3); drawCtx.lineTo(0, r); drawCtx.lineTo(r * 0.6, r * 0.3); drawCtx.stroke();
-            drawCtx.restore();
-          }
 
           if (playerVehicleByTime[accountId]?.[currentElapsed]) {
             const r = pointSize;
