@@ -880,7 +880,7 @@ export function startModal(matchId, platform, mapName) {
           const _fs = window._replayFeedScale ?? 1;
           const fs = Math.round(11 * _fs), lineH = Math.round(18 * _fs);
           const padX = Math.round(8 * _fs), padY = Math.round(6 * _fs), margin = 8;
-          const iconW = Math.round(13 * _fs), iconGap = Math.round(5 * _fs);
+          const iconW = Math.round(17 * _fs), iconGap = Math.round(5 * _fs);
           drawCtx.save();
           drawCtx.setTransform(1, 0, 0, 1, 0, 0);
           drawCtx.font = `bold ${fs}px "JetBrains Mono", monospace`;
@@ -902,23 +902,18 @@ export function startModal(matchId, platform, mapName) {
           drawCtx.fill();
           drawCtx.stroke();
 
-          const getColor = (accountId) => {
-            const pid = globalMatchData.included.filter(p => p.type === 'participant').find(p => p.attributes?.stats?.playerId === accountId)?.id;
-            const roster = pid ? globalMatchData.included.filter(r => r.type === 'roster').find(r => r.relationships.participants.data.some(p => p.id === pid)) : null;
-            return roster?.color || '#ffffff';
-          };
           activeFeed.forEach((e, i) => {
             const age = (currentTime - e.t) / feedDuration;
             drawCtx.globalAlpha = age > 0.7 ? 1 - (age - 0.7) / 0.3 : 1;
             const y = boxY + padY + i * lineH + fs;
-            const iconTopY = y - fs * 0.8;
+            const iconTopY = y - fs * 0.85 - (iconW - fs) / 2;
             drawCtx.textBaseline = 'alphabetic';
             drawCtx.textAlign = 'left';
 
             // Killer name (empty for environmental kills)
             let curX = boxX + padX;
             if (e.killerName) {
-              drawCtx.fillStyle = getColor(e.killerAccountId);
+              drawCtx.fillStyle = '#ffffff';
               drawCtx.fillText(e.killerName, curX, y);
               curX += drawCtx.measureText(e.killerName).width + iconGap;
             }
@@ -937,7 +932,7 @@ export function startModal(matchId, platform, mapName) {
             curX += iconW + iconGap;
 
             // Victim name
-            drawCtx.fillStyle = getColor(e.victimAccountId);
+            drawCtx.fillStyle = 'rgba(255,255,255,0.65)';
             drawCtx.fillText(e.victimName, curX, y);
           });
           drawCtx.globalAlpha = 1;
