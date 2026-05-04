@@ -5,3 +5,4 @@ node_modules/
 /.claude
 api-documentation.md
 CLAUDE.md
+/public/images/
