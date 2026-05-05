@@ -989,25 +989,7 @@ export function startModal(matchId, platform, mapName) {
               curX += drawCtx.measureText(e.killerName).width + iconGap;
             }
 
-            // Icon — PNG if loaded, emoji fallback
-            const iconKey = e.iconKey || (e.isKnock ? 'DBNO' : 'Death');
-            const iconImg = KF_ICONS[iconKey];
-            if (iconImg?.complete && iconImg.naturalWidth > 0) {
-              const ratio = iconImg.naturalWidth / iconImg.naturalHeight;
-              const dw = ratio >= 1 ? iconW : iconW * ratio;
-              const dh = ratio >= 1 ? iconW / ratio : iconW;
-              const dx = curX + (iconW - dw) / 2;
-              const dy = iconTopY + (iconW - dh) / 2;
-              drawCtx.drawImage(iconImg, dx, dy, dw, dh);
-            } else {
-              drawCtx.fillStyle = e.isKnock ? '#f0c040' : '#ff4444';
-              drawCtx.textAlign = 'center';
-              drawCtx.fillText(e.isKnock ? '⬇' : '☠', curX + iconW / 2, y);
-              drawCtx.textAlign = 'left';
-            }
-            curX += iconW + iconGap;
-
-            // Weapon icon (only for actual weapon IDs)
+            // Weapon icon (before event icon)
             const wepImg = getWeaponIcon(e.weaponId);
             if (wepImg?.complete && wepImg.naturalWidth > 0) {
               const ratio = wepImg.naturalWidth / wepImg.naturalHeight;
@@ -1016,9 +998,24 @@ export function startModal(matchId, platform, mapName) {
               drawCtx.drawImage(wepImg, curX + (wepW - dw) / 2, iconTopY + (iconW - dh) / 2, dw, dh);
               curX += wepW + iconGap;
             } else if (wepImg) {
-              // image requested but not yet loaded — reserve space so box doesn't jump
               curX += wepW + iconGap;
             }
+
+            // Event icon (kill/knock/headshot/etc.)
+            const iconKey = e.iconKey || (e.isKnock ? 'DBNO' : 'Death');
+            const iconImg = KF_ICONS[iconKey];
+            if (iconImg?.complete && iconImg.naturalWidth > 0) {
+              const ratio = iconImg.naturalWidth / iconImg.naturalHeight;
+              const dw = ratio >= 1 ? iconW : iconW * ratio;
+              const dh = ratio >= 1 ? iconW / ratio : iconW;
+              drawCtx.drawImage(iconImg, curX + (iconW - dw) / 2, iconTopY + (iconW - dh) / 2, dw, dh);
+            } else {
+              drawCtx.fillStyle = e.isKnock ? '#f0c040' : '#ff4444';
+              drawCtx.textAlign = 'center';
+              drawCtx.fillText(e.isKnock ? '⬇' : '☠', curX + iconW / 2, y);
+              drawCtx.textAlign = 'left';
+            }
+            curX += iconW + iconGap;
 
             // Victim name
             drawCtx.fillStyle = 'rgba(255,255,255,0.65)';
