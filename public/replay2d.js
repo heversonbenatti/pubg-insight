@@ -988,7 +988,7 @@ export function startModal(matchId, platform, mapName) {
 
         // ── Kill/knock feed — one box per event, right-anchored ──────────────
         const feedDuration = 5;
-        const activeFeed = feedEvents.filter(e => e.t <= currentTime && e.t + feedDuration > currentTime).slice(-(window._replayFeedMax ?? 5));
+        const activeFeed = feedEvents.filter(e => e.t <= currentTimeSmooth && e.t + feedDuration > currentTimeSmooth).slice(-(window._replayFeedMax ?? 5));
         if (activeFeed.length > 0) {
           const _fs   = window._replayFeedScale ?? 1;
           const fs    = Math.round(12 * _fs);   // name font size
@@ -1030,7 +1030,7 @@ export function startModal(matchId, platform, mapName) {
             const boxY = margin + 48 + i * (boxH + rowGap);
             const midY = boxY + boxH / 2;
 
-            const age = (currentTime - e.t) / feedDuration;
+            const age = (currentTimeSmooth - e.t) / feedDuration;
             drawCtx.globalAlpha = age > 0.7 ? 1 - (age - 0.7) / 0.3 : 1;
 
             // ── background box ────────────────────────────────────────────
