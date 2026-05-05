@@ -570,6 +570,28 @@ export function startModal(matchId, platform, mapName) {
 
       feedEvents.sort((a, b) => a.t - b.t);
 
+      // Build accountId → {teamNum, color} from match rosters so the killfeed
+      // can show coloured team-number badges next to each name.
+      const _acctToTeam = {};
+      globalMatchData.included.filter(p => p.type === 'participant').forEach(p => {
+        const accountId = p.attributes?.stats?.playerId;
+        if (!accountId) return;
+        const roster = globalMatchData.included.filter(r => r.type === 'roster')
+          .find(r => r.relationships.participants.data.some(ref => ref.id === p.id));
+        if (roster) _acctToTeam[accountId] = {
+          teamNum:   roster.attributes.stats.rank,
+          teamColor: roster.color || '#888',
+        };
+      });
+      feedEvents.forEach(e => {
+        const ki = _acctToTeam[e.killerAccountId];
+        const vi = _acctToTeam[e.victimAccountId];
+        e.killerTeamNum   = ki?.teamNum   ?? null;
+        e.killerTeamColor = ki?.teamColor ?? null;
+        e.victimTeamNum   = vi?.teamNum   ?? null;
+        e.victimTeamColor = vi?.teamColor ?? null;
+      });
+
       const bulletEvents = [];
       data.forEach(item => {
         if (item._T !== 'LogPlayerTakeDamage' || !item._D || item.damageTypeCategory !== 'Damage_Gun') return;
@@ -964,87 +986,136 @@ export function startModal(matchId, platform, mapName) {
         updatePanLimits();
         drawCtx.restore();
 
-        // Kill/knock feed — JetBrains Mono, styled box
+        // ── Kill/knock feed — one box per event, right-anchored ──────────────
         const feedDuration = 5;
         const activeFeed = feedEvents.filter(e => e.t <= currentTime && e.t + feedDuration > currentTime).slice(-(window._replayFeedMax ?? 5));
         if (activeFeed.length > 0) {
-          const _fs = window._replayFeedScale ?? 1;
-          const fs = Math.round(11 * _fs), lineH = Math.round(18 * _fs);
-          const padX = Math.round(12 * _fs), padY = Math.round(6 * _fs), margin = 8;
-          const iconW = Math.round(17 * _fs), iconGap = Math.round(5 * _fs);
-          const wepW  = Math.round(20 * _fs); // weapon icon slightly wider (guns are landscape)
+          const _fs   = window._replayFeedScale ?? 1;
+          const fs    = Math.round(12 * _fs);   // name font size
+          const iconW = Math.round(12 * _fs);   // event icon — same size as font
+          const wepW  = Math.round(30 * _fs);   // weapon icon — noticeably larger
+          const padX  = Math.round(10 * _fs);
+          const padY  = Math.round(5  * _fs);
+          const gap   = Math.round(6  * _fs);   // gap between elements
+          const rowGap= Math.round(3  * _fs);   // vertical gap between boxes
+          const bSz   = Math.round(17 * _fs);   // team badge square size
+          const bFs   = Math.round(9  * _fs);   // badge font size
+          const margin = 10;
+          const boxH  = Math.max(Math.round(26 * _fs), wepW + padY * 2);
+          const centerY0 = margin + 48 + padY + boxH / 2; // first box vertical center
+
           drawCtx.save();
           drawCtx.setTransform(1, 0, 0, 1, 0, 0);
-          drawCtx.font = `bold ${fs}px "JetBrains Mono", monospace`;
-          let maxW = 0;
-          activeFeed.forEach(e => {
-            const kW  = e.killerName ? drawCtx.measureText(e.killerName).width + iconGap : 0;
-            const vW  = drawCtx.measureText(e.victimName).width;
-            const wW  = _WEAP_TO_ITEM[e.weaponId] ? wepW + iconGap : 0;
-            maxW = Math.max(maxW, kW + wW + iconW + iconGap + vW);
-          });
-          const boxW = maxW + padX * 2, boxH = activeFeed.length * lineH + padY * 2;
-          const boxX = VIEWPORT_WIDTH - boxW - margin, boxY = margin + 48;
-          // Box with subtle border
-          drawCtx.fillStyle = 'rgba(0,0,0,0.55)';
-          drawCtx.strokeStyle = 'oklch(1 0 0 / 0.05)';
-          drawCtx.lineWidth = 1;
-          drawCtx.beginPath();
-          if (drawCtx.roundRect) drawCtx.roundRect(boxX, boxY, boxW, boxH, 4);
-          else drawCtx.rect(boxX, boxY, boxW, boxH);
-          drawCtx.fill();
-          drawCtx.stroke();
 
-          // Render right-to-left so the right edge is always fixed.
           activeFeed.forEach((e, i) => {
+            // ── measure row width ──────────────────────────────────────────
+            drawCtx.font = `bold ${fs}px "JetBrains Mono", monospace`;
+            const kW     = e.killerName ? drawCtx.measureText(e.killerName).width : 0;
+            const vW     = drawCtx.measureText(e.victimName).width;
+            const hasWep = !!_WEAP_TO_ITEM[e.weaponId];
+            const kBadge = e.killerName && e.killerTeamNum !== null ? bSz + gap : 0;
+            const vBadge = e.victimTeamNum !== null                 ? bSz + gap : 0;
+            const kSep   = e.killerName ? gap : 0; // gap after killer name
+            const rowW   = kBadge + kW + kSep + (hasWep ? wepW + gap : 0) + iconW + gap + vBadge + vW;
+
+            const boxW = rowW + padX * 2;
+            const boxX = VIEWPORT_WIDTH - boxW - margin;
+            const boxY = margin + 48 + i * (boxH + rowGap);
+            const midY = boxY + boxH / 2;  // vertical centre for all elements
+
             const age = (currentTime - e.t) / feedDuration;
             drawCtx.globalAlpha = age > 0.7 ? 1 - (age - 0.7) / 0.3 : 1;
-            const y = boxY + padY + i * lineH + fs;
-            const iconTopY = y - fs * 0.85 - (iconW - fs) / 2;
-            drawCtx.textBaseline = 'alphabetic';
 
-            let curX = boxX + boxW - padX; // right edge of content area
+            // ── background box ────────────────────────────────────────────
+            drawCtx.fillStyle = 'rgba(0,0,0,0.65)';
+            drawCtx.strokeStyle = 'rgba(255,255,255,0.06)';
+            drawCtx.lineWidth = 1;
+            drawCtx.beginPath();
+            if (drawCtx.roundRect) drawCtx.roundRect(boxX, boxY, boxW, boxH, 3);
+            else drawCtx.rect(boxX, boxY, boxW, boxH);
+            drawCtx.fill();
+            drawCtx.stroke();
 
-            // Victim name (right-most element)
-            drawCtx.fillStyle = 'rgba(255,255,255,0.65)';
+            // ── render right → left ───────────────────────────────────────
+            let curX = boxX + boxW - padX;
+
+            // Victim name
+            drawCtx.font = `bold ${fs}px "JetBrains Mono", monospace`;
+            drawCtx.textBaseline = 'middle';
             drawCtx.textAlign = 'right';
-            drawCtx.fillText(e.victimName, curX, y);
-            curX -= drawCtx.measureText(e.victimName).width + iconGap;
+            drawCtx.fillStyle = 'rgba(255,255,255,0.70)';
+            drawCtx.fillText(e.victimName, curX, midY);
+            curX -= vW;
 
-            // Event icon
+            // Victim team badge
+            if (e.victimTeamNum !== null) {
+              curX -= gap;
+              const bx = curX - bSz, by = midY - bSz / 2;
+              drawCtx.fillStyle = e.victimTeamColor || '#555';
+              if (drawCtx.roundRect) { drawCtx.beginPath(); drawCtx.roundRect(bx, by, bSz, bSz, 2); drawCtx.fill(); }
+              else { drawCtx.fillRect(bx, by, bSz, bSz); }
+              drawCtx.font = `bold ${bFs}px "JetBrains Mono", monospace`;
+              drawCtx.fillStyle = '#fff';
+              drawCtx.textAlign = 'center';
+              drawCtx.fillText(String(e.victimTeamNum), bx + bSz / 2, midY);
+              drawCtx.font = `bold ${fs}px "JetBrains Mono", monospace`;
+              curX -= bSz;
+            }
+            curX -= gap;
+
+            // Event icon (smaller — same size as font)
             const iconKey = e.iconKey || (e.isKnock ? 'DBNO' : 'Death');
             const iconImg = KF_ICONS[iconKey];
+            const iTop    = midY - iconW / 2;
             if (iconImg?.complete && iconImg.naturalWidth > 0) {
               const ratio = iconImg.naturalWidth / iconImg.naturalHeight;
               const dw = ratio >= 1 ? iconW : iconW * ratio;
               const dh = ratio >= 1 ? iconW / ratio : iconW;
-              drawCtx.drawImage(iconImg, curX - iconW + (iconW - dw) / 2, iconTopY + (iconW - dh) / 2, dw, dh);
+              drawCtx.drawImage(iconImg, curX - iconW + (iconW - dw) / 2, iTop + (iconW - dh) / 2, dw, dh);
             } else {
               drawCtx.fillStyle = e.isKnock ? '#f0c040' : '#ff4444';
               drawCtx.textAlign = 'center';
-              drawCtx.fillText(e.isKnock ? '⬇' : '☠', curX - iconW / 2, y);
+              drawCtx.fillText(e.isKnock ? '⬇' : '☠', curX - iconW / 2, midY);
             }
-            curX -= iconW + iconGap;
+            curX -= iconW + gap;
 
-            // Weapon icon (left of event icon)
+            // Weapon icon (large)
             const wepImg = getWeaponIcon(e.weaponId);
             if (wepImg?.complete && wepImg.naturalWidth > 0) {
               const ratio = wepImg.naturalWidth / wepImg.naturalHeight;
               const dw = ratio >= 1 ? wepW : wepW * ratio;
               const dh = ratio >= 1 ? wepW / ratio : wepW;
-              drawCtx.drawImage(wepImg, curX - wepW + (wepW - dw) / 2, iconTopY + (iconW - dh) / 2, dw, dh);
-              curX -= wepW + iconGap;
+              drawCtx.drawImage(wepImg, curX - wepW + (wepW - dw) / 2, midY - dh / 2, dw, dh);
+              curX -= wepW + gap;
             } else if (wepImg) {
-              curX -= wepW + iconGap;
+              curX -= wepW + gap;
             }
 
-            // Killer name (left-most element)
+            // Killer name
             if (e.killerName) {
+              curX -= gap; // sep between weapon/killer
+              drawCtx.font = `bold ${fs}px "JetBrains Mono", monospace`;
+              drawCtx.textBaseline = 'middle';
               drawCtx.fillStyle = '#ffffff';
               drawCtx.textAlign = 'right';
-              drawCtx.fillText(e.killerName, curX, y);
+              drawCtx.fillText(e.killerName, curX, midY);
+              curX -= kW;
+
+              // Killer team badge
+              if (e.killerTeamNum !== null) {
+                curX -= gap;
+                const bx = curX - bSz, by = midY - bSz / 2;
+                drawCtx.fillStyle = e.killerTeamColor || '#555';
+                if (drawCtx.roundRect) { drawCtx.beginPath(); drawCtx.roundRect(bx, by, bSz, bSz, 2); drawCtx.fill(); }
+                else { drawCtx.fillRect(bx, by, bSz, bSz); }
+                drawCtx.font = `bold ${bFs}px "JetBrains Mono", monospace`;
+                drawCtx.fillStyle = '#fff';
+                drawCtx.textAlign = 'center';
+                drawCtx.fillText(String(e.killerTeamNum), bx + bSz / 2, midY);
+              }
             }
           });
+
           drawCtx.globalAlpha = 1;
           drawCtx.restore();
         }
