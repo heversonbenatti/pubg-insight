@@ -1,4 +1,4 @@
-import { generateUniqueColor } from './utils.js';
+import { generateUniqueColor, translateMapName } from './utils.js';
 import { startModal } from './replay2d.js';
 
 function buildPlayerLink(name) {
@@ -54,7 +54,7 @@ export function showModal(matchData, platform = 'steam') {
     const topBar = document.createElement('div');
     topBar.style.cssText = `
         display:flex;align-items:center;gap:14px;
-        padding:12px 16px;
+        padding:7px 16px;
         border-bottom:1px solid var(--divider);
         flex-shrink:0;
         background:var(--surface);
@@ -64,15 +64,15 @@ export function showModal(matchData, platform = 'steam') {
     const isWin = place === 1;
     const rankChipEl = document.createElement('div');
     rankChipEl.style.cssText = `
-        width:42px;height:42px;border-radius:var(--r-sm);
+        width:34px;height:34px;border-radius:var(--r-sm);
         background:${isWin ? 'oklch(0.78 0.15 75 / 0.12)' : 'var(--surface-2)'};
         border:1px solid ${isWin ? 'oklch(0.78 0.15 75 / 0.45)' : 'var(--border)'};
         display:flex;flex-direction:column;align-items:center;justify-content:center;
         font-family:var(--font-mono);line-height:1.1;flex-shrink:0;
     `;
     rankChipEl.innerHTML = `
-        <span style="font-size:16px;font-weight:700;letter-spacing:-0.02em;color:${isWin ? 'var(--win)' : 'var(--text)'}">#${place}</span>
-        <span style="font-size:10px;color:var(--text-faint)">/${total}</span>
+        <span style="font-size:13px;font-weight:700;letter-spacing:-0.02em;color:${isWin ? 'var(--win)' : 'var(--text)'}">#${place}</span>
+        <span style="font-size:9px;color:var(--text-faint)">/${total}</span>
     `;
 
     // Map + mode info
@@ -80,7 +80,7 @@ export function showModal(matchData, platform = 'steam') {
     mapInfo.style.cssText = 'flex:1;min-width:0;';
     mapInfo.innerHTML = `
         <div style="font-size:15px;font-weight:700;letter-spacing:-0.01em;color:var(--text)">
-            ${mapName.replace(/_Main$/, '').replace(/_/g, ' ')}
+            ${translateMapName(mapName)}
             <span style="font-family:var(--font-mono);margin-left:10px;color:var(--text-muted);font-size:11px;font-weight:400">${gameMode} · ${matchCategory}</span>
         </div>
         <div style="font-family:var(--font-mono);font-size:10.5px;color:var(--text-faint);margin-top:2px;letter-spacing:0.04em">
@@ -160,7 +160,7 @@ export function showModal(matchData, platform = 'steam') {
     teamList.id = 'team-list-custom';
     teamList.classList.add('team-list-custom');
     teamList.style.cssText = `
-        width:220px;flex-shrink:0;
+        width:270px;flex-shrink:0;
         background:var(--surface);
         border:1px solid var(--border);
         border-radius:var(--r-md);
@@ -185,6 +185,86 @@ export function showModal(matchData, platform = 'steam') {
     const teamListScroll = document.createElement('div');
     teamListScroll.style.cssText = 'overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:var(--surface-3) transparent;';
     teamList.appendChild(teamListScroll);
+
+    // ── View controls footer (inside teamList, stacked vertically) ────────────
+    function voLabel(text) {
+        const s = document.createElement('span');
+        s.style.cssText = 'font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;font-size:9.5px;color:var(--text-muted);flex-shrink:0;min-width:52px;';
+        s.textContent = text;
+        return s;
+    }
+    function voValue(text, minW = '24px') {
+        const s = document.createElement('span');
+        s.style.cssText = `font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:11px;color:var(--text-dim);min-width:${minW};text-align:right;flex-shrink:0;`;
+        s.textContent = text;
+        return s;
+    }
+    function voSlider(min, max, step, val) {
+        const inp = document.createElement('input');
+        inp.type = 'range';
+        inp.min = String(min); inp.max = String(max); inp.step = String(step); inp.value = String(val);
+        inp.style.cssText = 'flex:1;min-width:0;';
+        return inp;
+    }
+    function voRow(label, slider, value) {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:8px;';
+        row.appendChild(label); row.appendChild(slider); row.appendChild(value);
+        return row;
+    }
+
+    // — Player dot size —
+    const savedSize = parseInt(localStorage.getItem('pi_playerSize') ?? '6');
+    window._replayPlayerSize = Math.max(4, Math.min(8, isNaN(savedSize) ? 6 : savedSize));
+    const sizeSlider = voSlider(4, 8, 1, window._replayPlayerSize);
+    const sizeValueEl = voValue(String(window._replayPlayerSize));
+    sizeSlider.addEventListener('input', () => {
+        window._replayPlayerSize = parseInt(sizeSlider.value);
+        sizeValueEl.textContent = sizeSlider.value;
+        try { localStorage.setItem('pi_playerSize', sizeSlider.value); } catch (_) {}
+    });
+
+    // — Feed scale —
+    const _feedScaleSteps = [0.65, 0.8, 1.0, 1.25, 1.6];
+    const savedFeedScale = parseFloat(localStorage.getItem('pi_feedScale') ?? '1.0');
+    const _initFeedScale = isNaN(savedFeedScale) ? 1.0 : Math.max(0.65, Math.min(1.6, savedFeedScale));
+    const _initFeedStep = _feedScaleSteps.reduce((best, v, i) =>
+        Math.abs(v - _initFeedScale) < Math.abs(_feedScaleSteps[best] - _initFeedScale) ? i : best, 2);
+    window._replayFeedScale = _feedScaleSteps[_initFeedStep];
+    const feedSlider = voSlider(0, 4, 1, _initFeedStep);
+    const feedValueEl = voValue(`${Math.round(window._replayFeedScale * 100)}%`, '32px');
+    feedSlider.addEventListener('input', () => {
+        const scale = _feedScaleSteps[parseInt(feedSlider.value)];
+        window._replayFeedScale = scale;
+        feedValueEl.textContent = `${Math.round(scale * 100)}%`;
+        try { localStorage.setItem('pi_feedScale', String(scale)); } catch (_) {}
+    });
+
+    // — Feed max events —
+    const savedFeedMax = parseInt(localStorage.getItem('pi_feedMax') ?? '5');
+    window._replayFeedMax = isNaN(savedFeedMax) ? 5 : Math.max(4, Math.min(10, savedFeedMax));
+    const feedMaxSlider = voSlider(4, 10, 1, window._replayFeedMax);
+    const feedMaxValueEl = voValue(String(window._replayFeedMax));
+    feedMaxSlider.addEventListener('input', () => {
+        window._replayFeedMax = parseInt(feedMaxSlider.value);
+        feedMaxValueEl.textContent = feedMaxSlider.value;
+        try { localStorage.setItem('pi_feedMax', feedMaxSlider.value); } catch (_) {}
+    });
+
+    const viewFooter = document.createElement('div');
+    viewFooter.style.cssText = `
+        padding:8px 12px;gap:5px;
+        border-top:1px solid var(--divider);
+        flex-shrink:0;display:flex;flex-direction:column;
+    `;
+    const viewFooterLabel = document.createElement('span');
+    viewFooterLabel.style.cssText = 'font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.1em;font-size:9px;color:var(--text-faint);margin-bottom:1px;';
+    viewFooterLabel.textContent = 'VIEW';
+    viewFooter.appendChild(viewFooterLabel);
+    viewFooter.appendChild(voRow(voLabel('PLAYERS'), sizeSlider, sizeValueEl));
+    viewFooter.appendChild(voRow(voLabel('FEED'), feedSlider, feedValueEl));
+    viewFooter.appendChild(voRow(voLabel('MAX'), feedMaxSlider, feedMaxValueEl));
+    teamList.appendChild(viewFooter);
 
     // ── Center column: viewport + controls ───────────────────────────────────
     // centerCol is flex:1 and centers its children.
@@ -356,103 +436,6 @@ export function showModal(matchData, platform = 'steam') {
     controlsBar.appendChild(speedSlider);
     controlsBar.appendChild(speedDisplay);
 
-    // ── View options bar ──────────────────────────────────────────────────────
-    // Dedicated row for display settings (player size, feed size, …).
-    // Kept separate from the playback controls so more options can be added later.
-    const viewOptionsBar = document.createElement('div');
-    viewOptionsBar.style.cssText = `
-        display:flex;align-items:center;gap:10px;
-        min-width:0;padding:5px 12px;box-sizing:border-box;
-        background:var(--surface);
-        border:1px solid var(--border);
-        border-radius:var(--r-md);
-        flex-shrink:0;
-        align-self:stretch;
-    `;
-
-    const voSectionLabel = document.createElement('span');
-    voSectionLabel.style.cssText = 'font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.1em;font-size:9px;color:var(--text-faint);flex-shrink:0;';
-    voSectionLabel.textContent = 'VIEW';
-
-    function voDivider() {
-        const d = document.createElement('div');
-        d.style.cssText = 'width:1px;height:14px;background:var(--border);flex-shrink:0;';
-        return d;
-    }
-    function voLabel(text) {
-        const s = document.createElement('span');
-        s.style.cssText = 'font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;font-size:9.5px;color:var(--text-muted);flex-shrink:0;';
-        s.textContent = text;
-        return s;
-    }
-    function voValue(text, minW = '18px') {
-        const s = document.createElement('span');
-        s.style.cssText = `font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:11px;color:var(--text-dim);min-width:${minW};text-align:center;flex-shrink:0;`;
-        s.textContent = text;
-        return s;
-    }
-    function voSlider(min, max, step, val, width = '60px') {
-        const inp = document.createElement('input');
-        inp.type = 'range';
-        inp.min = String(min); inp.max = String(max); inp.step = String(step); inp.value = String(val);
-        inp.style.cssText = `width:${width};flex-shrink:0;`;
-        return inp;
-    }
-
-    // — Players dot size —
-    const savedSize = parseInt(localStorage.getItem('pi_playerSize') ?? '6');
-    window._replayPlayerSize = Math.max(4, Math.min(8, isNaN(savedSize) ? 6 : savedSize));
-
-    const sizeSlider = voSlider(4, 8, 1, window._replayPlayerSize);
-    const sizeValueEl = voValue(String(window._replayPlayerSize));
-    sizeSlider.addEventListener('input', () => {
-        window._replayPlayerSize = parseInt(sizeSlider.value);
-        sizeValueEl.textContent = sizeSlider.value;
-        try { localStorage.setItem('pi_playerSize', sizeSlider.value); } catch (_) {}
-    });
-
-    // — Feed scale —
-    const _feedScaleSteps = [0.65, 0.8, 1.0, 1.25, 1.6];
-    const savedFeedScale = parseFloat(localStorage.getItem('pi_feedScale') ?? '1.0');
-    const _initFeedScale = isNaN(savedFeedScale) ? 1.0 : Math.max(0.65, Math.min(1.6, savedFeedScale));
-    const _initFeedStep = _feedScaleSteps.reduce((best, v, i) =>
-        Math.abs(v - _initFeedScale) < Math.abs(_feedScaleSteps[best] - _initFeedScale) ? i : best, 2);
-    window._replayFeedScale = _feedScaleSteps[_initFeedStep];
-
-    const feedSlider = voSlider(0, 4, 1, _initFeedStep);
-    const feedValueEl = voValue(`${Math.round(window._replayFeedScale * 100)}%`, '32px');
-    feedSlider.addEventListener('input', () => {
-        const scale = _feedScaleSteps[parseInt(feedSlider.value)];
-        window._replayFeedScale = scale;
-        feedValueEl.textContent = `${Math.round(scale * 100)}%`;
-        try { localStorage.setItem('pi_feedScale', String(scale)); } catch (_) {}
-    });
-
-    // — Feed max events —
-    const savedFeedMax = parseInt(localStorage.getItem('pi_feedMax') ?? '5');
-    window._replayFeedMax = isNaN(savedFeedMax) ? 5 : Math.max(4, Math.min(10, savedFeedMax));
-
-    const feedMaxSlider = voSlider(4, 10, 1, window._replayFeedMax);
-    const feedMaxValueEl = voValue(String(window._replayFeedMax), '18px');
-    feedMaxSlider.addEventListener('input', () => {
-        window._replayFeedMax = parseInt(feedMaxSlider.value);
-        feedMaxValueEl.textContent = feedMaxSlider.value;
-        try { localStorage.setItem('pi_feedMax', feedMaxSlider.value); } catch (_) {}
-    });
-
-    viewOptionsBar.appendChild(voSectionLabel);
-    viewOptionsBar.appendChild(voDivider());
-    viewOptionsBar.appendChild(voLabel('PLAYERS'));
-    viewOptionsBar.appendChild(sizeSlider);
-    viewOptionsBar.appendChild(sizeValueEl);
-    viewOptionsBar.appendChild(voDivider());
-    viewOptionsBar.appendChild(voLabel('FEED'));
-    viewOptionsBar.appendChild(feedSlider);
-    viewOptionsBar.appendChild(feedValueEl);
-    viewOptionsBar.appendChild(voLabel('MAX'));
-    viewOptionsBar.appendChild(feedMaxSlider);
-    viewOptionsBar.appendChild(feedMaxValueEl);
-
     // Sync timer el → currentTimeDisplay (replay2d writes to #timer)
     const timerObserver = new MutationObserver(() => {
         currentTimeDisplay.textContent = timer.textContent;
@@ -461,7 +444,6 @@ export function showModal(matchData, platform = 'steam') {
 
     innerColumn.appendChild(viewport);
     innerColumn.appendChild(controlsBar);
-    innerColumn.appendChild(viewOptionsBar);
     centerCol.appendChild(innerColumn);
 
     // ── Pinned teams container (right) ────────────────────────────────────────
