@@ -980,8 +980,8 @@ export function startModal(matchId, platform, mapName) {
           activeFeed.forEach(e => {
             const kW  = e.killerName ? drawCtx.measureText(e.killerName).width + iconGap : 0;
             const vW  = drawCtx.measureText(e.victimName).width;
-            const wW  = e.weaponId?.startsWith('Item_Weapon_') ? wepW + iconGap : 0;
-            maxW = Math.max(maxW, kW + iconW + iconGap + wW + vW);
+            const wW  = _WEAP_TO_ITEM[e.weaponId] ? wepW + iconGap : 0;
+            maxW = Math.max(maxW, kW + wW + iconW + iconGap + vW);
           });
           const boxW = maxW + padX * 2, boxH = activeFeed.length * lineH + padY * 2;
           const boxX = VIEWPORT_WIDTH - boxW - margin, boxY = margin + 48;
@@ -995,53 +995,55 @@ export function startModal(matchId, platform, mapName) {
           drawCtx.fill();
           drawCtx.stroke();
 
+          // Render right-to-left so the right edge is always fixed.
           activeFeed.forEach((e, i) => {
             const age = (currentTime - e.t) / feedDuration;
             drawCtx.globalAlpha = age > 0.7 ? 1 - (age - 0.7) / 0.3 : 1;
             const y = boxY + padY + i * lineH + fs;
             const iconTopY = y - fs * 0.85 - (iconW - fs) / 2;
             drawCtx.textBaseline = 'alphabetic';
-            drawCtx.textAlign = 'left';
 
-            // Killer name (empty for environmental kills)
-            let curX = boxX + padX;
-            if (e.killerName) {
-              drawCtx.fillStyle = '#ffffff';
-              drawCtx.fillText(e.killerName, curX, y);
-              curX += drawCtx.measureText(e.killerName).width + iconGap;
-            }
+            let curX = boxX + boxW - padX; // right edge of content area
 
-            // Weapon icon (before event icon)
-            const wepImg = getWeaponIcon(e.weaponId);
-            if (wepImg?.complete && wepImg.naturalWidth > 0) {
-              const ratio = wepImg.naturalWidth / wepImg.naturalHeight;
-              const dw = ratio >= 1 ? wepW : wepW * ratio;
-              const dh = ratio >= 1 ? wepW / ratio : wepW;
-              drawCtx.drawImage(wepImg, curX + (wepW - dw) / 2, iconTopY + (iconW - dh) / 2, dw, dh);
-              curX += wepW + iconGap;
-            } else if (wepImg) {
-              curX += wepW + iconGap;
-            }
+            // Victim name (right-most element)
+            drawCtx.fillStyle = 'rgba(255,255,255,0.65)';
+            drawCtx.textAlign = 'right';
+            drawCtx.fillText(e.victimName, curX, y);
+            curX -= drawCtx.measureText(e.victimName).width + iconGap;
 
-            // Event icon (kill/knock/headshot/etc.)
+            // Event icon
             const iconKey = e.iconKey || (e.isKnock ? 'DBNO' : 'Death');
             const iconImg = KF_ICONS[iconKey];
             if (iconImg?.complete && iconImg.naturalWidth > 0) {
               const ratio = iconImg.naturalWidth / iconImg.naturalHeight;
               const dw = ratio >= 1 ? iconW : iconW * ratio;
               const dh = ratio >= 1 ? iconW / ratio : iconW;
-              drawCtx.drawImage(iconImg, curX + (iconW - dw) / 2, iconTopY + (iconW - dh) / 2, dw, dh);
+              drawCtx.drawImage(iconImg, curX - iconW + (iconW - dw) / 2, iconTopY + (iconW - dh) / 2, dw, dh);
             } else {
               drawCtx.fillStyle = e.isKnock ? '#f0c040' : '#ff4444';
               drawCtx.textAlign = 'center';
-              drawCtx.fillText(e.isKnock ? '⬇' : '☠', curX + iconW / 2, y);
-              drawCtx.textAlign = 'left';
+              drawCtx.fillText(e.isKnock ? '⬇' : '☠', curX - iconW / 2, y);
             }
-            curX += iconW + iconGap;
+            curX -= iconW + iconGap;
 
-            // Victim name
-            drawCtx.fillStyle = 'rgba(255,255,255,0.65)';
-            drawCtx.fillText(e.victimName, curX, y);
+            // Weapon icon (left of event icon)
+            const wepImg = getWeaponIcon(e.weaponId);
+            if (wepImg?.complete && wepImg.naturalWidth > 0) {
+              const ratio = wepImg.naturalWidth / wepImg.naturalHeight;
+              const dw = ratio >= 1 ? wepW : wepW * ratio;
+              const dh = ratio >= 1 ? wepW / ratio : wepW;
+              drawCtx.drawImage(wepImg, curX - wepW + (wepW - dw) / 2, iconTopY + (iconW - dh) / 2, dw, dh);
+              curX -= wepW + iconGap;
+            } else if (wepImg) {
+              curX -= wepW + iconGap;
+            }
+
+            // Killer name (left-most element)
+            if (e.killerName) {
+              drawCtx.fillStyle = '#ffffff';
+              drawCtx.textAlign = 'right';
+              drawCtx.fillText(e.killerName, curX, y);
+            }
           });
           drawCtx.globalAlpha = 1;
           drawCtx.restore();
