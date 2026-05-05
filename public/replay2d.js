@@ -64,6 +64,27 @@ export function startModal(matchId, platform, mapName) {
     KF_ICONS[name] = img;
   });
 
+  // ── Weapon icon lazy-load ────────────────────────────────────────────────────
+  const _WEP_HANDGUNS = new Set([
+    'Item_Weapon_DesertEagle_C','Item_Weapon_FlareGun_C','Item_Weapon_G18_C',
+    'Item_Weapon_M1911_C','Item_Weapon_M9_C','Item_Weapon_NagantM1895_C',
+    'Item_Weapon_Rhino_C','Item_Weapon_Sawnoff_C','Item_Weapon_vz61Skorpion_C',
+  ]);
+  const _WEP_MELEE = new Set([
+    'Item_Weapon_Cowbar_C','Item_Weapon_Machete_C','Item_Weapon_Pan_C','Item_Weapon_Sickle_C',
+  ]);
+  const WEAPON_ICONS = {};
+  function getWeaponIcon(itemId) {
+    if (!itemId || !itemId.startsWith('Item_Weapon_')) return null;
+    if (!WEAPON_ICONS[itemId]) {
+      const sub = _WEP_HANDGUNS.has(itemId) ? 'Handgun' : _WEP_MELEE.has(itemId) ? 'Melee' : 'Main';
+      const img = new Image();
+      img.src = `/pubg-api-assets/Assets/Icons/Item/Weapon/${sub}/${itemId}.png`;
+      WEAPON_ICONS[itemId] = img;
+    }
+    return WEAPON_ICONS[itemId];
+  }
+
   function killfeedIconKey(causerName, damageType, damageReason, isKnock) {
     const head = damageReason === 'HeadShot';
     if (isKnock) return head ? 'Headshot_DBNO' : 'DBNO';
@@ -500,6 +521,7 @@ export function startModal(matchId, platform, mapName) {
           victimName: victim.name,   victimAccountId: victim.accountId,
           isKnock: true, t,
           iconKey: killfeedIconKey(item.damageCauserName, kDmgType, kDmgReason, true),
+          weaponId: item.damageCauserName || '',
         });
       });
 
@@ -520,6 +542,7 @@ export function startModal(matchId, platform, mapName) {
           victimName: victim.name,  victimAccountId: victim.accountId,
           isKnock: false, t,
           iconKey: killfeedIconKey(causerName, dmgType, dmgReason, false),
+          weaponId: causerName || '',
         });
       });
 
@@ -925,16 +948,18 @@ export function startModal(matchId, platform, mapName) {
         if (activeFeed.length > 0) {
           const _fs = window._replayFeedScale ?? 1;
           const fs = Math.round(11 * _fs), lineH = Math.round(18 * _fs);
-          const padX = Math.round(8 * _fs), padY = Math.round(6 * _fs), margin = 8;
+          const padX = Math.round(12 * _fs), padY = Math.round(6 * _fs), margin = 8;
           const iconW = Math.round(17 * _fs), iconGap = Math.round(5 * _fs);
+          const wepW  = Math.round(20 * _fs); // weapon icon slightly wider (guns are landscape)
           drawCtx.save();
           drawCtx.setTransform(1, 0, 0, 1, 0, 0);
           drawCtx.font = `bold ${fs}px "JetBrains Mono", monospace`;
           let maxW = 0;
           activeFeed.forEach(e => {
-            const kW = e.killerName ? drawCtx.measureText(e.killerName).width + iconGap : 0;
-            const vW = drawCtx.measureText(e.victimName).width;
-            maxW = Math.max(maxW, kW + iconW + iconGap + vW);
+            const kW  = e.killerName ? drawCtx.measureText(e.killerName).width + iconGap : 0;
+            const vW  = drawCtx.measureText(e.victimName).width;
+            const wW  = e.weaponId?.startsWith('Item_Weapon_') ? wepW + iconGap : 0;
+            maxW = Math.max(maxW, kW + iconW + iconGap + wW + vW);
           });
           const boxW = maxW + padX * 2, boxH = activeFeed.length * lineH + padY * 2;
           const boxX = VIEWPORT_WIDTH - boxW - margin, boxY = margin + 48;
@@ -981,6 +1006,19 @@ export function startModal(matchId, platform, mapName) {
               drawCtx.textAlign = 'left';
             }
             curX += iconW + iconGap;
+
+            // Weapon icon (only for actual weapon IDs)
+            const wepImg = getWeaponIcon(e.weaponId);
+            if (wepImg?.complete && wepImg.naturalWidth > 0) {
+              const ratio = wepImg.naturalWidth / wepImg.naturalHeight;
+              const dw = ratio >= 1 ? wepW : wepW * ratio;
+              const dh = ratio >= 1 ? wepW / ratio : wepW;
+              drawCtx.drawImage(wepImg, curX + (wepW - dw) / 2, iconTopY + (iconW - dh) / 2, dw, dh);
+              curX += wepW + iconGap;
+            } else if (wepImg) {
+              // image requested but not yet loaded — reserve space so box doesn't jump
+              curX += wepW + iconGap;
+            }
 
             // Victim name
             drawCtx.fillStyle = 'rgba(255,255,255,0.65)';
