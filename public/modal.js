@@ -610,7 +610,7 @@ function buildTeamPanel(roster, matchData, teamId, color, slotIndex) {
     const playerList = document.createElement('div');
     playerList.style.cssText = 'flex:1;overflow-y:auto;padding:8px;scrollbar-width:thin;scrollbar-color:var(--surface-3) transparent;';
 
-    const ASSETS = 'api-assets-master/Assets/Item';
+    const ASSETS = 'pubg-api-assets/Assets/Item';
     const IGNORED_BACKPACKS = new Set(['Item_Back_B_01_StartParachutePack_C']);
     const SEP_HTML = '<div style="width:1px;background:var(--divider);align-self:stretch;margin:0 3px;"></div>';
     const SLOT_SM = `flex-shrink:0;width:32px;height:32px;background:var(--surface);border:1px solid var(--divider);border-radius:4px;display:flex;align-items:center;justify-content:center;overflow:hidden;`;
@@ -619,16 +619,25 @@ function buildTeamPanel(roster, matchData, teamId, color, slotIndex) {
     function itemImg(src, alt) {
         return `<img src="/${src}" alt="${alt}" title="${alt}" style="width:100%;height:100%;object-fit:contain;" onerror="this.style.opacity=0.15">`;
     }
+    const _WEP_HANDGUNS = new Set(['Item_Weapon_AK47_C','Item_Weapon_Berreta686_C','Item_Weapon_DesertEagle_C','Item_Weapon_Glock_C','Item_Weapon_M1911_C','Item_Weapon_NagantM1895_C','Item_Weapon_P18C_C','Item_Weapon_P1911_C','Item_Weapon_P92_C','Item_Weapon_R1895_C','Item_Weapon_R45_C','Item_Weapon_SAF_C','Item_Weapon_Skorpion_C','Item_Weapon_TEC9_C','Item_Weapon_vz61Skorpion_C']);
+    const _WEP_MELEE   = new Set(['Item_Weapon_Crowbar_C','Item_Weapon_Machete_C','Item_Weapon_Pan_C','Item_Weapon_SickleC','Item_Weapon_Sickle_C','Item_Weapon_Knife_C']);
+    function _weapSubFolder(id) {
+        if (_WEP_HANDGUNS.has(id)) return 'Handgun';
+        if (_WEP_MELEE.has(id))   return 'Melee';
+        return 'Main';
+    }
     function getItemImg(id) {
         if (!id) return null;
-        if (id.startsWith('Item_Armor_')) return `${ASSETS}/Equipment/Vest/${id}.png`;
-        if (id.startsWith('Item_Head_')) return `${ASSETS}/Equipment/Headgear/${id}.png`;
-        if (id.startsWith('Item_Back_')) return `${ASSETS}/Equipment/Backpack/${id.replace(/^(Item_Back_BlueBlocker).*/, '$1')}.png`;
+        if (id.startsWith('Item_Armor_'))  return `${ASSETS}/Equipment/Vest/${id}.png`;
+        if (id.startsWith('Item_Head_'))   return `${ASSETS}/Equipment/Headgear/${id}.png`;
+        if (id.startsWith('Item_Back_'))   return `${ASSETS}/Equipment/Backpack/${id.replace(/^(Item_Back_BlueBlocker).*/, '$1')}.png`;
         if (id.startsWith('Item_Attach_')) return `${ASSETS}/Attachment/${id}.png`;
+        if (id.startsWith('Item_Weapon_')) return `${ASSETS}/Weapon/${_weapSubFolder(id)}/${id}.png`;
         return null;
     }
     function getWeaponImg(id, sub) {
-        return `${ASSETS}/Weapon/${sub === 'Handgun' ? 'Handgun' : 'Main'}/${id}.png`;
+        const folder = sub === 'Handgun' ? 'Handgun' : sub === 'Melee' ? 'Melee' : 'Main';
+        return `${ASSETS}/Weapon/${folder}/${id}.png`;
     }
     function getScopeId(attachments) {
         for (const a of attachments) { if (a.includes('_Upper_') || a.includes('_SideRail_')) return a; }

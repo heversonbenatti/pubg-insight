@@ -65,6 +65,42 @@ export function startModal(matchId, platform, mapName) {
   });
 
   // ── Weapon icon lazy-load ────────────────────────────────────────────────────
+  // damageCauserName in telemetry uses Weap* format (WeapAK47_C, WeapHK416_C…).
+  // PNG files are named Item_Weapon_*_C. This map does the translation.
+  const _WEAP_TO_ITEM = {
+    'WeapACE32_C':'Item_Weapon_ACE32_C',       'WeapAK47_C':'Item_Weapon_AK47_C',
+    'WeapAUG_C':'Item_Weapon_AUG_C',           'WeapAWM_C':'Item_Weapon_AWM_C',
+    'WeapBerreta686_C':'Item_Weapon_Berreta686_C', 'WeapBerylM762_C':'Item_Weapon_BerylM762_C',
+    'WeapBizonPP19_C':'Item_Weapon_BizonPP19_C','WeapCowbar_C':'Item_Weapon_Cowbar_C',
+    'WeapCrossbow_1_C':'Item_Weapon_Crossbow_C','WeapDP12_C':'Item_Weapon_DP12_C',
+    'WeapDP28_C':'Item_Weapon_DP28_C',         'WeapDesertEagle_C':'Item_Weapon_DesertEagle_C',
+    'WeapDragunov_C':'Item_Weapon_Dragunov_C', 'WeapDuncansHK416_C':'Item_Weapon_HK416_C',
+    'WeapFNFal_C':'Item_Weapon_FNFal_C',       'WeapG18_C':'Item_Weapon_G18_C',
+    'WeapG36C_C':'Item_Weapon_G36C_C',         'WeapGroza_C':'Item_Weapon_Groza_C',
+    'WeapHK416_C':'Item_Weapon_HK416_C',       'WeapJS9_C':'Item_Weapon_MP9_C',
+    'WeapJuliesKar98k_C':'Item_Weapon_Kar98k_C','WeapK2_C':'Item_Weapon_K2_C',
+    'WeapKar98k_C':'Item_Weapon_Kar98k_C',     'WeapL6_C':'Item_Weapon_L6_C',
+    'WeapLunchmeatsAK47_C':'Item_Weapon_AK47_C','WeapM16A4_C':'Item_Weapon_M16A4_C',
+    'WeapM1911_C':'Item_Weapon_M1911_C',       'WeapM249_C':'Item_Weapon_M249_C',
+    'WeapM24_C':'Item_Weapon_M24_C',           'WeapM9_C':'Item_Weapon_M9_C',
+    'WeapMG3_C':'Item_Weapon_MG3_C',           'WeapMP5K_C':'Item_Weapon_MP5K_C',
+    'WeapMP9_C':'Item_Weapon_MP9_C',           'WeapMachete_C':'Item_Weapon_Machete_C',
+    'WeapMadsQBU88_C':'Item_Weapon_QBU88_C',   'WeapMini14_C':'Item_Weapon_Mini14_C',
+    'WeapMk12_C':'Item_Weapon_Mk12_C',         'WeapMk14_C':'Item_Weapon_Mk14_C',
+    'WeapMk47Mutant_C':'Item_Weapon_Mk47Mutant_C','WeapMosinNagant_C':'Item_Weapon_Mosin_C',
+    'WeapNagantM1895_C':'Item_Weapon_NagantM1895_C','WeapOriginS12_C':'Item_Weapon_OriginS12_C',
+    'WeapP90_C':'Item_Weapon_P90_C',           'WeapPan_C':'Item_Weapon_Pan_C',
+    'WeapPanzerFaust100M1_C':'Item_Weapon_PanzerFaust100M_C',
+    'WeapQBU88_C':'Item_Weapon_QBU88_C',       'WeapQBZ95_C':'Item_Weapon_QBZ95_C',
+    'WeapRhino_C':'Item_Weapon_Rhino_C',       'WeapSCAR-L_C':'Item_Weapon_SCAR-L_C',
+    'WeapSKS_C':'Item_Weapon_SKS_C',           'WeapSaiga12_C':'Item_Weapon_Saiga12_C',
+    'WeapSawnoff_C':'Item_Weapon_Sawnoff_C',   'WeapSickle_C':'Item_Weapon_Sickle_C',
+    'WeapThompson_C':'Item_Weapon_Thompson_C', 'WeapUMP_C':'Item_Weapon_UMP_C',
+    'WeapUZI_C':'Item_Weapon_UZI_C',           'WeapVSS_C':'Item_Weapon_VSS_C',
+    'WeapVector_C':'Item_Weapon_Vector_C',     'WeapWin94_C':'Item_Weapon_Win1894_C',
+    'WeapWinchester_C':'Item_Weapon_Winchester_C','Weapvz61Skorpion_C':'Item_Weapon_vz61Skorpion_C',
+    'WeapFAMASG2_C':'Item_Weapon_FAMASG2_C',
+  };
   const _WEP_HANDGUNS = new Set([
     'Item_Weapon_DesertEagle_C','Item_Weapon_FlareGun_C','Item_Weapon_G18_C',
     'Item_Weapon_M1911_C','Item_Weapon_M9_C','Item_Weapon_NagantM1895_C',
@@ -74,8 +110,9 @@ export function startModal(matchId, platform, mapName) {
     'Item_Weapon_Cowbar_C','Item_Weapon_Machete_C','Item_Weapon_Pan_C','Item_Weapon_Sickle_C',
   ]);
   const WEAPON_ICONS = {};
-  function getWeaponIcon(itemId) {
-    if (!itemId || !itemId.startsWith('Item_Weapon_')) return null;
+  function getWeaponIcon(causerName) {
+    const itemId = _WEAP_TO_ITEM[causerName];
+    if (!itemId) return null;
     if (!WEAPON_ICONS[itemId]) {
       const sub = _WEP_HANDGUNS.has(itemId) ? 'Handgun' : _WEP_MELEE.has(itemId) ? 'Melee' : 'Main';
       const img = new Image();
