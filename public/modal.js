@@ -482,6 +482,19 @@ export function showModal(matchData, platform = 'steam') {
     startModal(matchId, platform, matchData.data.attributes.mapName);
     populateTeams(matchData, teamListScroll);
 
+    // Exposed so replay2d can pin a team by clicking a player on the canvas.
+    // Finds the right .team-custom div and simulates a click — reuses all
+    // existing pin/unpin logic and visual updates for free.
+    window.pinTeamByAccountId = (accountId) => {
+        const pid = matchData.included.filter(p => p.type === 'participant')
+            .find(p => p.attributes?.stats?.playerId === accountId)?.id;
+        const roster = matchData.included.filter(r => r.type === 'roster')
+            .find(r => r.relationships.participants.data.some(p => p.id === pid));
+        if (!roster) return;
+        const teamDiv = document.querySelector(`.team-custom[data-team-id="${roster.attributes.stats.teamId}"]`);
+        if (teamDiv) teamDiv.click();
+    };
+
     modal.addEventListener('click', function (e) {
         if (e.target === modal) {
             timerObserver.disconnect();

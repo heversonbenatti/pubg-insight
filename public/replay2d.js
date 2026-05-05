@@ -639,6 +639,7 @@ export function startModal(matchId, platform, mapName) {
       progressBar.addEventListener('input', function () { currentIndex = parseInt(progressBar.value); updateSafeZone(); });
 
       let isDragging = false, lastX, lastY;
+      let _clickOriginX = 0, _clickOriginY = 0;
 
       viewport.addEventListener('wheel', function (e) {
         e.preventDefault();
@@ -654,7 +655,12 @@ export function startModal(matchId, platform, mapName) {
         updateSafeZone();
       });
 
-      viewport.addEventListener('mousedown', e => { isDragging = true; lastX = e.clientX; lastY = e.clientY; e.preventDefault(); });
+      viewport.addEventListener('mousedown', e => {
+        isDragging = true;
+        lastX = e.clientX; lastY = e.clientY;
+        _clickOriginX = e.clientX; _clickOriginY = e.clientY;
+        e.preventDefault();
+      });
       document.addEventListener('mousemove', e => {
         if (!isDragging) return;
         panX -= (e.clientX - lastX) / (scaleFactor * zoomScale);
@@ -665,6 +671,35 @@ export function startModal(matchId, platform, mapName) {
         e.preventDefault();
       });
       document.addEventListener('mouseup', () => { isDragging = false; });
+
+      // Click on a player dot → pin/unpin their team panel
+      viewport.addEventListener('click', function(e) {
+        // Ignore if the mouse moved (drag, not click)
+        const dx = e.clientX - _clickOriginX, dy = e.clientY - _clickOriginY;
+        if (dx * dx + dy * dy > 25) return; // > 5px movement = drag
+
+        const rect = viewport.getBoundingClientRect();
+        const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+        const gx = panX + sx / (scaleFactor * zoomScale);
+        const gy = panY + sy / (scaleFactor * zoomScale);
+
+        const ps = window._replayPlayerSize ?? 6;
+        // Hit radius: 3× dot radius in game coords, minimum 10px in screen space
+        const hitRadius = Math.max(ps * 3, 10) / (scaleFactor * zoomScale);
+
+        const currentElapsed = Math.round(interpolatedData[currentIndex]?.elapsedTime ?? 0);
+        let closest = null, closestDist = hitRadius;
+
+        Object.keys(playerLocationsByTime).forEach(accountId => {
+          if (isPlayerDead(accountId, currentElapsed)) return;
+          const loc = playerLocationsByTime[accountId][currentElapsed];
+          if (!loc) return;
+          const d = Math.hypot(loc.x - gx, loc.y - gy);
+          if (d < closestDist) { closestDist = d; closest = accountId; }
+        });
+
+        if (closest) window.pinTeamByAccountId?.(closest);
+      });
 
       // Use ResizeObserver instead of window.addEventListener('resize') —
       // fires reliably after layout (aspect-ratio resolved) unlike the resize event.
