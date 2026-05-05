@@ -1097,7 +1097,6 @@ export function startModal(matchId, platform, mapName) {
 
             // Killer name
             if (e.killerName) {
-              curX -= gap; // extra sep before killer side
               drawCtx.font = `bold ${fs}px "JetBrains Mono", monospace`;
               drawCtx.fillStyle = '#ffffff';
               drawCtx.textAlign = 'right';
