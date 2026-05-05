@@ -926,7 +926,7 @@ export function startModal(matchId, platform, mapName) {
           if (hpRatio > 0) {
             drawCtx.beginPath();
             drawCtx.moveTo(px, py);
-            drawCtx.arc(px, py, pointSize, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * hpRatio, true);
+            drawCtx.arc(px, py, pointSize, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * hpRatio, false);
             drawCtx.closePath();
             drawCtx.fillStyle = fillColor;
             drawCtx.fill();
