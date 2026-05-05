@@ -739,24 +739,16 @@ export function startModal(matchId, platform, mapName) {
       });
       document.addEventListener('mouseup', () => { isDragging = false; });
 
-      // Click on a player dot → pin/unpin their team panel
-      viewport.addEventListener('click', function(e) {
-        // Ignore if the mouse moved (drag, not click)
-        const dx = e.clientX - _clickOriginX, dy = e.clientY - _clickOriginY;
-        if (dx * dx + dy * dy > 25) return; // > 5px movement = drag
-
+      // Shared hit-test: returns the closest alive player accountId within hit radius, or null.
+      function playerAtScreen(clientX, clientY) {
         const rect = viewport.getBoundingClientRect();
-        const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+        const sx = clientX - rect.left, sy = clientY - rect.top;
         const gx = panX + sx / (scaleFactor * zoomScale);
         const gy = panY + sy / (scaleFactor * zoomScale);
-
         const ps = window._replayPlayerSize ?? 6;
-        // Hit radius: 3× dot radius in game coords, minimum 10px in screen space
         const hitRadius = Math.max(ps * 3, 10) / (scaleFactor * zoomScale);
-
         const currentElapsed = Math.round(interpolatedData[currentIndex]?.elapsedTime ?? 0);
         let closest = null, closestDist = hitRadius;
-
         Object.keys(playerLocationsByTime).forEach(accountId => {
           if (isPlayerDead(accountId, currentElapsed)) return;
           const loc = playerLocationsByTime[accountId][currentElapsed];
@@ -764,7 +756,21 @@ export function startModal(matchId, platform, mapName) {
           const d = Math.hypot(loc.x - gx, loc.y - gy);
           if (d < closestDist) { closestDist = d; closest = accountId; }
         });
+        return closest;
+      }
 
+      // Cursor: pointer when hovering a player dot, default otherwise.
+      viewport.addEventListener('mousemove', function(e) {
+        if (isDragging) { viewport.style.cursor = 'grabbing'; return; }
+        viewport.style.cursor = playerAtScreen(e.clientX, e.clientY) ? 'pointer' : '';
+      });
+
+      // Click on a player dot → pin/unpin their team panel
+      viewport.addEventListener('click', function(e) {
+        // Ignore if the mouse moved (drag, not click)
+        const dx = e.clientX - _clickOriginX, dy = e.clientY - _clickOriginY;
+        if (dx * dx + dy * dy > 25) return; // > 5px movement = drag
+        const closest = playerAtScreen(e.clientX, e.clientY);
         if (closest) window.pinTeamByAccountId?.(closest);
       });
 
