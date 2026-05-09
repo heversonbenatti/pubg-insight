@@ -18,10 +18,14 @@ import { test, assert } from './helpers.js';
 
 // ── Helpers (mirrors replay2d.js parsing logic) ───────────────────────────────
 
+function isReplayBear(character = {}) {
+  return String(character?.accountId || '').startsWith('Monster.Bear');
+}
+
 function extractPlayerNames(telemetry) {
   const names = {};
   telemetry
-    .filter(item => item._T === 'LogPlayerPosition')
+    .filter(item => item._T === 'LogPlayerPosition' && !isReplayBear(item.character))
     .forEach(item => {
       if (item.character?.accountId && item.character?.name)
         names[item.character.accountId] = item.character.name;
@@ -96,6 +100,18 @@ test('extractPlayerNames: later entry for same accountId overwrites (last-write 
 test('extractPlayerNames: empty telemetry returns empty object', () => {
   const names = extractPlayerNames([]);
   assert.deepEqual(names, {});
+});
+
+test('extractPlayerNames: excludes Vikendi bear monster positions', () => {
+  const telemetry = [
+    { _T: 'LogPlayerPosition', character: { accountId: 'Monster.Bear-1', name: 'Bear' } },
+    { _T: 'LogPlayerPosition', character: { accountId: 'account.bear', name: 'Bear' } },
+    { _T: 'LogPlayerPosition', character: { accountId: 'account.abc', name: 'Player1' } },
+  ];
+  const names = extractPlayerNames(telemetry);
+  assert.equal(names['Monster.Bear-1'], undefined);
+  assert.equal(names['account.bear'], 'Bear');
+  assert.equal(names['account.abc'], 'Player1');
 });
 
 // ── matchStartMs ──────────────────────────────────────────────────────────────

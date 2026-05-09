@@ -1,6 +1,7 @@
 import { translateMapName } from './utils.js';
 import { getMapSpotAdvice, loadMapSpotModel } from './mapSpotAdvisor.js';
 import { getSafeZoneAdvice, loadSafeZoneModel } from './safeZoneAdvisor.js';
+import { clusterTeamPlayers } from './teamOverlay.js';
 
 export function startModal(matchId, platform, mapName) {
 
@@ -46,12 +47,19 @@ export function startModal(matchId, platform, mapName) {
   const safeAdvisorStatus = document.getElementById('safeAdvisorStatus');
   const mapSpotButton = document.getElementById('mapSpotToggle');
   const mapSpotStatus = document.getElementById('mapSpotStatus');
+  const teamOverlayButton = document.getElementById('teamOverlayToggle');
+  const teamOverlayStatus = document.getElementById('teamOverlayStatus');
   let safeAdvisorEnabled = false;
   let safeAdvisorModel = null;
   let safeAdvisorStatusText = '';
   let mapSpotEnabled = false;
   let mapSpotModel = null;
   let mapSpotStatusText = '';
+  let teamOverlayEnabled = (() => {
+    try { return localStorage.getItem('pi_teamOverlay') === '1'; }
+    catch (_) { return false; }
+  })();
+  let teamOverlayStatusText = '';
 
   function setSafeAdvisorStatus(text) {
     if (!safeAdvisorStatus || safeAdvisorStatusText === text) return;
@@ -65,6 +73,12 @@ export function startModal(matchId, platform, mapName) {
     mapSpotStatus.textContent = text;
   }
 
+  function setTeamOverlayStatus(text) {
+    if (!teamOverlayStatus || teamOverlayStatusText === text) return;
+    teamOverlayStatusText = text;
+    teamOverlayStatus.textContent = text;
+  }
+
   function syncSafeAdvisorButton() {
     if (!safeAdvisorButton) return;
     safeAdvisorButton.classList.toggle('active', safeAdvisorEnabled);
@@ -76,6 +90,15 @@ export function startModal(matchId, platform, mapName) {
     mapSpotButton.classList.toggle('active', mapSpotEnabled);
     mapSpotButton.setAttribute('aria-pressed', mapSpotEnabled ? 'true' : 'false');
   }
+
+  function syncTeamOverlayButton() {
+    if (!teamOverlayButton) return;
+    teamOverlayButton.classList.toggle('active', teamOverlayEnabled);
+    teamOverlayButton.setAttribute('aria-pressed', teamOverlayEnabled ? 'true' : 'false');
+    setTeamOverlayStatus(teamOverlayEnabled ? 'ON' : 'OFF');
+  }
+
+  syncTeamOverlayButton();
 
   loadSafeZoneModel().then(model => {
     safeAdvisorModel = model;
@@ -342,6 +365,10 @@ export function startModal(matchId, platform, mapName) {
     };
   }
 
+  function isReplayBear(character = {}) {
+    return String(character?.accountId || '').startsWith('Monster.Bear');
+  }
+
   function maxAnchorSpeed(curr, next, timeDiff) {
     if (curr.isInVehicle || next.isInVehicle || curr.vehicleType || next.vehicleType) return POSITION_SPEED.vehicle;
     if (curr.isAirborne || next.isAirborne) return POSITION_SPEED.airborne;
@@ -425,7 +452,7 @@ export function startModal(matchId, platform, mapName) {
       const gameStateData = data
         .filter(item => item.gameState)
         .sort((a, b) => (a.gameState.elapsedTime ?? 0) - (b.gameState.elapsedTime ?? 0));
-      const characterData = data.filter(item => item._T === 'LogPlayerPosition');
+      const characterData = data.filter(item => item._T === 'LogPlayerPosition' && !isReplayBear(item.character));
 
       const playerNames = {};
       characterData.forEach(item => {
@@ -604,6 +631,7 @@ export function startModal(matchId, platform, mapName) {
         const addPoint = (character, vehicle = null, options = {}) => {
           const accountId = character?.accountId;
           const location = character?.location;
+          if (isReplayBear(character)) return;
           if (!accountId || !location || !players[accountId]) return;
           if (isPlayerDead(accountId, t)) return;
           const state = characterAnchorState(character, vehicle, {
@@ -835,7 +863,7 @@ export function startModal(matchId, platform, mapName) {
         feedEvents.push({
           killerName: attacker.name, killerAccountId: attacker.accountId,
           victimName: victim.name,   victimAccountId: victim.accountId,
-          isKnock: true, t,
+          isKnock: true, eventKind: 'knock', t,
           iconKey: killfeedIconKey(item.damageCauserName, kDmgType, kDmgReason, true),
           weaponId: item.damageCauserName || '',
         });
@@ -856,7 +884,9 @@ export function startModal(matchId, platform, mapName) {
         feedEvents.push({
           killerName: killer.name || '', killerAccountId: killer.accountId || '',
           victimName: victim.name,  victimAccountId: victim.accountId,
-          isKnock: false, t,
+          isKnock: false,
+          eventKind: killer.name && killer.accountId !== victim.accountId ? 'kill' : 'death',
+          t,
           iconKey: killfeedIconKey(causerName, dmgType, dmgReason, false),
           weaponId: causerName || '',
         });
@@ -958,6 +988,7 @@ export function startModal(matchId, platform, mapName) {
         ? globalMatchData.included.filter(r => r.type === 'roster')
             .find(r => r.relationships.participants.data.some(p => p.id === _searchedParticipant.id))
         : null;
+      const searchedAccountId = _searchedParticipant?.attributes?.stats?.playerId ?? null;
       const searchedTeamId = _searchedRoster?.attributes?.stats?.teamId ?? null;
 
       const teamIdByAccount = {};
@@ -967,6 +998,19 @@ export function startModal(matchId, platform, mapName) {
         const roster = globalMatchData.included.filter(r => r.type === 'roster')
           .find(r => r.relationships.participants.data.some(ref => ref.id === p.id));
         if (roster) teamIdByAccount[accountId] = roster.attributes?.stats?.teamId ?? null;
+      });
+
+      const teamMetaById = {};
+      globalMatchData.included.filter(r => r.type === 'roster').forEach(roster => {
+        const stats = roster.attributes?.stats || {};
+        const teamId = stats.teamId;
+        if (teamId === null || teamId === undefined) return;
+        teamMetaById[teamId] = {
+          teamId,
+          teamNum: stats.rank || teamId,
+          color: roster.color || '#ffffff',
+          totalPlayers: roster.relationships?.participants?.data?.length || 0,
+        };
       });
 
       const gameStatesWithPhase = [];
@@ -1007,11 +1051,23 @@ export function startModal(matchId, platform, mapName) {
       let subProgress = 0;
 
       const progressBar = document.getElementById('progressBar');
+      const progressThumb = document.getElementById('replayProgressThumb');
       progressBar.addEventListener('mousedown', e => e.stopPropagation());
       progressBar.addEventListener('touchstart', e => e.stopPropagation());
       progressBar.max = interpolatedData.length - 1;
       let currentIndex = 0;
       const timerElement = document.getElementById('timer');
+
+      function syncProgressThumb(value = Number(progressBar.value) || 0) {
+        if (!progressThumb) return;
+        const max = Number(progressBar.max) || 0;
+        const ratio = max > 0 ? Math.max(0, Math.min(1, (Number(value) || 0) / max)) : 0;
+        const edgePx = 5;
+        progressThumb.style.setProperty(
+          '--replay-progress-thumb-left',
+          `calc(${(ratio * 100).toFixed(4)}% + ${(edgePx - ratio * edgePx * 2).toFixed(3)}px)`
+        );
+      }
 
       function drawSafeZone(radius, position, color) {
         drawCtx.lineWidth = 2 / (scaleFactor * zoomScale);
@@ -1032,6 +1088,13 @@ export function startModal(matchId, platform, mapName) {
       mapSpotButton?.addEventListener('click', () => {
         mapSpotEnabled = !mapSpotEnabled;
         syncMapSpotButton();
+        updateSafeZone();
+      });
+
+      teamOverlayButton?.addEventListener('click', () => {
+        teamOverlayEnabled = !teamOverlayEnabled;
+        try { localStorage.setItem('pi_teamOverlay', teamOverlayEnabled ? '1' : '0'); } catch (_) {}
+        syncTeamOverlayButton();
         updateSafeZone();
       });
 
@@ -1179,6 +1242,173 @@ export function startModal(matchId, platform, mapName) {
           x: own.reduce((sum, p) => sum + p.x, 0) / own.length,
           y: own.reduce((sum, p) => sum + p.y, 0) / own.length,
         };
+      }
+
+      function teamOverlayPlayersAt(elapsed) {
+        const players = [];
+        Object.keys(playerPositionTimeline).forEach(accountId => {
+          if (isPlayerDead(accountId, elapsed)) return;
+          const loc = getPlayerPositionAt(accountId, elapsed);
+          if (!loc) return;
+          const teamId = teamIdByAccount[accountId] ?? null;
+          if (teamId === null || teamId === undefined) return;
+          players.push({
+            accountId,
+            x: loc.x,
+            y: loc.y,
+            health: getPlayerHpAt(accountId, elapsed),
+            knocked: isPlayerKnocked(accountId, elapsed),
+            teamId,
+          });
+        });
+        return players;
+      }
+
+      function teamSplitDistance() {
+        const mapExtent = Math.max(MAP_WIDTH, MAP_HEIGHT);
+        return Math.max(12000, Math.min(46000, mapExtent * 0.052));
+      }
+
+      function drawTeamBadge(label) {
+        const sx = (label.x - panX) * scaleFactor * zoomScale;
+        const sy = (label.y - panY) * scaleFactor * zoomScale;
+        if (sx < -48 || sy < -32 || sx > VIEWPORT_WIDTH + 48 || sy > VIEWPORT_HEIGHT + 32) return;
+
+        const x = Math.max(8, Math.min(VIEWPORT_WIDTH - 8, sx));
+        const y = Math.max(8, Math.min(VIEWPORT_HEIGHT - 8, sy));
+        const main = String(label.teamNum);
+        const sub = label.split ? `${label.memberCount}/${label.aliveCount}` : String(label.aliveCount);
+
+        drawCtx.font = 'bold 11px "JetBrains Mono", monospace';
+        const mainW = drawCtx.measureText(main).width;
+        drawCtx.font = 'bold 9px "JetBrains Mono", monospace';
+        const subW = drawCtx.measureText(sub).width;
+        const w = Math.max(30, Math.ceil(mainW + subW + 18));
+        const h = 20;
+        const bx = Math.round(x - w / 2);
+        const by = Math.round(y - h / 2);
+
+        drawCtx.fillStyle = 'rgba(0,0,0,0.72)';
+        drawCtx.strokeStyle = label.color;
+        drawCtx.lineWidth = 1;
+        drawCtx.beginPath();
+        if (drawCtx.roundRect) drawCtx.roundRect(bx, by, w, h, 4);
+        else drawCtx.rect(bx, by, w, h);
+        drawCtx.fill();
+        drawCtx.stroke();
+
+        drawCtx.fillStyle = label.color;
+        drawCtx.beginPath();
+        if (drawCtx.roundRect) drawCtx.roundRect(bx + 3, by + 4, 4, h - 8, 2);
+        else drawCtx.rect(bx + 3, by + 4, 4, h - 8);
+        drawCtx.fill();
+
+        drawCtx.textBaseline = 'middle';
+        drawCtx.textAlign = 'left';
+        drawCtx.font = 'bold 11px "JetBrains Mono", monospace';
+        drawCtx.fillStyle = '#ffffff';
+        drawCtx.fillText(main, bx + 10, by + h / 2 + 0.5);
+
+        drawCtx.font = 'bold 9px "JetBrains Mono", monospace';
+        drawCtx.fillStyle = 'rgba(255,255,255,0.68)';
+        drawCtx.fillText(sub, bx + 12 + mainW, by + h / 2 + 0.5);
+      }
+
+      function drawTeamOverlayLabels(labels) {
+        if (!labels?.length) return;
+        drawCtx.save();
+        drawCtx.setTransform(1, 0, 0, 1, 0, 0);
+        labels.forEach(drawTeamBadge);
+        drawCtx.restore();
+      }
+
+      function drawTeamOverlay(currentElapsed) {
+        if (!teamOverlayEnabled) {
+          setTeamOverlayStatus('OFF');
+          return [];
+        }
+
+        const byTeam = new Map();
+        teamOverlayPlayersAt(currentElapsed).forEach(player => {
+          if (!byTeam.has(player.teamId)) byTeam.set(player.teamId, []);
+          byTeam.get(player.teamId).push(player);
+        });
+
+        const splitDistance = teamSplitDistance();
+        const labels = [];
+        let clusterCount = 0;
+
+        byTeam.forEach((members, teamId) => {
+          const meta = teamMetaById[teamId] || {};
+          const color = meta.color || '#ffffff';
+          const clusters = clusterTeamPlayers(members, { splitDistance, maxClusters: 2 });
+          if (!clusters.length) return;
+          clusterCount += clusters.length;
+
+          if (clusters.length > 1) {
+            const primary = clusters[0];
+            drawCtx.save();
+            drawCtx.strokeStyle = color;
+            drawCtx.globalAlpha = 0.32;
+            drawCtx.lineWidth = 1.4 / (scaleFactor * zoomScale);
+            drawCtx.setLineDash([8 / (scaleFactor * zoomScale), 7 / (scaleFactor * zoomScale)]);
+            clusters.slice(1).forEach(cluster => {
+              drawCtx.beginPath();
+              drawCtx.moveTo(primary.center.x, primary.center.y);
+              drawCtx.lineTo(cluster.center.x, cluster.center.y);
+              drawCtx.stroke();
+            });
+            drawCtx.restore();
+          }
+
+          clusters.forEach((cluster, index) => {
+            const isPrimary = index === 0;
+            const radius = Math.max(
+              splitDistance * (cluster.memberCount > 1 ? 0.18 : 0.12),
+              cluster.radius + splitDistance * 0.08
+            );
+
+            drawCtx.save();
+            drawCtx.fillStyle = color;
+            drawCtx.globalAlpha = isPrimary ? 0.14 : 0.09;
+            drawCtx.beginPath();
+            drawCtx.arc(cluster.center.x, cluster.center.y, radius, 0, 2 * Math.PI);
+            drawCtx.fill();
+
+            drawCtx.strokeStyle = color;
+            drawCtx.globalAlpha = isPrimary ? 0.72 : 0.48;
+            drawCtx.lineWidth = (isPrimary ? 2 : 1.4) / (scaleFactor * zoomScale);
+            if (!isPrimary) drawCtx.setLineDash([5 / (scaleFactor * zoomScale), 5 / (scaleFactor * zoomScale)]);
+            drawCtx.beginPath();
+            drawCtx.arc(cluster.center.x, cluster.center.y, radius, 0, 2 * Math.PI);
+            drawCtx.stroke();
+
+            if (cluster.memberCount > 1) {
+              drawCtx.globalAlpha = 0.18;
+              drawCtx.lineWidth = 0.9 / (scaleFactor * zoomScale);
+              cluster.players.forEach(player => {
+                drawCtx.beginPath();
+                drawCtx.moveTo(cluster.center.x, cluster.center.y);
+                drawCtx.lineTo(player.x, player.y);
+                drawCtx.stroke();
+              });
+            }
+            drawCtx.restore();
+
+            labels.push({
+              x: cluster.center.x,
+              y: cluster.center.y,
+              teamNum: meta.teamNum || teamId,
+              memberCount: cluster.memberCount,
+              aliveCount: members.length,
+              color,
+              split: clusters.length > 1,
+            });
+          });
+        });
+
+        setTeamOverlayStatus(`${byTeam.size}T/${clusterCount}G`);
+        return labels;
       }
 
       function drawSafeAdvisorOverlay(safeZone, currentElapsed) {
@@ -1420,6 +1650,7 @@ export function startModal(matchId, platform, mapName) {
 
       function renderFrame() {
         const safeZone = interpolatedData[currentIndex];
+        syncProgressThumb(currentIndex + subProgress);
 
         mapCtx.save();
         mapCtx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1443,6 +1674,7 @@ export function startModal(matchId, platform, mapName) {
         const currentTimeSmooth = currentTime + subProgress;
         drawMapSpotOverlay(safeZone, currentTime);
         drawSafeAdvisorOverlay(safeZone, currentTime);
+        const teamOverlayLabels = drawTeamOverlay(currentTimeSmooth);
 
         if (window.teamTrackVisibility) {
           Object.keys(playerLocationsByTime).forEach(accountId => {
@@ -1598,6 +1830,7 @@ export function startModal(matchId, platform, mapName) {
           drawCtx.fillText(name, sx, sy + ptPx + 2);
         });
         drawCtx.restore();
+        drawTeamOverlayLabels(teamOverlayLabels);
 
         updatePanLimits();
         drawCtx.restore();
@@ -1608,7 +1841,7 @@ export function startModal(matchId, platform, mapName) {
         if (activeFeed.length > 0) {
           const _fs   = window._replayFeedScale ?? 1;
           const fs    = Math.round(12 * _fs);   // name font size
-          const iconW = Math.round(12 * _fs);   // event icon — same height as font
+          const iconW = Math.round(20 * _fs);   // event icon — slightly larger than name text
           const wepH  = fs;                     // weapon drawn at font height
           const wepNomW = Math.round(fs * 2.6); // reserved horizontal space for weapon
           const pad   = Math.round(6  * _fs);   // equal padding on all four sides
@@ -1693,6 +1926,7 @@ export function startModal(matchId, platform, mapName) {
               drawCtx.drawImage(iconImg, curX - iconW + (iconW - dw) / 2, midY - iconW / 2 + (iconW - dh) / 2, dw, dh);
             } else {
               drawCtx.fillStyle = e.isKnock ? '#f0c040' : '#ff4444';
+              drawCtx.font = `bold ${iconW}px "JetBrains Mono", monospace`;
               drawCtx.textAlign = 'center';
               drawCtx.fillText(e.isKnock ? '⬇' : '☠', curX - iconW / 2, midY);
             }
@@ -1749,6 +1983,100 @@ export function startModal(matchId, platform, mapName) {
       const ICON_PLAY = `<svg width="10" height="12" viewBox="0 0 10 12"><path d="M0 0 L10 6 L0 12 Z" fill="#111"/></svg>`;
       const ICON_PAUSE = `<svg width="11" height="12" viewBox="0 0 11 12"><rect x="0" y="0" width="4" height="12" rx="1" fill="#111"/><rect x="7" y="0" width="4" height="12" rx="1" fill="#111"/></svg>`;
 
+      function frameIndexForElapsed(elapsed) {
+        const target = Math.max(0, Number(elapsed) || 0);
+        let lo = 0, hi = interpolatedData.length - 1, best = 0;
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1;
+          const t = interpolatedData[mid]?.elapsedTime ?? mid;
+          if (t <= target) {
+            best = mid;
+            lo = mid + 1;
+          } else {
+            hi = mid - 1;
+          }
+        }
+        return best;
+      }
+
+      function formatEventTime(seconds) {
+        const safe = Math.max(0, Math.floor(Number(seconds) || 0));
+        const min = Math.floor(safe / 60);
+        const sec = safe % 60;
+        return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+      }
+
+      function timelineEventKind(event) {
+        if (event.isKnock || event.eventKind === 'knock') return 'knock';
+        if (searchedAccountId && event.victimAccountId === searchedAccountId) return 'death';
+        return event.killerName ? 'kill' : 'death';
+      }
+
+      function isSearchedPlayerTimelineEvent(event) {
+        if (!searchedAccountId) return false;
+        return event.killerAccountId === searchedAccountId || event.victimAccountId === searchedAccountId;
+      }
+
+      function timelineEventTitle(event) {
+        const kind = timelineEventKind(event).toUpperCase();
+        const time = formatEventTime(event.t);
+        if (kind === 'DEATH') {
+          return event.killerName
+            ? `${kind} ${time} - ${event.victimName} by ${event.killerName}`
+            : `${kind} ${time} - ${event.victimName}`;
+        }
+        return `${kind} ${time} - ${event.killerName || 'Unknown'} > ${event.victimName}`;
+      }
+
+      function jumpToTimelineEvent(event) {
+        currentIndex = frameIndexForElapsed((event.t ?? 0) - 5);
+        subProgress = 0;
+        timeAccumulator = 0;
+        lastTimestamp = null;
+        isPlaying = true;
+        if (window.globalPlayButton) window.globalPlayButton.innerHTML = ICON_PAUSE;
+        progressBar.value = String(currentIndex);
+        updateSafeZone();
+        renderFrame();
+      }
+
+      function renderTimelineEventMarkers() {
+        const markerLayer = document.getElementById('replayEventMarkers');
+        if (!markerLayer) return;
+        markerLayer.innerHTML = '';
+
+        const duration = interpolatedData[interpolatedData.length - 1]?.elapsedTime ?? 0;
+        if (!duration) return;
+
+        feedEvents.forEach((event, index) => {
+          if (!isSearchedPlayerTimelineEvent(event)) return;
+          if (!Number.isFinite(event.t) || event.t < 0) return;
+          const kind = timelineEventKind(event);
+          const marker = document.createElement('span');
+          marker.className = `replay-event-marker ${kind}`;
+          marker.style.left = `${Math.max(0, Math.min(100, (event.t / duration) * 100))}%`;
+          marker.title = `${timelineEventTitle(event)} - jump to ${formatEventTime(Math.max(0, event.t - 5))}`;
+          marker.setAttribute('role', 'button');
+          marker.setAttribute('tabindex', '0');
+          marker.setAttribute('aria-label', marker.title);
+          marker.dataset.eventIndex = String(index);
+
+          marker.addEventListener('click', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            jumpToTimelineEvent(event);
+          });
+          marker.addEventListener('keydown', e => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            e.stopPropagation();
+            jumpToTimelineEvent(event);
+          });
+
+          markerLayer.appendChild(marker);
+        });
+      }
+
       function animate(timestamp) {
         if (isPlaying) {
           if (lastTimestamp !== null) {
@@ -1781,6 +2109,7 @@ export function startModal(matchId, platform, mapName) {
         currentIndex = parseInt(progressBar.value);
         updateSafeZone();
       });
+      renderTimelineEventMarkers();
 
       globalPlayButton.addEventListener('click', function () {
         isPlaying = !isPlaying;

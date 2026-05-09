@@ -8,7 +8,9 @@
     "start": "node server.js",
     "tiles": "node scripts/generate-tiles.js",
     "safezones": "node scripts/build-safezone-hotspots.js",
-    "mapspots": "node scripts/build-map-spots.js"
+    "mapspots": "node scripts/build-map-spots.js",
+    "headshots": "node scripts/extract-headshot-damage.js",
+    "headshots:calibrate": "node scripts/calibrate-headshot-damage.js"
   },
   "keywords": [],
   "author": "",

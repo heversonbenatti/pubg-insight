@@ -141,6 +141,8 @@ export function showModal(matchData, platform = 'steam') {
     closeBtn.onmouseenter = () => closeBtn.style.background = 'var(--surface-3)';
     closeBtn.onmouseleave = () => closeBtn.style.background = 'var(--surface-2)';
     closeBtn.addEventListener('click', () => {
+        window._replayControlsWidthObserver?.disconnect?.();
+        window._replayControlsWidthObserver = null;
         if (window._loadoutInterval) clearInterval(window._loadoutInterval);
         modal.remove();
     });
@@ -186,10 +188,10 @@ export function showModal(matchData, platform = 'steam') {
     teamListScroll.style.cssText = 'overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:var(--surface-3) transparent;';
     teamList.appendChild(teamListScroll);
 
-    // ── View controls footer (inside teamList, stacked vertically) ────────────
+    // ── View controls panel (beside the map, stacked vertically) ─────────────
     function voLabel(text) {
         const s = document.createElement('span');
-        s.style.cssText = 'font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;font-size:9.5px;color:var(--text-muted);flex-shrink:0;min-width:52px;';
+        s.style.cssText = 'font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;font-size:9.5px;color:var(--text-muted);';
         s.textContent = text;
         return s;
     }
@@ -203,13 +205,18 @@ export function showModal(matchData, platform = 'steam') {
         const inp = document.createElement('input');
         inp.type = 'range';
         inp.min = String(min); inp.max = String(max); inp.step = String(step); inp.value = String(val);
-        inp.style.cssText = 'flex:1;min-width:0;';
+        inp.style.cssText = 'width:100%;min-width:0;';
         return inp;
     }
     function voRow(label, slider, value) {
         const row = document.createElement('div');
-        row.style.cssText = 'display:flex;align-items:center;gap:8px;';
-        row.appendChild(label); row.appendChild(slider); row.appendChild(value);
+        row.className = 'replay-view-row';
+        const head = document.createElement('div');
+        head.className = 'replay-view-row-head';
+        head.appendChild(label);
+        head.appendChild(value);
+        row.appendChild(head);
+        row.appendChild(slider);
         return row;
     }
 
@@ -251,42 +258,59 @@ export function showModal(matchData, platform = 'steam') {
         try { localStorage.setItem('pi_feedMax', feedMaxSlider.value); } catch (_) {}
     });
 
-    const viewFooter = document.createElement('div');
-    viewFooter.style.cssText = `
-        padding:8px 12px;gap:5px;
-        border-top:1px solid var(--divider);
-        flex-shrink:0;display:flex;flex-direction:column;
-    `;
+    const viewPanel = document.createElement('div');
+    viewPanel.className = 'replay-view-panel';
     const viewFooterLabel = document.createElement('span');
-    viewFooterLabel.style.cssText = 'font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.1em;font-size:9px;color:var(--text-faint);margin-bottom:1px;';
+    viewFooterLabel.style.cssText = 'font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.1em;font-size:9px;color:var(--text-faint);';
     viewFooterLabel.textContent = 'VIEW';
-    viewFooter.appendChild(viewFooterLabel);
-    viewFooter.appendChild(voRow(voLabel('PLAYERS'), sizeSlider, sizeValueEl));
-    viewFooter.appendChild(voRow(voLabel('FEED'), feedSlider, feedValueEl));
-    viewFooter.appendChild(voRow(voLabel('MAX'), feedMaxSlider, feedMaxValueEl));
-    teamList.appendChild(viewFooter);
+
+    const teamOverlayRow = document.createElement('div');
+    teamOverlayRow.className = 'replay-view-toggle-row';
+    const teamOverlayButton = document.createElement('button');
+    teamOverlayButton.id = 'teamOverlayToggle';
+    teamOverlayButton.className = 'replay-advisor-button replay-team-toggle';
+    teamOverlayButton.type = 'button';
+    teamOverlayButton.title = 'Mostrar agrupamento dos times no mapa';
+    teamOverlayButton.setAttribute('aria-pressed', 'false');
+    teamOverlayButton.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="7" cy="8" r="2.3"/>
+            <circle cx="17" cy="8" r="2.3"/>
+            <circle cx="12" cy="16" r="2.3"/>
+            <path d="M8.9 9.6l2.1 4.1M15.1 9.6l-2.1 4.1M9.4 16h5.2"/>
+        </svg>
+        <span>Teams</span>
+    `;
+    const teamOverlayStatus = document.createElement('span');
+    teamOverlayStatus.id = 'teamOverlayStatus';
+    teamOverlayStatus.className = 'replay-advisor-status';
+    teamOverlayStatus.textContent = 'OFF';
+    teamOverlayRow.appendChild(teamOverlayButton);
+    teamOverlayRow.appendChild(teamOverlayStatus);
+
+    viewPanel.appendChild(viewFooterLabel);
+    viewPanel.appendChild(teamOverlayRow);
+    viewPanel.appendChild(voRow(voLabel('PLAYERS'), sizeSlider, sizeValueEl));
+    viewPanel.appendChild(voRow(voLabel('FEED'), feedSlider, feedValueEl));
+    viewPanel.appendChild(voRow(voLabel('EVENTS'), feedMaxSlider, feedMaxValueEl));
 
     // ── Center column: viewport + controls ───────────────────────────────────
-    // centerCol is flex:1 and centers its children.
-    // innerColumn wraps viewport + controls so controls bar matches viewport width exactly.
+    // centerCol is flex:1 and centers the map column plus the view panel.
+    // innerColumn wraps viewport + controls; a ResizeObserver keeps the
+    // controls bar locked to the actual square map width.
     const centerCol = document.createElement('div');
+    centerCol.className = 'replay-center-col';
     centerCol.style.cssText = `
         flex:1;min-width:0;
-        display:flex;
-        align-items:center;
-        justify-content:center;
     `;
 
+    const replayStage = document.createElement('div');
+    replayStage.className = 'replay-stage';
+
     // innerColumn: flex-column that wraps viewport + controls.
-    // align-items:flex-start lets the viewport size itself via aspect-ratio:1/1
-    // (align-items:stretch would override aspect-ratio, making the viewport wider than tall).
-    // The controlsBar uses align-self:stretch to still match the viewport width.
+    // align-items:flex-start lets the viewport size itself via aspect-ratio:1/1.
     const innerColumn = document.createElement('div');
-    innerColumn.style.cssText = `
-        display:flex;flex-direction:column;gap:10px;
-        height:100%;width:fit-content;
-        align-items:flex-start;
-    `;
+    innerColumn.className = 'replay-map-column';
 
     // Viewport
     const viewport = document.createElement('div');
@@ -364,14 +388,9 @@ export function showModal(matchData, platform = 'steam') {
         border:1px solid var(--border);
         border-radius:var(--r-md);
         flex-shrink:0;
-        align-self:stretch;
+        align-self:flex-start;
+        width:100%;max-width:100%;
     `;
-    /* NOTE: width is intentionally NOT set to 100% here.
-       The parent (innerColumn) has align-items:stretch so the bar fills the
-       full width anyway — but letting CSS drive it (instead of width:100%)
-       breaks the circular flex dependency that caused innerColumn to be
-       wider than the square viewport, resulting in letterboxing. */
-
     // Play/pause — amber 32×32
     const playButton = document.createElement('button');
     playButton.style.cssText = `
@@ -388,26 +407,35 @@ export function showModal(matchData, platform = 'steam') {
 
     // Current time display
     const currentTimeDisplay = document.createElement('span');
-    currentTimeDisplay.style.cssText = 'font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:11px;color:var(--text-dim);min-width:40px;flex-shrink:0;';
+    currentTimeDisplay.style.cssText = 'font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:11px;color:var(--text-dim);';
     currentTimeDisplay.textContent = '00:00';
 
-    // Progress bar — flex:1 so it fills all remaining space
+    // Progress bar lives in a timeline group so time labels do not shorten it.
     const progressBar = document.createElement('input');
     progressBar.id = 'progressBar';
     progressBar.type = 'range';
     progressBar.min = '0';
     progressBar.step = '1';
     progressBar.value = '0';
-    progressBar.style.cssText = 'flex:1;min-width:0;';
+    progressBar.style.cssText = 'width:100%;min-width:0;';
+
+    const progressWrap = document.createElement('div');
+    progressWrap.className = 'replay-progress-wrap';
+    const eventMarkers = document.createElement('div');
+    eventMarkers.id = 'replayEventMarkers';
+    eventMarkers.className = 'replay-event-markers';
+    const progressThumb = document.createElement('div');
+    progressThumb.id = 'replayProgressThumb';
+    progressThumb.className = 'replay-progress-thumb';
+    progressThumb.setAttribute('aria-hidden', 'true');
+    progressWrap.appendChild(progressBar);
+    progressWrap.appendChild(eventMarkers);
+    progressWrap.appendChild(progressThumb);
 
     // Total time display
     const totalTimeDisplay = document.createElement('span');
-    totalTimeDisplay.style.cssText = 'font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:11px;color:var(--text-faint);min-width:40px;flex-shrink:0;';
+    totalTimeDisplay.style.cssText = 'font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:11px;color:var(--text-faint);';
     totalTimeDisplay.textContent = '00:00';
-
-    // Divider
-    const divider = document.createElement('div');
-    divider.style.cssText = 'width:1px;height:18px;background:var(--border);flex-shrink:0;';
 
     // Speed label
     const speedLabel = document.createElement('span');
@@ -419,69 +447,35 @@ export function showModal(matchData, platform = 'steam') {
     speedSlider.id = 'speedSlider';
     speedSlider.type = 'range';
     speedSlider.min = '0'; speedSlider.max = '9'; speedSlider.step = '1'; speedSlider.value = '2';
-    speedSlider.style.cssText = 'width:80px;flex-shrink:0;';
+    speedSlider.style.cssText = 'width:100%;min-width:0;';
 
     // Speed display
     const speedDisplay = document.createElement('span');
     speedDisplay.id = 'speedDisplay';
     speedDisplay.textContent = '1x';
-    speedDisplay.style.cssText = 'font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:11px;color:var(--accent);min-width:34px;text-align:right;flex-shrink:0;';
+    speedDisplay.style.cssText = 'font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:11px;color:var(--accent);text-align:right;';
 
-    const safeAdvisorDivider = document.createElement('div');
-    safeAdvisorDivider.style.cssText = 'width:1px;height:18px;background:var(--border);flex-shrink:0;';
+    const timelineGroup = document.createElement('div');
+    timelineGroup.className = 'replay-timeline-group';
+    const timeRow = document.createElement('div');
+    timeRow.className = 'replay-time-row';
+    timeRow.appendChild(currentTimeDisplay);
+    timeRow.appendChild(totalTimeDisplay);
+    timelineGroup.appendChild(timeRow);
+    timelineGroup.appendChild(progressWrap);
 
-    const safeAdvisorButton = document.createElement('button');
-    safeAdvisorButton.id = 'safeAdvisorToggle';
-    safeAdvisorButton.className = 'replay-advisor-button';
-    safeAdvisorButton.type = 'button';
-    safeAdvisorButton.disabled = true;
-    safeAdvisorButton.title = 'Simular melhor posicao na safe';
-    safeAdvisorButton.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3a9 9 0 1 1 0 18a9 9 0 0 1 0 -18"/>
-            <path d="M12 7a5 5 0 1 1 0 10a5 5 0 0 1 0 -10"/>
-            <path d="M12 11a1 1 0 1 1 0 2a1 1 0 0 1 0 -2"/>
-        </svg>
-        <span>Best safe</span>
-    `;
-
-    const safeAdvisorStatus = document.createElement('span');
-    safeAdvisorStatus.id = 'safeAdvisorStatus';
-    safeAdvisorStatus.className = 'replay-advisor-status';
-    safeAdvisorStatus.textContent = 'LOADING';
-
-    const mapSpotButton = document.createElement('button');
-    mapSpotButton.id = 'mapSpotToggle';
-    mapSpotButton.className = 'replay-advisor-button';
-    mapSpotButton.type = 'button';
-    mapSpotButton.disabled = true;
-    mapSpotButton.title = 'Mostrar spots fixos do mapa';
-    mapSpotButton.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 21s7 -4.6 7 -11a7 7 0 1 0 -14 0c0 6.4 7 11 7 11z"/>
-            <path d="M12 10.5a1.8 1.8 0 1 0 0 -3.6a1.8 1.8 0 0 0 0 3.6z"/>
-        </svg>
-        <span>Power spots</span>
-    `;
-
-    const mapSpotStatus = document.createElement('span');
-    mapSpotStatus.id = 'mapSpotStatus';
-    mapSpotStatus.className = 'replay-advisor-status';
-    mapSpotStatus.textContent = 'LOADING';
+    const speedGroup = document.createElement('div');
+    speedGroup.className = 'replay-speed-group';
+    const speedHead = document.createElement('div');
+    speedHead.className = 'replay-speed-head';
+    speedHead.appendChild(speedLabel);
+    speedHead.appendChild(speedDisplay);
+    speedGroup.appendChild(speedHead);
+    speedGroup.appendChild(speedSlider);
 
     controlsBar.appendChild(playButton);
-    controlsBar.appendChild(currentTimeDisplay);
-    controlsBar.appendChild(progressBar);
-    controlsBar.appendChild(totalTimeDisplay);
-    controlsBar.appendChild(divider);
-    controlsBar.appendChild(speedLabel);
-    controlsBar.appendChild(speedSlider);
-    controlsBar.appendChild(speedDisplay);
-    controlsBar.appendChild(safeAdvisorDivider);
-    controlsBar.appendChild(safeAdvisorButton);
-    controlsBar.appendChild(safeAdvisorStatus);
-    controlsBar.appendChild(mapSpotButton);
-    controlsBar.appendChild(mapSpotStatus);
+    controlsBar.appendChild(timelineGroup);
+    controlsBar.appendChild(speedGroup);
 
     // Sync timer el → currentTimeDisplay (replay2d writes to #timer)
     const timerObserver = new MutationObserver(() => {
@@ -491,7 +485,9 @@ export function showModal(matchData, platform = 'steam') {
 
     innerColumn.appendChild(viewport);
     innerColumn.appendChild(controlsBar);
-    centerCol.appendChild(innerColumn);
+    replayStage.appendChild(innerColumn);
+    replayStage.appendChild(viewPanel);
+    centerCol.appendChild(replayStage);
 
     // ── Pinned teams container (right) ────────────────────────────────────────
     const pinnedContainer = document.createElement('div');
@@ -504,6 +500,15 @@ export function showModal(matchData, platform = 'steam') {
     modalContent.appendChild(bodyRow);
     modal.appendChild(modalContent);
     document.body.appendChild(modal);
+
+    const syncControlsWidth = () => {
+        const w = Math.round(viewport.getBoundingClientRect().width);
+        if (w > 0) controlsBar.style.width = `${w}px`;
+    };
+    window._replayControlsWidthObserver?.disconnect?.();
+    window._replayControlsWidthObserver = new ResizeObserver(syncControlsWidth);
+    window._replayControlsWidthObserver.observe(viewport);
+    requestAnimationFrame(syncControlsWidth);
 
     window.teamNameVisibility = {};
     window.pinnedTeams = [null, null];
@@ -527,6 +532,8 @@ export function showModal(matchData, platform = 'steam') {
     modal.addEventListener('click', function (e) {
         if (e.target === modal) {
             timerObserver.disconnect();
+            window._replayControlsWidthObserver?.disconnect?.();
+            window._replayControlsWidthObserver = null;
             if (window._loadoutInterval) clearInterval(window._loadoutInterval);
             modal.remove();
         }

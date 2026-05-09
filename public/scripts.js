@@ -229,14 +229,27 @@ function populateSeasonSelect(id, selectedId = '') {
 }
 
 function getCurrentSeason() {
-  return document.getElementById('header-season-select')?.value
-      || document.getElementById('landing-season-select')?.value
-      || (allSeasons.find(s => s.attributes.isCurrentSeason)?.id ?? '');
+  const header = document.getElementById('header-season-select');
+  const landing = document.getElementById('landing-season-select');
+  const landingVisible = document.getElementById('landing-wrap')?.style.display !== 'none';
+  const headerVisible = document.getElementById('pi-header')?.style.display !== 'none';
+  if (landingVisible && landing) return landing.value;
+  if (headerVisible && header) return header.value;
+  return header?.value || landing?.value || (allSeasons.find(s => s.attributes.isCurrentSeason)?.id ?? '');
 }
 
 function getQuery() {
-  return (document.getElementById('header-player-name')?.value
-       || document.getElementById('landing-player-name')?.value || '').trim();
+  const header = document.getElementById('header-player-name');
+  const landing = document.getElementById('landing-player-name');
+  const active = document.activeElement;
+  if (active === landing || active === header) return active.value.trim();
+
+  const landingVisible = document.getElementById('landing-wrap')?.style.display !== 'none';
+  const headerVisible = document.getElementById('pi-header')?.style.display !== 'none';
+  if (landingVisible && landing) return landing.value.trim();
+  if (headerVisible && header) return header.value.trim();
+
+  return (header?.value || landing?.value || '').trim();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

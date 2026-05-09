@@ -15,6 +15,10 @@ const outputDir = path.join(rootDir, 'public', 'data');
 const outputFile = path.join(outputDir, 'weapon-stats.json');
 
 const IMAGE_PREFIX = '/pubg-api-assets/Assets/Icons/Item';
+const ARMOR_DAMAGE_REDUCTION = { 1: 0.30, 2: 0.40, 3: 0.55 };
+const HEADSHOT_MULTIPLIER_OVERRIDES = {
+  Item_Weapon_Dragunov_C: 2.8,
+};
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -129,6 +133,7 @@ function extractWeapons() {
       class: cls || (icon.kind === 'Handgun' ? 'Pistol' : 'Unknown'),
       category: icon.kind,
       baseDamage: Number(trajectory['*e1e3aec97a']),
+      headshotMultiplier: HEADSHOT_MULTIPLIER_OVERRIDES[icon.itemId] || null,
       initialSpeed: Number(trajectory.InitialSpeed || 0),
       rangeModifier: Number(trajectory.RangeModifier ?? 1),
       referenceDistance: Number(trajectory.ReferenceDistance ?? 0),
@@ -196,14 +201,16 @@ function extractEquipment() {
       level,
       label: level ? `Capacete ${level}` : 'Sem Capacete',
       image: helmetIcons[level] ? `${IMAGE_PREFIX}/Equipment/${helmetIcons[level].replace(/^Equipment\//, '')}` : null,
-      ...(level ? equipmentValue(`Item_Equip_Helmet_Lv${level}.json`) : { reduction: 0, durability: 0 }),
+      ...(level ? equipmentValue(`Item_Equip_Helmet_Lv${level}.json`) : { durability: 0 }),
+      reduction: ARMOR_DAMAGE_REDUCTION[level] || 0,
     })),
     vests: [0, 1, 2, 3].map(level => ({
       id: `vest-${level}`,
       level,
       label: level ? `Colete ${level}` : 'Sem Colete',
       image: vestIcons[level] ? `${IMAGE_PREFIX}/Equipment/${vestIcons[level].replace(/^Equipment\//, '')}` : null,
-      ...(level ? equipmentValue(`Item_Equip_Armor_Lv${level}.json`) : { reduction: 0, durability: 0 }),
+      ...(level ? equipmentValue(`Item_Equip_Armor_Lv${level}.json`) : { durability: 0 }),
+      reduction: ARMOR_DAMAGE_REDUCTION[level] || 0,
     })),
   };
 }
