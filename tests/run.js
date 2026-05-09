@@ -22,6 +22,8 @@ import './mapDimensions.test.js';
 import './telemetry.test.js';
 import './matchFilter.test.js';
 import './platform.test.js';
+import './safeZoneAdvisor.test.js';
+import './mapSpotAdvisor.test.js';
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 

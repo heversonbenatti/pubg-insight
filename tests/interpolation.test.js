@@ -19,6 +19,82 @@ import { test, assert } from './helpers.js';
 
 function interpolate(a, b, t) { return a + (b - a) * t; }
 
+const POSITION_SPEED = {
+  foot: 1350,
+  footShort: 2200,
+  airborne: 12000,
+  dbno: 380,
+  swim: 520,
+  vehicle: 30000,
+  correctionSlack: 2200,
+};
+
+const PARACHUTE_OPEN = {
+  heightAboveLanding: 26000,
+  maxHorizontalSpeed: 2200,
+  maxVerticalDrop: 2800,
+  fallbackSeconds: 18,
+};
+
+function maxAnchorSpeed(curr, next, timeDiff) {
+  if (curr.isInVehicle || next.isInVehicle || curr.vehicleType || next.vehicleType) return POSITION_SPEED.vehicle;
+  if (curr.isAirborne || next.isAirborne) return POSITION_SPEED.airborne;
+  if (curr.isDBNO || next.isDBNO) return POSITION_SPEED.dbno;
+  if (curr.isSwimming || next.isSwimming) return POSITION_SPEED.swim;
+  return timeDiff <= 3 ? POSITION_SPEED.footShort : POSITION_SPEED.foot;
+}
+
+function shouldInterpolatePosition(curr, next, timeDiff) {
+  const dist = Math.hypot(next.x - curr.x, next.y - curr.y);
+  if (dist <= POSITION_SPEED.correctionSlack) return true;
+  const speed = dist / Math.max(0.001, timeDiff);
+  return speed <= maxAnchorSpeed(curr, next, timeDiff);
+}
+
+function positionBetweenAnchors(curr, next, elapsed) {
+  const timeDiff = next.t - curr.t;
+  if (timeDiff <= 0) return { x: curr.x, y: curr.y };
+  if (!shouldInterpolatePosition(curr, next, timeDiff)) {
+    const midpoint = curr.t + timeDiff / 2;
+    return elapsed < midpoint ? { x: curr.x, y: curr.y } : { x: next.x, y: next.y };
+  }
+  const p = Math.max(0, Math.min(1, (elapsed - curr.t) / timeDiff));
+  return {
+    x: curr.x + (next.x - curr.x) * p,
+    y: curr.y + (next.y - curr.y) * p,
+  };
+}
+
+function inferParachuteOpenTime(anchors, interval) {
+  const points = anchors
+    .filter(p => p.t >= interval.start - 0.25 && p.t <= interval.end + 0.25 && Number.isFinite(p.z))
+    .sort((a, b) => a.t - b.t);
+
+  if (points.length < 2) return Math.max(interval.start, interval.end - PARACHUTE_OPEN.fallbackSeconds);
+
+  const landingPoint = points.find(p => p.t >= interval.end - 1) || points[points.length - 1];
+  const landingZ = landingPoint.z;
+
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const curr = points[i];
+    const dt = curr.t - prev.t;
+    if (dt <= 0 || curr.t <= interval.start + 3) continue;
+
+    const horizontalSpeed = Math.hypot(curr.x - prev.x, curr.y - prev.y) / dt;
+    const verticalDrop = Math.max(0, prev.z - curr.z) / dt;
+    const heightAboveLanding = curr.z - landingZ;
+
+    if (heightAboveLanding <= PARACHUTE_OPEN.heightAboveLanding ||
+        (horizontalSpeed <= PARACHUTE_OPEN.maxHorizontalSpeed &&
+         verticalDrop <= PARACHUTE_OPEN.maxVerticalDrop)) {
+      return curr.t;
+    }
+  }
+
+  return Math.max(interval.start, interval.end - PARACHUTE_OPEN.fallbackSeconds);
+}
+
 test('interpolate: 0% returns start', () => {
   assert.closeTo(interpolate(0, 100, 0), 0, 0.001);
 });
@@ -43,6 +119,11 @@ function buildByTime(anchors) {
     const curr = anchors[i], next = anchors[i + 1];
     const timeDiff = next.t - curr.t;
     if (timeDiff <= 0) continue;
+    if (!shouldInterpolatePosition(curr, next, timeDiff)) {
+      byTime[Math.round(curr.t)] = { x: curr.x, y: curr.y };
+      byTime[Math.round(next.t)] = { x: next.x, y: next.y };
+      continue;
+    }
     const steps = Math.max(1, Math.floor(timeDiff));
     for (let j = 0; j <= steps; j++) {
       const t = Math.round(curr.t + j);
@@ -114,6 +195,50 @@ test('buildByTime: first-seen entry wins (duplicate t is not overwritten by late
   assert.ok(byTime[10] !== undefined);
 });
 
+test('shouldInterpolatePosition: normal foot movement is interpolated', () => {
+  const curr = { t: 0, x: 0, y: 0, isKeyframe: true };
+  const next = { t: 10, x: 1000, y: 0, isKeyframe: true };
+  assert.equal(shouldInterpolatePosition(curr, next, 10), true);
+  const pos = positionBetweenAnchors(curr, next, 5);
+  assert.closeTo(pos.x, 500, 1);
+});
+
+test('shouldInterpolatePosition: impossible foot movement is snapped, not smoothed', () => {
+  const curr = { t: 0, x: 0, y: 0, isKeyframe: true };
+  const next = { t: 10, x: 50000, y: 0, isKeyframe: true };
+  assert.equal(shouldInterpolatePosition(curr, next, 10), false);
+  assert.equal(buildByTime([curr, next])[5], undefined, 'Impossible interval should leave no in-between path');
+  assert.closeTo(positionBetweenAnchors(curr, next, 4).x, 0, 1);
+  assert.closeTo(positionBetweenAnchors(curr, next, 6).x, 50000, 1);
+});
+
+test('shouldInterpolatePosition: DBNO movement uses a lower speed cap', () => {
+  const curr = { t: 0, x: 0, y: 0, isDBNO: true, isKeyframe: true };
+  const next = { t: 2, x: 3000, y: 0, isDBNO: true, isKeyframe: true };
+  assert.equal(shouldInterpolatePosition(curr, next, 2), false);
+});
+
+test('shouldInterpolatePosition: parachute/freefall movement is smoothed instead of snapped', () => {
+  const curr = { t: 45, x: 443436, y: 459517, isAirborne: true, isKeyframe: true };
+  const next = { t: 54, x: 400236, y: 449957, isAirborne: true, isKeyframe: true };
+  assert.equal(shouldInterpolatePosition(curr, next, 9), true);
+  const pos = positionBetweenAnchors(curr, next, 49.5);
+  assert.ok(pos.x < curr.x && pos.x > next.x, 'Airborne position should be interpolated between anchors');
+});
+
+test('inferParachuteOpenTime: starts icon after freefall slows near landing', () => {
+  const anchors = [
+    { t: 35, x: 489646, y: 464455, z: 150208 },
+    { t: 45, x: 443436, y: 459517, z: 109424 },
+    { t: 54, x: 400236, y: 449957, z: 62854 },
+    { t: 64, x: 394663, y: 448657, z: 21240 },
+    { t: 73, x: 383225, y: 447219, z: 6679 },
+    { t: 74, x: 383520, y: 446376, z: 5796 },
+  ];
+  const open = inferParachuteOpenTime(anchors, { start: 36, end: 74 });
+  assert.equal(open, 64);
+});
+
 // ── HP carry-forward ──────────────────────────────────────────────────────────
 
 function buildHpByTime(anchors) {
@@ -130,6 +255,13 @@ function buildHpByTime(anchors) {
     }
   }
   return byHp;
+}
+
+function damageHpAfter(item) {
+  const hpBefore = Number(item.victim?.health);
+  const damage = Number(item.damage) || 0;
+  if (!Number.isFinite(hpBefore)) return 0;
+  return Math.max(0, Math.min(100, hpBefore - damage));
 }
 
 test('buildHpByTime: HP is carried forward from last keyframe', () => {
@@ -171,6 +303,16 @@ test('buildHpByTime: missing health on a keyframe does not reset to 0', () => {
   assert.ok(byHp[15] !== undefined && !isNaN(byHp[15]),
     `Expected a numeric HP at t=15, got ${byHp[15]}`);
   assert.equal(byHp[15], 80, 'HP should carry forward 80 since t=10 had no health');
+});
+
+test('damageHpAfter: PUBG damage victim.health is treated as pre-damage HP', () => {
+  const item = { victim: { health: 77.86 }, damage: 77.86 };
+  assert.equal(damageHpAfter(item), 0);
+});
+
+test('damageHpAfter: clamps overkill damage to zero', () => {
+  const item = { victim: { health: 20 }, damage: 45 };
+  assert.equal(damageHpAfter(item), 0);
 });
 
 // ── scaleFactor computation ───────────────────────────────────────────────────

@@ -1,0 +1,2356 @@
+{
+  "generatedAt": "2026-05-07T16:20:54.065Z",
+  "distanceUnit": "m",
+  "weapons": [
+    {
+      "id": "Item_Weapon_DesertEagle_C",
+      "name": "Deagle",
+      "class": "Pistol",
+      "category": "Handgun",
+      "baseDamage": 62,
+      "initialSpeed": 450,
+      "rangeModifier": 0.93,
+      "referenceDistance": 200,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 30,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.002,
+          "leaveTangent": -0.002
+        },
+        {
+          "time": 44.841705,
+          "value": 0.96457297,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 150,
+          "value": 0.7,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Handgun/Item_Weapon_DesertEagle_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapDesertEagle.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapDesertEagle_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Eagle.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_G18_C",
+      "name": "P18C",
+      "class": "Pistol",
+      "category": "Handgun",
+      "baseDamage": 23,
+      "initialSpeed": 375,
+      "rangeModifier": 0.83,
+      "referenceDistance": 75,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Handgun/Item_Weapon_G18_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapG18.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapG18_WeaponTrajectoryData.json",
+        "ballistic": null
+      }
+    },
+    {
+      "id": "Item_Weapon_M1911_C",
+      "name": "P1911",
+      "class": "Pistol",
+      "category": "Handgun",
+      "baseDamage": 42,
+      "initialSpeed": 250,
+      "rangeModifier": 0.91,
+      "referenceDistance": 100,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Handgun/Item_Weapon_M1911_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapM1911.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapM1911_WeaponTrajectoryData.json",
+        "ballistic": null
+      }
+    },
+    {
+      "id": "Item_Weapon_M9_C",
+      "name": "P92",
+      "class": "Pistol",
+      "category": "Handgun",
+      "baseDamage": 34,
+      "initialSpeed": 380,
+      "rangeModifier": 0.88,
+      "referenceDistance": 100,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Handgun/Item_Weapon_M9_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapM9.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapM9_WeaponTrajectoryData.json",
+        "ballistic": null
+      }
+    },
+    {
+      "id": "Item_Weapon_NagantM1895_C",
+      "name": "R1895",
+      "class": "Pistol",
+      "category": "Handgun",
+      "baseDamage": 64,
+      "initialSpeed": 330,
+      "rangeModifier": 0.93,
+      "referenceDistance": 200,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Handgun/Item_Weapon_NagantM1895_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapNagantM1895.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapNagantM1895_WeaponTrajectoryData.json",
+        "ballistic": null
+      }
+    },
+    {
+      "id": "Item_Weapon_Rhino_C",
+      "name": "R45",
+      "class": "Pistol",
+      "category": "Handgun",
+      "baseDamage": 65,
+      "initialSpeed": 330,
+      "rangeModifier": 0.93,
+      "referenceDistance": 200,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Handgun/Item_Weapon_Rhino_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapRhino.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapRhino_WeaponTrajectoryData.json",
+        "ballistic": null
+      }
+    },
+    {
+      "id": "Item_Weapon_Sawnoff_C",
+      "name": "Sawed-off",
+      "class": "Shotgun",
+      "category": "Handgun",
+      "baseDamage": 21,
+      "initialSpeed": 330,
+      "rangeModifier": 0.93,
+      "referenceDistance": 200,
+      "travelDistanceMax": 150,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 5,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.059915774,
+          "leaveTangent": -0.059915602
+        },
+        {
+          "time": 18,
+          "value": 0.55,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.02019681,
+          "leaveTangent": -0.0027290508
+        },
+        {
+          "time": 80,
+          "value": 0.2,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 80.001,
+          "value": 0,
+          "interp": "RCIM_Constant",
+          "arriveTangent": -0.0008768881,
+          "leaveTangent": -0.00087688287
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Handgun/Item_Weapon_Sawnoff_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapSawnOff.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapSawnoff_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Sawnoff.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_vz61Skorpion_C",
+      "name": "Skorpion",
+      "class": "Pistol",
+      "category": "Handgun",
+      "baseDamage": 22,
+      "initialSpeed": 350,
+      "rangeModifier": 0.88,
+      "referenceDistance": 150,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 30,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.002,
+          "leaveTangent": -0.002
+        },
+        {
+          "time": 150,
+          "value": 0.7,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Handgun/Item_Weapon_vz61Skorpion_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/Weapvz61Skorpion.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/Weapvz61Skorpion_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Skorpion.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_ACE32_C",
+      "name": "ACE32",
+      "class": "Rifle",
+      "category": "Main",
+      "baseDamage": 43,
+      "initialSpeed": 720,
+      "rangeModifier": 0.95,
+      "referenceDistance": 400,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 50,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.00083333335,
+          "leaveTangent": -0.00083333335
+        },
+        {
+          "time": 300,
+          "value": 0.75,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_ACE32_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapACE32.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapACE32_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_ACE32.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_AK47_C",
+      "name": "AKM",
+      "class": "Rifle",
+      "category": "Main",
+      "baseDamage": 48,
+      "initialSpeed": 715,
+      "rangeModifier": 0.95,
+      "referenceDistance": 380,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 50,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.00083333335,
+          "leaveTangent": -0.00083333335
+        },
+        {
+          "time": 300,
+          "value": 0.75,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_AK47_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapAK47.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapAK47_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_AKM.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_AUG_C",
+      "name": "AUG A3",
+      "class": "Rifle",
+      "category": "Main",
+      "baseDamage": 40,
+      "initialSpeed": 890,
+      "rangeModifier": 0.94,
+      "referenceDistance": 350,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 60,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": 0,
+          "leaveTangent": -0.0005
+        },
+        {
+          "time": 450,
+          "value": 0.75,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_AUG_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapAUG.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapAUG_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_AUG.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_AWM_C",
+      "name": "AWM",
+      "class": "Sniper",
+      "category": "Main",
+      "baseDamage": 105,
+      "initialSpeed": 945,
+      "rangeModifier": 0.98,
+      "referenceDistance": 650,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 150,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.00014285717,
+          "leaveTangent": -0.00014285717
+        },
+        {
+          "time": 700,
+          "value": 0.9,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_AWM_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapAWM.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapAWM_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_AWM.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_BerylM762_C",
+      "name": "Beryl",
+      "class": "Rifle",
+      "category": "Main",
+      "baseDamage": 44,
+      "initialSpeed": 715,
+      "rangeModifier": 0.95,
+      "referenceDistance": 380,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 50,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.00083333335,
+          "leaveTangent": -0.00083333335
+        },
+        {
+          "time": 300,
+          "value": 0.75,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_BerylM762_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapBerylM762.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapBerylM762_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_BerylM762.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_BizonPP19_C",
+      "name": "Bizon",
+      "class": "SMG",
+      "category": "Main",
+      "baseDamage": 38,
+      "initialSpeed": 350,
+      "rangeModifier": 0.89,
+      "referenceDistance": 200,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 55,
+          "value": 0.81,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.0023984525,
+          "leaveTangent": -0.0023984
+        },
+        {
+          "time": 200,
+          "value": 0.7,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_BizonPP19_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapBizonPP19.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapPP19Bizon_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Bizon.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_Crossbow_C",
+      "name": "Crossbow",
+      "class": "Crossbow",
+      "category": "Main",
+      "baseDamage": 105,
+      "initialSpeed": 160,
+      "rangeModifier": 0.98,
+      "referenceDistance": 100,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Crossbow_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapCrossbow_1.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapCrossbow_1_WeaponTrajectoryData.json",
+        "ballistic": null
+      }
+    },
+    {
+      "id": "Item_Weapon_DP12_C",
+      "name": "DBS",
+      "class": "Shotgun",
+      "category": "Main",
+      "baseDamage": 28,
+      "initialSpeed": 360,
+      "rangeModifier": 0.7,
+      "referenceDistance": 60,
+      "travelDistanceMax": 150,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 6,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.03593252,
+          "leaveTangent": -0.035932466
+        },
+        {
+          "time": 25,
+          "value": 0.72,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 35,
+          "value": 0.6,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.010418407,
+          "leaveTangent": -0.015777536
+        },
+        {
+          "time": 90,
+          "value": 0.36,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 100.99,
+          "value": 0.18,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 101,
+          "value": 0,
+          "interp": "RCIM_Constant",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_DP12_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapDP12.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapDP12_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_DP12.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_DP28_C",
+      "name": "DP-28",
+      "class": "LMG",
+      "category": "Main",
+      "baseDamage": 52,
+      "initialSpeed": 715,
+      "rangeModifier": 0.95,
+      "referenceDistance": 380,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 50,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.00083333335,
+          "leaveTangent": -0.00083333335
+        },
+        {
+          "time": 300,
+          "value": 0.75,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_DP28_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapDP28.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapDP28_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_DP28.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_Dragunov_C",
+      "name": "Dragunov",
+      "class": "DMR",
+      "category": "Main",
+      "baseDamage": 53,
+      "initialSpeed": 830,
+      "rangeModifier": 0.96,
+      "referenceDistance": 500,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 71,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.00044000006,
+          "leaveTangent": -0.00044000006
+        },
+        {
+          "time": 400,
+          "value": 0.75,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Dragunov_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapDragunov.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapDragunov_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Dragunov.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_FAMASG2_C",
+      "name": "FamasG2",
+      "class": "Rifle",
+      "category": "Main",
+      "baseDamage": 39,
+      "initialSpeed": 925,
+      "rangeModifier": 0.94,
+      "referenceDistance": 350,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 90,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.0005,
+          "leaveTangent": -0.0005
+        },
+        {
+          "time": 500,
+          "value": 0.75,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_FAMASG2_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapFamasG2.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapFamasG2_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_FamasG2.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_G36C_C",
+      "name": "G36C",
+      "class": "Rifle",
+      "category": "Main",
+      "baseDamage": 41,
+      "initialSpeed": 870,
+      "rangeModifier": 0.94,
+      "referenceDistance": 350,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 70,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.0005,
+          "leaveTangent": -0.0005
+        },
+        {
+          "time": 500,
+          "value": 0.75,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_G36C_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapG36C.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapG36C_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_G36.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_Groza_C",
+      "name": "Groza",
+      "class": "Rifle",
+      "category": "Main",
+      "baseDamage": 47,
+      "initialSpeed": 715,
+      "rangeModifier": 0.95,
+      "referenceDistance": 380,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 80,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.0005,
+          "leaveTangent": -0.0005
+        },
+        {
+          "time": 500,
+          "value": 0.75,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Groza_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapGroza.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapGroza_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Groza.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_K2_C",
+      "name": "K2",
+      "class": "Rifle",
+      "category": "Main",
+      "baseDamage": 41,
+      "initialSpeed": 880,
+      "rangeModifier": 0.94,
+      "referenceDistance": 350,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 70,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": 0,
+          "leaveTangent": -0.0005
+        },
+        {
+          "time": 450,
+          "value": 0.75,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_K2_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapK2.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/Weap_K2_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_K2.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_Kar98k_C",
+      "name": "Kar98k",
+      "class": "Sniper",
+      "category": "Main",
+      "baseDamage": 79,
+      "initialSpeed": 760,
+      "rangeModifier": 0.95,
+      "referenceDistance": 500,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 100,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.00010000003,
+          "leaveTangent": -0.00010000003
+        },
+        {
+          "time": 500,
+          "value": 0.95,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Kar98k_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapKar98k.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapKar98k_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Kar98.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_L6_C",
+      "name": "Lynx AMR",
+      "class": "Sniper",
+      "category": "Main",
+      "baseDamage": 118,
+      "initialSpeed": 1200,
+      "rangeModifier": 1,
+      "referenceDistance": 750,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 150,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.00014285717,
+          "leaveTangent": -0.00014285717
+        },
+        {
+          "time": 700,
+          "value": 0.9,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_L6_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapL6.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapL6_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_L6.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_M16A4_C",
+      "name": "M16A4",
+      "class": "Rifle",
+      "category": "Main",
+      "baseDamage": 43,
+      "initialSpeed": 900,
+      "rangeModifier": 0.94,
+      "referenceDistance": 400,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 80,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": 0.00013792067,
+          "leaveTangent": -0.00021401372
+        },
+        {
+          "time": 450,
+          "value": 0.75,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_M16A4_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapM16A4.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapM16A4_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_M16A4.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_M24_C",
+      "name": "M24",
+      "class": "Sniper",
+      "category": "Main",
+      "baseDamage": 75,
+      "initialSpeed": 790,
+      "rangeModifier": 0.96,
+      "referenceDistance": 600,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 120,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.000083333354,
+          "leaveTangent": -0.000083333354
+        },
+        {
+          "time": 600,
+          "value": 0.95,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_M24_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapM24.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapM24_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_M24.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_M249_C",
+      "name": "M249",
+      "class": "LMG",
+      "category": "Main",
+      "baseDamage": 41,
+      "initialSpeed": 915,
+      "rangeModifier": 0.94,
+      "referenceDistance": 450,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 75,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.00049999997,
+          "leaveTangent": -0.00049999997
+        },
+        {
+          "time": 400,
+          "value": 0.8,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_M249_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapM249.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapM249_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_M249.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_HK416_C",
+      "name": "M416",
+      "class": "Rifle",
+      "category": "Main",
+      "baseDamage": 40,
+      "initialSpeed": 880,
+      "rangeModifier": 0.94,
+      "referenceDistance": 360,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 60,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.00055555557,
+          "leaveTangent": -0.00055555557
+        },
+        {
+          "time": 450,
+          "value": 0.75,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_HK416_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapHK416.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapHK416_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_HK416.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_MG3_C",
+      "name": "MG3",
+      "class": "LMG",
+      "category": "Main",
+      "baseDamage": 42,
+      "initialSpeed": 820,
+      "rangeModifier": 0.94,
+      "referenceDistance": 450,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 50,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": -0.00049999997
+        },
+        {
+          "time": 400,
+          "value": 0.8,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_MG3_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapMG3.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapMG3_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_MG3.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_UZI_C",
+      "name": "Micro Uzi",
+      "class": "SMG",
+      "category": "Main",
+      "baseDamage": 26,
+      "initialSpeed": 350,
+      "rangeModifier": 0.88,
+      "referenceDistance": 150,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 35,
+          "value": 0.87,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.004194654,
+          "leaveTangent": -0.0041941092
+        },
+        {
+          "time": 200,
+          "value": 0.6,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_UZI_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapUZI.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapUZI_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Uzi.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_Mini14_C",
+      "name": "Mini 14",
+      "class": "DMR",
+      "category": "Main",
+      "baseDamage": 42,
+      "initialSpeed": 990,
+      "rangeModifier": 0.95,
+      "referenceDistance": 400,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 90,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.00048837205,
+          "leaveTangent": -0.00048837205
+        },
+        {
+          "time": 400,
+          "value": 0.79,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Mini14_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapMini14.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapMini14_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Mini14.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_Mk12_C",
+      "name": "Mk12",
+      "class": "DMR",
+      "category": "Main",
+      "baseDamage": 43,
+      "initialSpeed": 900,
+      "rangeModifier": 0.95,
+      "referenceDistance": 400,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 50,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.00042500003,
+          "leaveTangent": -0.00042500003
+        },
+        {
+          "time": 400,
+          "value": 0.79,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Mk12_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapMk12.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapMk12_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Mk12.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_Mk14_C",
+      "name": "Mk14 EBR",
+      "class": "DMR",
+      "category": "Main",
+      "baseDamage": 54,
+      "initialSpeed": 853,
+      "rangeModifier": 0.96,
+      "referenceDistance": 500,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 120,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.00029999996,
+          "leaveTangent": -0.00029999996
+        },
+        {
+          "time": 500,
+          "value": 0.85,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Mk14_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapMk14.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapMk14_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_M14.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_Mk47Mutant_C",
+      "name": "Mk47 Mutant",
+      "class": "Rifle",
+      "category": "Main",
+      "baseDamage": 49,
+      "initialSpeed": 780,
+      "rangeModifier": 0.95,
+      "referenceDistance": 380,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 80,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": 0,
+          "leaveTangent": -0.00083333335
+        },
+        {
+          "time": 400,
+          "value": 0.75,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Mk47Mutant_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapMk47Mutant.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapMk47Mutant_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Mutant.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_Mosin_C",
+      "name": "Mosin-Nagant",
+      "class": "Sniper",
+      "category": "Main",
+      "baseDamage": 79,
+      "initialSpeed": 760,
+      "rangeModifier": 0.95,
+      "referenceDistance": 500,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 100,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.00010000003,
+          "leaveTangent": -0.00010000003
+        },
+        {
+          "time": 500,
+          "value": 0.95,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Mosin_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapMosinNagant.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapMosinNagant_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Kar98.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_MP5K_C",
+      "name": "MP5K",
+      "class": "SMG",
+      "category": "Main",
+      "baseDamage": 32,
+      "initialSpeed": 400,
+      "rangeModifier": 0.89,
+      "referenceDistance": 200,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 35,
+          "value": 0.96,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.0025412273,
+          "leaveTangent": -0.0025412377
+        },
+        {
+          "time": 200,
+          "value": 0.6,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_MP5K_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapMP5K.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapMP5K_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_MP5K.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_MP9_C",
+      "name": "MP9",
+      "class": "SMG",
+      "category": "Main",
+      "baseDamage": 31,
+      "initialSpeed": 400,
+      "rangeModifier": 0.89,
+      "referenceDistance": 200,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 40,
+          "value": 0.85,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.0039030542,
+          "leaveTangent": -0.003903295
+        },
+        {
+          "time": 200,
+          "value": 0.6,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_MP9_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapMP9.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapMP9_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_MP9.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_OriginS12_C",
+      "name": "O12",
+      "class": "Shotgun",
+      "category": "Main",
+      "baseDamage": 100,
+      "initialSpeed": 625,
+      "rangeModifier": 0.96,
+      "referenceDistance": 200,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 50,
+          "value": 0.845,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 100,
+          "value": 0.62075,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 150,
+          "value": 0.598,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 200,
+          "value": 0.585,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 300,
+          "value": 0.5,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 318.001,
+          "value": 0.2,
+          "interp": "RCIM_Constant",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_OriginS12_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapOriginS12.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapOriginS12_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Shotgun_Slug.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_P90_C",
+      "name": "P90",
+      "class": "SMG",
+      "category": "Main",
+      "baseDamage": 35,
+      "initialSpeed": 716,
+      "rangeModifier": 0.89,
+      "referenceDistance": 200,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 50,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.0007499999,
+          "leaveTangent": -0.0007499999
+        },
+        {
+          "time": 200,
+          "value": 0.85,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_P90_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapP90.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/Weap_P90_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_P90.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_QBU88_C",
+      "name": "QBU88",
+      "class": "DMR",
+      "category": "Main",
+      "baseDamage": 42,
+      "initialSpeed": 945,
+      "rangeModifier": 0.95,
+      "referenceDistance": 400,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 90,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.0005249999,
+          "leaveTangent": -0.0005249999
+        },
+        {
+          "time": 400,
+          "value": 0.79,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_QBU88_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapQBU88.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapQBU88_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_QBU.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_QBZ95_C",
+      "name": "QBZ95",
+      "class": "Rifle",
+      "category": "Main",
+      "baseDamage": 42,
+      "initialSpeed": 870,
+      "rangeModifier": 0.94,
+      "referenceDistance": 350,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 60,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.0010062668,
+          "leaveTangent": -0.0010063403
+        },
+        {
+          "time": 500,
+          "value": 0.75,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_QBZ95_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapQBZ95.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapQBZ95_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_QBZ.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_Saiga12_C",
+      "name": "S12K",
+      "class": "Shotgun",
+      "category": "Main",
+      "baseDamage": 23,
+      "initialSpeed": 350,
+      "rangeModifier": 0.7,
+      "referenceDistance": 65,
+      "travelDistanceMax": 150,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 3,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.059915774,
+          "leaveTangent": -0.059915602
+        },
+        {
+          "time": 20,
+          "value": 0.48,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.024137931,
+          "leaveTangent": -0.024137931
+        },
+        {
+          "time": 30,
+          "value": 0.35,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.0056026364,
+          "leaveTangent": -0.0060220356
+        },
+        {
+          "time": 80,
+          "value": 0.2,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 80.001,
+          "value": 0,
+          "interp": "RCIM_Constant",
+          "arriveTangent": -0.0008768881,
+          "leaveTangent": -0.00087688287
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Saiga12_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapSaiga12.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapSaiga12_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Saiga.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_Winchester_C",
+      "name": "S1897",
+      "class": "Shotgun",
+      "category": "Main",
+      "baseDamage": 26,
+      "initialSpeed": 360,
+      "rangeModifier": 0.7,
+      "referenceDistance": 60,
+      "travelDistanceMax": 150,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 9,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.021607686,
+          "leaveTangent": -0.021607466
+        },
+        {
+          "time": 21,
+          "value": 0.85,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.024,
+          "leaveTangent": -0.024
+        },
+        {
+          "time": 30,
+          "value": 0.5,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.020619566,
+          "leaveTangent": -0.0043186257
+        },
+        {
+          "time": 80,
+          "value": 0.2,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 80.001,
+          "value": 0,
+          "interp": "RCIM_Constant",
+          "arriveTangent": -0.0008768881,
+          "leaveTangent": -0.00087688287
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Winchester_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapWinchester.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapWinchester_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Winchester.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_Berreta686_C",
+      "name": "S686",
+      "class": "Shotgun",
+      "category": "Main",
+      "baseDamage": 26,
+      "initialSpeed": 370,
+      "rangeModifier": 0.72,
+      "referenceDistance": 80,
+      "travelDistanceMax": 150,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 7,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.03555867,
+          "leaveTangent": -0.035558674
+        },
+        {
+          "time": 13,
+          "value": 0.75,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 27,
+          "value": 0.6,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.021700313,
+          "leaveTangent": -0.0134595595
+        },
+        {
+          "time": 40,
+          "value": 0.5,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.01195382,
+          "leaveTangent": -0.0043186257
+        },
+        {
+          "time": 80,
+          "value": 0.25,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 80.001,
+          "value": 0,
+          "interp": "RCIM_Constant",
+          "arriveTangent": -0.0008768881,
+          "leaveTangent": -0.00087688287
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Berreta686_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapBerreta686.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapBerreta686_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_S686.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_SCAR-L_C",
+      "name": "SCAR-L",
+      "class": "Rifle",
+      "category": "Main",
+      "baseDamage": 42,
+      "initialSpeed": 870,
+      "rangeModifier": 0.94,
+      "referenceDistance": 350,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 70,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.0005,
+          "leaveTangent": -0.0005
+        },
+        {
+          "time": 500,
+          "value": 0.75,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_SCAR-L_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapSCAR-L.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapSCAR-L_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_SCAR-L.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_SKS_C",
+      "name": "SKS",
+      "class": "DMR",
+      "category": "Main",
+      "baseDamage": 47,
+      "initialSpeed": 800,
+      "rangeModifier": 0.96,
+      "referenceDistance": 400,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 100,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.00044444442,
+          "leaveTangent": -0.00044444442
+        },
+        {
+          "time": 450,
+          "value": 0.8,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_SKS_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapSKS.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapSKS_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_SKS.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_FNFal_C",
+      "name": "SLR",
+      "class": "DMR",
+      "category": "Main",
+      "baseDamage": 49,
+      "initialSpeed": 840,
+      "rangeModifier": 0.96,
+      "referenceDistance": 500,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 110,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.00044210523,
+          "leaveTangent": -0.00044210523
+        },
+        {
+          "time": 475,
+          "value": 0.78,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_FNFal_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapFNFal.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapFNFal_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_FAL.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_Thompson_C",
+      "name": "Tommy Gun",
+      "class": "SMG",
+      "category": "Main",
+      "baseDamage": 40,
+      "initialSpeed": 280,
+      "rangeModifier": 0.92,
+      "referenceDistance": 250,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 60,
+          "value": 0.92,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.0020500927,
+          "leaveTangent": -0.0020501157
+        },
+        {
+          "time": 200,
+          "value": 0.7,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Thompson_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapThompson.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapThompson_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Thompson.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_UMP_C",
+      "name": "UMP9",
+      "class": "SMG",
+      "category": "Main",
+      "baseDamage": 42,
+      "initialSpeed": 400,
+      "rangeModifier": 0.89,
+      "referenceDistance": 200,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 60,
+          "value": 0.92,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.0027775615,
+          "leaveTangent": -0.0027775895
+        },
+        {
+          "time": 200,
+          "value": 0.7,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_UMP_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapUMP.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapUMP_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_UMP45.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_VSS_C",
+      "name": "VSS",
+      "class": "DMR",
+      "category": "Main",
+      "baseDamage": 45,
+      "initialSpeed": 430,
+      "rangeModifier": 1,
+      "referenceDistance": 250,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 50,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.00018349563,
+          "leaveTangent": -0.0001835413
+        },
+        {
+          "time": 250,
+          "value": 0.9,
+          "interp": "RCIM_Linear",
+          "arriveTangent": -0.0001237968,
+          "leaveTangent": -0.00012379736
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_VSS_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapVSS.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapVSS_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_VSS.json"
+      }
+    },
+    {
+      "id": "Item_Weapon_Win1894_C",
+      "name": "Win94",
+      "class": "Sniper",
+      "category": "Main",
+      "baseDamage": 66,
+      "initialSpeed": 760,
+      "rangeModifier": 0.95,
+      "referenceDistance": 500,
+      "travelDistanceMax": 1000,
+      "damageCurve": [
+        {
+          "time": 0,
+          "value": 1,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        },
+        {
+          "time": 100,
+          "value": 1,
+          "interp": "RCIM_Cubic",
+          "arriveTangent": -0.00020000005,
+          "leaveTangent": -0.00020000005
+        },
+        {
+          "time": 500,
+          "value": 0.9,
+          "interp": "RCIM_Linear",
+          "arriveTangent": 0,
+          "leaveTangent": 0
+        }
+      ],
+      "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Win1894_C.png",
+      "source": {
+        "weapon": "weapons/TslGame/Content/Blueprints/Weapons/WeapWin94.json",
+        "trajectory": "weapons/TslGame/Content/Blueprints/Weapons/DataAssets/WeapWin94_WeaponTrajectoryData.json",
+        "ballistic": "weapons/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_WinchesterRifle.json"
+      }
+    }
+  ],
+  "equipment": {
+    "helmets": [
+      {
+        "id": "helmet-0",
+        "level": 0,
+        "label": "Sem Capacete",
+        "image": null,
+        "reduction": 0,
+        "durability": 0
+      },
+      {
+        "id": "helmet-1",
+        "level": 1,
+        "label": "Capacete 1",
+        "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Headgear/Item_Head_E_00_Lv1_C.png",
+        "reduction": 0.4,
+        "durability": 80
+      },
+      {
+        "id": "helmet-2",
+        "level": 2,
+        "label": "Capacete 2",
+        "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Headgear/Item_Head_F_00_Lv2_C.png",
+        "reduction": 0.55,
+        "durability": 150
+      },
+      {
+        "id": "helmet-3",
+        "level": 3,
+        "label": "Capacete 3",
+        "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Headgear/Item_Head_G_00_Lv3_C.png",
+        "reduction": 0.8,
+        "durability": 230
+      }
+    ],
+    "vests": [
+      {
+        "id": "vest-0",
+        "level": 0,
+        "label": "Sem Colete",
+        "image": null,
+        "reduction": 0,
+        "durability": 0
+      },
+      {
+        "id": "vest-1",
+        "level": 1,
+        "label": "Colete 1",
+        "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Vest/Item_Armor_E_00_Lv1_C.png",
+        "reduction": 0.35,
+        "durability": 200
+      },
+      {
+        "id": "vest-2",
+        "level": 2,
+        "label": "Colete 2",
+        "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Vest/Item_Armor_D_00_Lv2_C.png",
+        "reduction": 0.55,
+        "durability": 220
+      },
+      {
+        "id": "vest-3",
+        "level": 3,
+        "label": "Colete 3",
+        "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Vest/Item_Armor_C_00_Lv3_C.png",
+        "reduction": 0.8,
+        "durability": 250
+      }
+    ]
+  },
+  "damageZones": [
+    {
+      "zone": "Torso",
+      "equipSlot": "TorsoArmor",
+      "damageReason": "TorsoShot",
+      "bones": [
+        {
+          "name": "spine_01",
+          "multiplier": 0.95
+        },
+        {
+          "name": "spine_02",
+          "multiplier": 1
+        },
+        {
+          "name": "spine_03",
+          "multiplier": 1.1
+        },
+        {
+          "name": "clavicle_l",
+          "multiplier": 1
+        },
+        {
+          "name": "clavicle_r",
+          "multiplier": 1
+        }
+      ],
+      "classMultipliers": {
+        "SMG": 1.05,
+        "Shotgun": 0.9,
+        "Pistol": 1,
+        "DMR": 1.05,
+        "Sniper": 1.3,
+        "Melee": 1,
+        "Rifle": 1,
+        "LMG": 1.05,
+        "Carbine": 1,
+        "Crossbow": 1.4
+      }
+    },
+    {
+      "zone": "Arm",
+      "equipSlot": "MaxOrNone",
+      "damageReason": "ArmShot",
+      "bones": [
+        {
+          "name": "upperarm_l",
+          "multiplier": 0.6
+        },
+        {
+          "name": "upperarm_r",
+          "multiplier": 0.6
+        },
+        {
+          "name": "lowerarm_l",
+          "multiplier": 0.5
+        },
+        {
+          "name": "lowerarm_r",
+          "multiplier": 0.5
+        },
+        {
+          "name": "hand_l",
+          "multiplier": 0.3
+        },
+        {
+          "name": "hand_r",
+          "multiplier": 0.3
+        }
+      ],
+      "classMultipliers": {
+        "SMG": 1.3,
+        "Shotgun": 1.05,
+        "Pistol": 1.05,
+        "DMR": 0.95,
+        "Sniper": 0.95,
+        "Melee": 1.2,
+        "Rifle": 0.9,
+        "LMG": 0.9,
+        "Carbine": 1,
+        "Crossbow": 1.2
+      }
+    },
+    {
+      "zone": "Pelvis",
+      "equipSlot": "TorsoArmor",
+      "damageReason": "PelvisShot",
+      "bones": [
+        {
+          "name": "pelvis",
+          "multiplier": 1
+        }
+      ],
+      "classMultipliers": {
+        "SMG": 1.05,
+        "Shotgun": 0.9,
+        "Pistol": 1,
+        "DMR": 1.05,
+        "Sniper": 1.3,
+        "Melee": 1,
+        "Rifle": 1,
+        "LMG": 1,
+        "Carbine": 1,
+        "Crossbow": 1.4
+      }
+    },
+    {
+      "zone": "Leg",
+      "equipSlot": "MaxOrNone",
+      "damageReason": "LegShot",
+      "bones": [
+        {
+          "name": "thigh_l",
+          "multiplier": 0.6
+        },
+        {
+          "name": "thigh_r",
+          "multiplier": 0.6
+        },
+        {
+          "name": "calf_l",
+          "multiplier": 0.5
+        },
+        {
+          "name": "calf_r",
+          "multiplier": 0.5
+        },
+        {
+          "name": "foot_l",
+          "multiplier": 0.3
+        },
+        {
+          "name": "foot_r",
+          "multiplier": 0.3
+        }
+      ],
+      "classMultipliers": {
+        "SMG": 1.3,
+        "Shotgun": 1.05,
+        "Pistol": 1.05,
+        "DMR": 0.95,
+        "Sniper": 0.95,
+        "Melee": 1.2,
+        "Rifle": 0.9,
+        "LMG": 0.9,
+        "Carbine": 1,
+        "Crossbow": 1.2
+      }
+    },
+    {
+      "zone": "Head",
+      "equipSlot": "Head",
+      "damageReason": "HeadShot",
+      "bones": [
+        {
+          "name": "head",
+          "multiplier": 1
+        },
+        {
+          "name": "neck_01",
+          "multiplier": 0.75
+        }
+      ],
+      "classMultipliers": {
+        "SMG": 2.1,
+        "Shotgun": 1.5,
+        "Pistol": 2.1,
+        "DMR": 2.35,
+        "Sniper": 2.5,
+        "Melee": 1.5,
+        "Rifle": 2.35,
+        "LMG": 2.3,
+        "Carbine": 2.3,
+        "Crossbow": 2.3
+      }
+    }
+  ]
+}

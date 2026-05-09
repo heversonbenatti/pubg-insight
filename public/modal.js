@@ -427,6 +427,48 @@ export function showModal(matchData, platform = 'steam') {
     speedDisplay.textContent = '1x';
     speedDisplay.style.cssText = 'font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:11px;color:var(--accent);min-width:34px;text-align:right;flex-shrink:0;';
 
+    const safeAdvisorDivider = document.createElement('div');
+    safeAdvisorDivider.style.cssText = 'width:1px;height:18px;background:var(--border);flex-shrink:0;';
+
+    const safeAdvisorButton = document.createElement('button');
+    safeAdvisorButton.id = 'safeAdvisorToggle';
+    safeAdvisorButton.className = 'replay-advisor-button';
+    safeAdvisorButton.type = 'button';
+    safeAdvisorButton.disabled = true;
+    safeAdvisorButton.title = 'Simular melhor posicao na safe';
+    safeAdvisorButton.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3a9 9 0 1 1 0 18a9 9 0 0 1 0 -18"/>
+            <path d="M12 7a5 5 0 1 1 0 10a5 5 0 0 1 0 -10"/>
+            <path d="M12 11a1 1 0 1 1 0 2a1 1 0 0 1 0 -2"/>
+        </svg>
+        <span>Best safe</span>
+    `;
+
+    const safeAdvisorStatus = document.createElement('span');
+    safeAdvisorStatus.id = 'safeAdvisorStatus';
+    safeAdvisorStatus.className = 'replay-advisor-status';
+    safeAdvisorStatus.textContent = 'LOADING';
+
+    const mapSpotButton = document.createElement('button');
+    mapSpotButton.id = 'mapSpotToggle';
+    mapSpotButton.className = 'replay-advisor-button';
+    mapSpotButton.type = 'button';
+    mapSpotButton.disabled = true;
+    mapSpotButton.title = 'Mostrar spots fixos do mapa';
+    mapSpotButton.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 21s7 -4.6 7 -11a7 7 0 1 0 -14 0c0 6.4 7 11 7 11z"/>
+            <path d="M12 10.5a1.8 1.8 0 1 0 0 -3.6a1.8 1.8 0 0 0 0 3.6z"/>
+        </svg>
+        <span>Power spots</span>
+    `;
+
+    const mapSpotStatus = document.createElement('span');
+    mapSpotStatus.id = 'mapSpotStatus';
+    mapSpotStatus.className = 'replay-advisor-status';
+    mapSpotStatus.textContent = 'LOADING';
+
     controlsBar.appendChild(playButton);
     controlsBar.appendChild(currentTimeDisplay);
     controlsBar.appendChild(progressBar);
@@ -435,6 +477,11 @@ export function showModal(matchData, platform = 'steam') {
     controlsBar.appendChild(speedLabel);
     controlsBar.appendChild(speedSlider);
     controlsBar.appendChild(speedDisplay);
+    controlsBar.appendChild(safeAdvisorDivider);
+    controlsBar.appendChild(safeAdvisorButton);
+    controlsBar.appendChild(safeAdvisorStatus);
+    controlsBar.appendChild(mapSpotButton);
+    controlsBar.appendChild(mapSpotStatus);
 
     // Sync timer el → currentTimeDisplay (replay2d writes to #timer)
     const timerObserver = new MutationObserver(() => {

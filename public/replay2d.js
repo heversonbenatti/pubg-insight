@@ -1,4 +1,6 @@
 import { translateMapName } from './utils.js';
+import { getMapSpotAdvice, loadMapSpotModel } from './mapSpotAdvisor.js';
+import { getSafeZoneAdvice, loadSafeZoneModel } from './safeZoneAdvisor.js';
 
 export function startModal(matchId, platform, mapName) {
 
@@ -38,6 +40,53 @@ export function startModal(matchId, platform, mapName) {
   speedSlider.addEventListener('input', () => {
     playbackSpeed = speedValues[parseInt(speedSlider.value)];
     speedDisplay.textContent = playbackSpeed + 'x';
+  });
+
+  const safeAdvisorButton = document.getElementById('safeAdvisorToggle');
+  const safeAdvisorStatus = document.getElementById('safeAdvisorStatus');
+  const mapSpotButton = document.getElementById('mapSpotToggle');
+  const mapSpotStatus = document.getElementById('mapSpotStatus');
+  let safeAdvisorEnabled = false;
+  let safeAdvisorModel = null;
+  let safeAdvisorStatusText = '';
+  let mapSpotEnabled = false;
+  let mapSpotModel = null;
+  let mapSpotStatusText = '';
+
+  function setSafeAdvisorStatus(text) {
+    if (!safeAdvisorStatus || safeAdvisorStatusText === text) return;
+    safeAdvisorStatusText = text;
+    safeAdvisorStatus.textContent = text;
+  }
+
+  function setMapSpotStatus(text) {
+    if (!mapSpotStatus || mapSpotStatusText === text) return;
+    mapSpotStatusText = text;
+    mapSpotStatus.textContent = text;
+  }
+
+  function syncSafeAdvisorButton() {
+    if (!safeAdvisorButton) return;
+    safeAdvisorButton.classList.toggle('active', safeAdvisorEnabled);
+    safeAdvisorButton.setAttribute('aria-pressed', safeAdvisorEnabled ? 'true' : 'false');
+  }
+
+  function syncMapSpotButton() {
+    if (!mapSpotButton) return;
+    mapSpotButton.classList.toggle('active', mapSpotEnabled);
+    mapSpotButton.setAttribute('aria-pressed', mapSpotEnabled ? 'true' : 'false');
+  }
+
+  loadSafeZoneModel().then(model => {
+    safeAdvisorModel = model;
+    if (safeAdvisorButton) safeAdvisorButton.disabled = false;
+    setSafeAdvisorStatus(model?.loadError ? 'FALLBACK' : 'READY');
+  });
+
+  loadMapSpotModel().then(model => {
+    mapSpotModel = model;
+    if (mapSpotButton) mapSpotButton.disabled = false;
+    setMapSpotStatus(model?.loadError ? 'FALLBACK' : 'READY');
   });
 
   const translatedMapName = translateMapName(mapName);
@@ -264,6 +313,103 @@ export function startModal(matchId, platform, mapName) {
 
   function interpolate(a, b, t) { return a + (b - a) * t; }
 
+  const POSITION_SPEED = {
+    foot: 1350,
+    footShort: 2200,
+    airborne: 12000,
+    dbno: 380,
+    swim: 520,
+    vehicle: 30000,
+    correctionSlack: 2200,
+  };
+
+  const PARACHUTE_OPEN = {
+    heightAboveLanding: 26000,
+    maxHorizontalSpeed: 2200,
+    maxVerticalDrop: 2800,
+    fallbackSeconds: 18,
+  };
+
+  function characterAnchorState(character = {}, vehicle = null, options = {}) {
+    const vehicleType = vehicle?.vehicleType || '';
+    return {
+      isDBNO: !!character.isDBNO,
+      isInVehicle: !!character.isInVehicle || !!vehicleType,
+      isAirborne: !!options.isAirborne,
+      isSwimming: !!options.isSwimming,
+      vehicleType,
+      health: character.health,
+    };
+  }
+
+  function maxAnchorSpeed(curr, next, timeDiff) {
+    if (curr.isInVehicle || next.isInVehicle || curr.vehicleType || next.vehicleType) return POSITION_SPEED.vehicle;
+    if (curr.isAirborne || next.isAirborne) return POSITION_SPEED.airborne;
+    if (curr.isDBNO || next.isDBNO) return POSITION_SPEED.dbno;
+    if (curr.isSwimming || next.isSwimming) return POSITION_SPEED.swim;
+    return timeDiff <= 3 ? POSITION_SPEED.footShort : POSITION_SPEED.foot;
+  }
+
+  function shouldInterpolatePosition(curr, next, timeDiff) {
+    const dist = Math.hypot(next.x - curr.x, next.y - curr.y);
+    if (dist <= POSITION_SPEED.correctionSlack) return true;
+    const speed = dist / Math.max(0.001, timeDiff);
+    return speed <= maxAnchorSpeed(curr, next, timeDiff);
+  }
+
+  function positionBetweenAnchors(curr, next, elapsed) {
+    const timeDiff = next.t - curr.t;
+    if (timeDiff <= 0) return { x: curr.x, y: curr.y };
+    if (!shouldInterpolatePosition(curr, next, timeDiff)) {
+      const midpoint = curr.t + timeDiff / 2;
+      return elapsed < midpoint ? { x: curr.x, y: curr.y } : { x: next.x, y: next.y };
+    }
+    const p = Math.max(0, Math.min(1, (elapsed - curr.t) / timeDiff));
+    return {
+      x: curr.x + (next.x - curr.x) * p,
+      y: curr.y + (next.y - curr.y) * p,
+    };
+  }
+
+  function damageHpAfter(item) {
+    const hpBefore = Number(item.victim?.health);
+    const damage = Number(item.damage) || 0;
+    if (!Number.isFinite(hpBefore)) return 0;
+    return Math.max(0, Math.min(100, hpBefore - damage));
+  }
+
+  function inferParachuteOpenTime(anchors, interval) {
+    const points = anchors
+      .filter(p => p.t >= interval.start - 0.25 && p.t <= interval.end + 0.25 && Number.isFinite(p.z))
+      .sort((a, b) => a.t - b.t);
+
+    if (points.length < 2) {
+      return Math.max(interval.start, interval.end - PARACHUTE_OPEN.fallbackSeconds);
+    }
+
+    const landingPoint = points.find(p => p.t >= interval.end - 1) || points[points.length - 1];
+    const landingZ = landingPoint.z;
+
+    for (let i = 1; i < points.length; i++) {
+      const prev = points[i - 1];
+      const curr = points[i];
+      const dt = curr.t - prev.t;
+      if (dt <= 0 || curr.t <= interval.start + 3) continue;
+
+      const horizontalSpeed = Math.hypot(curr.x - prev.x, curr.y - prev.y) / dt;
+      const verticalDrop = Math.max(0, prev.z - curr.z) / dt;
+      const heightAboveLanding = curr.z - landingZ;
+
+      if (heightAboveLanding <= PARACHUTE_OPEN.heightAboveLanding ||
+          (horizontalSpeed <= PARACHUTE_OPEN.maxHorizontalSpeed &&
+           verticalDrop <= PARACHUTE_OPEN.maxVerticalDrop)) {
+        return curr.t;
+      }
+    }
+
+    return Math.max(interval.start, interval.end - PARACHUTE_OPEN.fallbackSeconds);
+  }
+
   // Use preloaded telemetry if available; if it resolved to null (fetch failed), retry fresh.
   const _fetchFresh = () => fetch(`/api/telemetry/${matchId}?platform=${platform}`).then(r => r.json());
   const _preloadedTelemetry = window._telemetryPreload?.[matchId];
@@ -276,7 +422,9 @@ export function startModal(matchId, platform, mapName) {
       telemetryReady = true;
       if (earlyFrameId !== null) { cancelAnimationFrame(earlyFrameId); earlyFrameId = null; }
 
-      const gameStateData = data.filter(item => item.gameState);
+      const gameStateData = data
+        .filter(item => item.gameState)
+        .sort((a, b) => (a.gameState.elapsedTime ?? 0) - (b.gameState.elapsedTime ?? 0));
       const characterData = data.filter(item => item._T === 'LogPlayerPosition');
 
       const playerNames = {};
@@ -379,6 +527,41 @@ export function startModal(matchId, platform, mapName) {
         return false;
       }
 
+      const playerAirborneIntervals = {};
+      data.forEach(item => {
+        if (item._T === 'LogVehicleLeave' &&
+          item.vehicle?.vehicleType === 'TransportAircraft' &&
+          item._D &&
+          item.character?.accountId) {
+          const id = item.character.accountId;
+          const t = dMsToElapsed(new Date(item._D).getTime());
+          if (!playerAirborneIntervals[id]) playerAirborneIntervals[id] = [];
+          playerAirborneIntervals[id].push({ start: t, end: null });
+        }
+      });
+      data.forEach(item => {
+        if (item._T === 'LogParachuteLanding' && item._D && item.character?.accountId) {
+          const id = item.character.accountId;
+          const t = dMsToElapsed(new Date(item._D).getTime());
+          const intervals = playerAirborneIntervals[id];
+          if (!intervals) return;
+          for (let i = intervals.length - 1; i >= 0; i--) {
+            if (intervals[i].end === null && t > intervals[i].start) {
+              intervals[i].end = t;
+              break;
+            }
+          }
+        }
+      });
+
+      function isPlayerAirborne(accountId, elapsed) {
+        const intervals = playerAirborneIntervals[accountId];
+        if (!intervals) return false;
+        for (const iv of intervals)
+          if (elapsed >= iv.start && (iv.end === null || elapsed < iv.end)) return true;
+        return false;
+      }
+
       const players = {};
 
       characterData.forEach(item => {
@@ -387,12 +570,20 @@ export function startModal(matchId, platform, mapName) {
         const t = dMsToElapsed(new Date(item._D).getTime());
         if (t <= 9) return;
         if (isPlayerDead(id, t)) return;
+        const state = characterAnchorState(item.character, item.vehicle, {
+          isAirborne: isPlayerAirborne(id, t),
+        });
         players[id].push({
           t,
           x: item.character.location.x,
           y: item.character.location.y,
-          vehicleType: item.vehicle?.vehicleType || '',
-          health: item.character.health,
+          z: item.character.location.z,
+          vehicleType: state.vehicleType,
+          isInVehicle: state.isInVehicle,
+          isDBNO: state.isDBNO,
+          isAirborne: state.isAirborne,
+          isSwimming: state.isSwimming,
+          health: state.health,
           isKeyframe: true,
         });
       });
@@ -410,27 +601,72 @@ export function startModal(matchId, platform, mapName) {
         if (!item._D) return;
         const t = dMsToElapsed(new Date(item._D).getTime());
         if (t <= 9) return;
-        const addPoint = (accountId, location) => {
+        const addPoint = (character, vehicle = null, options = {}) => {
+          const accountId = character?.accountId;
+          const location = character?.location;
           if (!accountId || !location || !players[accountId]) return;
           if (isPlayerDead(accountId, t)) return;
-          players[accountId].push({ t, x: location.x, y: location.y, vehicleType: '', health: undefined, isKeyframe: false });
+          const state = characterAnchorState(character, vehicle, {
+            ...options,
+            isAirborne: options.isAirborne || isPlayerAirborne(accountId, t),
+          });
+          players[accountId].push({
+            t,
+            x: location.x,
+            y: location.y,
+            z: location.z,
+            vehicleType: state.vehicleType,
+            isInVehicle: state.isInVehicle,
+            isDBNO: state.isDBNO,
+            isAirborne: state.isAirborne,
+            isSwimming: state.isSwimming,
+            health: state.health,
+            isKeyframe: false,
+          });
         };
         if (CHAR_LOC_EVENTS.has(item._T)) {
-          addPoint(item.character?.accountId, item.character?.location);
+          addPoint(item.character, item.vehicle, { isSwimming: item._T === 'LogSwimStart' });
         } else if (item._T === 'LogPlayerAttack') {
-          addPoint(item.attacker?.accountId, item.attacker?.location);
+          addPoint(item.attacker, item.vehicle);
         } else if (['LogPlayerTakeDamage', 'LogPlayerMakeGroggy', 'LogVehicleDamage',
           'LogArmorDestroy', 'LogPlayerUseThrowable'].includes(item._T)) {
-          addPoint(item.attacker?.accountId, item.attacker?.location);
-          addPoint(item.victim?.accountId, item.victim?.location);
+          addPoint(item.attacker, item.vehicle);
+          addPoint(item.victim, item.vehicle);
+        } else if (['LogPlayerRevive', 'LogPlayerKillV2', 'LogPlayerKill'].includes(item._T)) {
+          addPoint(item.character, item.vehicle);
+          addPoint(item.reviver, item.vehicle);
+          addPoint(item.killer || item.attacker, item.vehicle);
+          addPoint(item.victim, item.vehicle);
         }
       });
 
       Object.values(players).forEach(pts => pts.sort((a, b) => a.t - b.t));
 
+      const playerParachuteIntervals = {};
+      Object.entries(playerAirborneIntervals).forEach(([accountId, intervals]) => {
+        const anchors = players[accountId] || [];
+        intervals.forEach(interval => {
+          if (interval.end === null || interval.end <= interval.start) return;
+          const start = inferParachuteOpenTime(anchors, interval);
+          if (start >= interval.end) return;
+          if (!playerParachuteIntervals[accountId]) playerParachuteIntervals[accountId] = [];
+          playerParachuteIntervals[accountId].push({ start, end: interval.end });
+        });
+      });
+
+      function isPlayerParachuting(accountId, elapsed) {
+        const intervals = playerParachuteIntervals[accountId];
+        if (!intervals) return false;
+        for (const iv of intervals)
+          if (elapsed >= iv.start && elapsed < iv.end) return true;
+        return false;
+      }
+
       const playerLocationsByTime = {};
       const playerVehicleByTime = {};
       const playerHpByTime = {};
+      const playerHpTimeline = {};
+      const playerPositionTimeline = {};
 
       Object.keys(players).forEach(accountId => {
         const anchors = players[accountId];
@@ -440,13 +676,22 @@ export function startModal(matchId, platform, mapName) {
           const curr = anchors[i], next = anchors[i + 1];
           const timeDiff = next.t - curr.t;
           if (timeDiff <= 0) continue;
+          if (!shouldInterpolatePosition(curr, next, timeDiff)) {
+            const currT = Math.round(curr.t);
+            const nextT = Math.round(next.t);
+            if (!byTime[currT]) byTime[currT] = { x: curr.x, y: curr.y };
+            if (!byTime[nextT]) byTime[nextT] = { x: next.x, y: next.y };
+            if (curr.vehicleType && curr.vehicleType !== 'TransportAircraft') byVehicle[currT] = curr.vehicleType;
+            if (next.vehicleType && next.vehicleType !== 'TransportAircraft') byVehicle[nextT] = next.vehicleType;
+            continue;
+          }
           const steps = Math.max(1, Math.floor(timeDiff));
           for (let j = 0; j <= steps; j++) {
             const t = Math.round(curr.t + j);
             if (byTime[t]) continue;
             const p = j / steps;
             byTime[t] = { x: curr.x + (next.x - curr.x) * p, y: curr.y + (next.y - curr.y) * p };
-            const vt = curr.vehicleType;
+            const vt = curr.vehicleType || next.vehicleType;
             if (vt && vt !== 'TransportAircraft') byVehicle[t] = vt;
           }
         }
@@ -459,7 +704,7 @@ export function startModal(matchId, platform, mapName) {
           const t = Math.round(a.t);
           if (!byTime[t]) byTime[t] = { x: a.x, y: a.y };
           if (a.vehicleType && a.vehicleType !== 'TransportAircraft') byVehicle[t] = a.vehicleType;
-          if (a.health !== undefined) byHp[t] = a.health;
+          if (a.health !== undefined) byHp[t] = Math.max(0, Math.min(100, a.health));
         });
 
         const kfTimes = anchors.filter(a => a.isKeyframe).map(a => Math.round(a.t)).sort((a, b) => a - b);
@@ -474,6 +719,11 @@ export function startModal(matchId, platform, mapName) {
         playerLocationsByTime[accountId] = byTime;
         playerVehicleByTime[accountId] = byVehicle;
         playerHpByTime[accountId] = byHp;
+        playerPositionTimeline[accountId] = anchors;
+        playerHpTimeline[accountId] = anchors
+          .filter(a => a.isKeyframe && a.health !== undefined)
+          .map((a, index) => ({ t: a.t, hp: Math.max(0, Math.min(100, a.health)), order: index }))
+          .sort((a, b) => a.t - b.t || a.order - b.order);
       });
 
       const damageByVictim = {};
@@ -483,13 +733,25 @@ export function startModal(matchId, platform, mapName) {
         if (!vic?.accountId) return;
         const t = dMsToElapsed(new Date(item._D).getTime());
         if (!damageByVictim[vic.accountId]) damageByVictim[vic.accountId] = [];
-        damageByVictim[vic.accountId].push({ t, damage: item.damage || 0, hpAfter: vic.health ?? 0 });
+        damageByVictim[vic.accountId].push({
+          t,
+          damage: item.damage || 0,
+          hpBefore: Number.isFinite(Number(vic.health)) ? Number(vic.health) : undefined,
+          hpAfter: damageHpAfter(item),
+        });
       });
 
       Object.entries(damageByVictim).forEach(([accountId, hits]) => {
         const byHp = playerHpByTime[accountId];
         if (!byHp) return;
         hits.sort((a, b) => a.t - b.t);
+
+        const hpTimeline = playerHpTimeline[accountId] || [];
+        hits.forEach((hit, index) => {
+          hpTimeline.push({ t: hit.t, hp: hit.hpAfter, order: 100000 + index });
+        });
+        hpTimeline.sort((a, b) => a.t - b.t || a.order - b.order);
+        playerHpTimeline[accountId] = hpTimeline;
 
         const kfTimes = (players[accountId] || [])
           .filter(p => p.isKeyframe)
@@ -502,20 +764,11 @@ export function startModal(matchId, platform, mapName) {
           const group = hits.filter(h => h.t > kfStart && h.t <= kfEnd);
           if (!group.length) continue;
 
-          const hpBefore = byHp[kfStart] ?? 100;
-          const hpAfterLast = group[group.length - 1].hpAfter;
-          const totalLoss = Math.max(0, hpBefore - hpAfterLast);
-          if (totalLoss === 0) continue;
-
-          const totalDamage = group.reduce((s, h) => s + h.damage, 0);
-          let runningHp = hpBefore;
           group.forEach(hit => {
-            const loss = totalDamage > 0 ? (hit.damage / totalDamage) * totalLoss : totalLoss / group.length;
-            runningHp = Math.max(0, runningHp - loss);
-            byHp[Math.round(hit.t)] = runningHp;
+            byHp[Math.ceil(hit.t - 0.001)] = hit.hpAfter;
           });
 
-          const hitTimes = group.map(h => Math.round(h.t)).sort((a, b) => a - b);
+          const hitTimes = group.map(h => Math.ceil(h.t - 0.001)).sort((a, b) => a - b);
           for (let hi = 0; hi < hitTimes.length; hi++) {
             const from = hitTimes[hi];
             const to = hi + 1 < hitTimes.length ? hitTimes[hi + 1] : kfEnd;
@@ -524,6 +777,47 @@ export function startModal(matchId, platform, mapName) {
           }
         }
       });
+
+      function getPlayerHpAt(accountId, elapsed) {
+        const timeline = playerHpTimeline[accountId];
+        if (timeline?.length) {
+          let lo = 0, hi = timeline.length - 1, best = -1;
+          while (lo <= hi) {
+            const mid = (lo + hi) >> 1;
+            if (timeline[mid].t <= elapsed + 0.001) {
+              best = mid;
+              lo = mid + 1;
+            } else {
+              hi = mid - 1;
+            }
+          }
+          if (best >= 0) return timeline[best].hp;
+        }
+        const rounded = Math.max(0, Math.floor(elapsed));
+        return playerHpByTime[accountId]?.[rounded] ?? 100;
+      }
+
+      function getPlayerPositionAt(accountId, elapsed) {
+        const timeline = playerPositionTimeline[accountId];
+        if (!timeline?.length) return null;
+
+        let lo = 0, hi = timeline.length - 1, prevIndex = -1;
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1;
+          if (timeline[mid].t <= elapsed + 0.001) {
+            prevIndex = mid;
+            lo = mid + 1;
+          } else {
+            hi = mid - 1;
+          }
+        }
+
+        if (prevIndex < 0) return null;
+        const curr = timeline[prevIndex];
+        const next = timeline[prevIndex + 1];
+        if (!next) return { x: curr.x, y: curr.y };
+        return positionBetweenAnchors(curr, next, elapsed);
+      }
 
       const feedEvents = [];
 
@@ -601,7 +895,9 @@ export function startModal(matchId, platform, mapName) {
         if (!al || !vl) return;
         const t = dMsToElapsed(new Date(item._D).getTime());
         bulletEvents.push({
-          t, duration: 0.8,
+          t: Math.max(0, t - 0.12),
+          impactT: t,
+          duration: 0.62,
           originX: al.x, originY: al.y,
           targetX: vl.x, targetY: vl.y,
           shooterAccountId: item.attacker.accountId,
@@ -664,9 +960,32 @@ export function startModal(matchId, platform, mapName) {
         : null;
       const searchedTeamId = _searchedRoster?.attributes?.stats?.teamId ?? null;
 
+      const teamIdByAccount = {};
+      globalMatchData.included.filter(p => p.type === 'participant').forEach(p => {
+        const accountId = p.attributes?.stats?.playerId;
+        if (!accountId) return;
+        const roster = globalMatchData.included.filter(r => r.type === 'roster')
+          .find(r => r.relationships.participants.data.some(ref => ref.id === p.id));
+        if (roster) teamIdByAccount[accountId] = roster.attributes?.stats?.teamId ?? null;
+      });
+
+      const gameStatesWithPhase = [];
+      let circlePhase = 0;
+      let lastWarningRadius = null;
+      gameStateData.forEach(item => {
+        const gs = item.gameState;
+        const warningRadius = gs.poisonGasWarningRadius ?? gs.safetyZoneRadius ?? 0;
+        if (warningRadius > 0) {
+          if (lastWarningRadius === null || lastWarningRadius <= 0) circlePhase = Math.max(circlePhase, 1);
+          else if (warningRadius < lastWarningRadius * 0.85) circlePhase++;
+          lastWarningRadius = warningRadius;
+        }
+        gameStatesWithPhase.push({ ...gs, phase: Math.max(circlePhase, 1) });
+      });
+
       const interpolatedData = [];
-      for (let i = 0; i < gameStateData.length - 1; i++) {
-        const curr = gameStateData[i].gameState, next = gameStateData[i + 1].gameState;
+      for (let i = 0; i < gameStatesWithPhase.length - 1; i++) {
+        const curr = gameStatesWithPhase[i], next = gameStatesWithPhase[i + 1];
         interpolatedData.push(curr);
         const timeDiff = next.elapsedTime - curr.elapsedTime;
         if (timeDiff > 1) {
@@ -674,6 +993,7 @@ export function startModal(matchId, platform, mapName) {
             const p = j / timeDiff;
             interpolatedData.push({
               elapsedTime: curr.elapsedTime + j,
+              phase: curr.phase,
               safetyZoneRadius: interpolate(curr.safetyZoneRadius, next.safetyZoneRadius, p),
               safetyZonePosition: { x: interpolate(curr.safetyZonePosition.x, next.safetyZonePosition.x, p), y: interpolate(curr.safetyZonePosition.y, next.safetyZonePosition.y, p) },
               poisonGasWarningRadius: curr.poisonGasWarningRadius,
@@ -682,7 +1002,7 @@ export function startModal(matchId, platform, mapName) {
           }
         }
       }
-      interpolatedData.push(gameStateData[gameStateData.length - 1].gameState);
+      interpolatedData.push(gameStatesWithPhase[gameStatesWithPhase.length - 1]);
 
       let subProgress = 0;
 
@@ -702,6 +1022,18 @@ export function startModal(matchId, platform, mapName) {
       }
 
       function updateSafeZone() { subProgress = 0; renderFrame(); }
+
+      safeAdvisorButton?.addEventListener('click', () => {
+        safeAdvisorEnabled = !safeAdvisorEnabled;
+        syncSafeAdvisorButton();
+        updateSafeZone();
+      });
+
+      mapSpotButton?.addEventListener('click', () => {
+        mapSpotEnabled = !mapSpotEnabled;
+        syncMapSpotButton();
+        updateSafeZone();
+      });
 
       progressBar.addEventListener('input', function () { currentIndex = parseInt(progressBar.value); updateSafeZone(); });
 
@@ -747,11 +1079,11 @@ export function startModal(matchId, platform, mapName) {
         const gy = panY + sy / (scaleFactor * zoomScale);
         const ps = window._replayPlayerSize ?? 6;
         const hitRadius = Math.max(ps * 3, 10) / (scaleFactor * zoomScale);
-        const currentElapsed = Math.round(interpolatedData[currentIndex]?.elapsedTime ?? 0);
+        const currentElapsed = (interpolatedData[currentIndex]?.elapsedTime ?? 0) + subProgress;
         let closest = null, closestDist = hitRadius;
-        Object.keys(playerLocationsByTime).forEach(accountId => {
+        Object.keys(playerPositionTimeline).forEach(accountId => {
           if (isPlayerDead(accountId, currentElapsed)) return;
-          const loc = playerLocationsByTime[accountId][currentElapsed];
+          const loc = getPlayerPositionAt(accountId, currentElapsed);
           if (!loc) return;
           const d = Math.hypot(loc.x - gx, loc.y - gy);
           if (d < closestDist) { closestDist = d; closest = accountId; }
@@ -820,6 +1152,272 @@ export function startModal(matchId, platform, mapName) {
         }
       }
 
+      function alivePlayersAt(elapsed) {
+        const players = [];
+        Object.keys(playerPositionTimeline).forEach(accountId => {
+          if (isPlayerDead(accountId, elapsed)) return;
+          const loc = getPlayerPositionAt(accountId, elapsed);
+          if (!loc) return;
+          const hp = getPlayerHpAt(accountId, elapsed);
+          if (hp <= 0) return;
+          players.push({
+            accountId,
+            x: loc.x,
+            y: loc.y,
+            health: hp,
+            teamId: teamIdByAccount[accountId] ?? null,
+          });
+        });
+        return players;
+      }
+
+      function teamCentroidAt(alivePlayers, teamId) {
+        if (teamId === null || teamId === undefined) return null;
+        const own = alivePlayers.filter(p => p.teamId === teamId);
+        if (!own.length) return null;
+        return {
+          x: own.reduce((sum, p) => sum + p.x, 0) / own.length,
+          y: own.reduce((sum, p) => sum + p.y, 0) / own.length,
+        };
+      }
+
+      function drawSafeAdvisorOverlay(safeZone, currentElapsed) {
+        if (!safeAdvisorEnabled) {
+          setSafeAdvisorStatus(safeAdvisorModel ? (safeAdvisorModel.loadError ? 'FALLBACK' : 'READY') : 'LOADING');
+          return;
+        }
+
+        const safe = {
+          x: safeZone.safetyZonePosition?.x ?? 0,
+          y: safeZone.safetyZonePosition?.y ?? 0,
+          radius: safeZone.safetyZoneRadius ?? 0,
+        };
+        const alivePlayers = alivePlayersAt(currentElapsed);
+        const teamCentroid = teamCentroidAt(alivePlayers, searchedTeamId);
+        const advice = getSafeZoneAdvice({
+          model: safeAdvisorModel,
+          mapName,
+          phase: safeZone.phase,
+          safeZone: safe,
+          mapSize: { width: MAP_WIDTH, height: MAP_HEIGHT },
+          alivePlayers,
+          currentTeamId: searchedTeamId,
+          teamCentroid,
+          limit: 9,
+        });
+
+        window.safeZoneAdvisorLastAdvice = advice;
+        setSafeAdvisorStatus(`P${advice.phase} ${advice.source === 'model' ? 'PRO' : 'BASE'}`);
+
+        if (!advice.best) return;
+
+        drawCtx.save();
+        advice.candidates.slice().reverse().forEach((candidate, index) => {
+          const rank = advice.candidates.length - index;
+          const alpha = Math.max(0.16, Math.min(0.48, 0.18 + candidate.score * 0.28));
+          const gradient = drawCtx.createRadialGradient(candidate.x, candidate.y, 0, candidate.x, candidate.y, candidate.radius);
+          gradient.addColorStop(0, `rgba(80, 255, 150, ${alpha})`);
+          gradient.addColorStop(0.55, `rgba(80, 210, 255, ${alpha * 0.45})`);
+          gradient.addColorStop(1, 'rgba(80, 255, 150, 0)');
+          drawCtx.beginPath();
+          drawCtx.fillStyle = gradient;
+          drawCtx.arc(candidate.x, candidate.y, candidate.radius, 0, 2 * Math.PI);
+          drawCtx.fill();
+
+          if (rank <= 3) {
+            drawCtx.beginPath();
+            drawCtx.strokeStyle = `rgba(110, 255, 170, ${0.35 + candidate.score * 0.35})`;
+            drawCtx.lineWidth = 1.2 / (scaleFactor * zoomScale);
+            drawCtx.arc(candidate.x, candidate.y, candidate.radius * 0.42, 0, 2 * Math.PI);
+            drawCtx.stroke();
+          }
+        });
+
+        const best = advice.best;
+        if (teamCentroid) {
+          drawCtx.save();
+          drawCtx.beginPath();
+          drawCtx.setLineDash([10 / (scaleFactor * zoomScale), 7 / (scaleFactor * zoomScale)]);
+          drawCtx.moveTo(teamCentroid.x, teamCentroid.y);
+          drawCtx.lineTo(best.x, best.y);
+          drawCtx.strokeStyle = 'rgba(255, 216, 80, 0.78)';
+          drawCtx.lineWidth = 2 / (scaleFactor * zoomScale);
+          drawCtx.stroke();
+          drawCtx.restore();
+        }
+
+        const ring = Math.max(best.radius * 0.34, 7000);
+        drawCtx.beginPath();
+        drawCtx.strokeStyle = 'rgba(255, 216, 80, 0.98)';
+        drawCtx.lineWidth = 3 / (scaleFactor * zoomScale);
+        drawCtx.arc(best.x, best.y, ring, 0, 2 * Math.PI);
+        drawCtx.stroke();
+
+        drawCtx.beginPath();
+        drawCtx.moveTo(best.x - ring * 0.45, best.y);
+        drawCtx.lineTo(best.x + ring * 0.45, best.y);
+        drawCtx.moveTo(best.x, best.y - ring * 0.45);
+        drawCtx.lineTo(best.x, best.y + ring * 0.45);
+        drawCtx.strokeStyle = 'rgba(255, 216, 80, 0.95)';
+        drawCtx.lineWidth = 1.6 / (scaleFactor * zoomScale);
+        drawCtx.stroke();
+        drawCtx.restore();
+      }
+
+      function drawMapSpotOverlay(safeZone, currentElapsed) {
+        if (!mapSpotEnabled) {
+          setMapSpotStatus(mapSpotModel ? (mapSpotModel.loadError ? 'FALLBACK' : 'READY') : 'LOADING');
+          return;
+        }
+
+        const safe = {
+          x: safeZone.safetyZonePosition?.x ?? 0,
+          y: safeZone.safetyZonePosition?.y ?? 0,
+          radius: safeZone.safetyZoneRadius ?? 0,
+        };
+        const alivePlayers = alivePlayersAt(currentElapsed);
+        const teamCentroid = teamCentroidAt(alivePlayers, searchedTeamId);
+        const advice = getMapSpotAdvice({
+          model: mapSpotModel,
+          mapName,
+          phase: safeZone.phase,
+          safeZone: safe,
+          mapSize: { width: MAP_WIDTH, height: MAP_HEIGHT },
+          alivePlayers,
+          currentTeamId: searchedTeamId,
+          teamCentroid,
+          limit: 16,
+        });
+
+        window.mapSpotLastAdvice = advice;
+        if (advice.source !== 'model') {
+          setMapSpotStatus('NO DATA');
+          return;
+        }
+        setMapSpotStatus(`${advice.spots.length}/${advice.totalSpots}`);
+        if (!advice.spots.length) return;
+
+        drawCtx.save();
+        advice.spots.slice().reverse().forEach((spot, reverseIndex) => {
+          const index = advice.spots.length - reverseIndex;
+          const alpha = Math.max(0.14, Math.min(0.44, 0.16 + spot.score * 0.28));
+          const radius = spot.radius * (index <= 3 ? 1.15 : 1);
+          const gradient = drawCtx.createRadialGradient(spot.x, spot.y, 0, spot.x, spot.y, radius);
+          gradient.addColorStop(0, `rgba(255, 203, 82, ${alpha})`);
+          gradient.addColorStop(0.5, `rgba(255, 128, 70, ${alpha * 0.44})`);
+          gradient.addColorStop(1, 'rgba(255, 203, 82, 0)');
+          drawCtx.beginPath();
+          drawCtx.fillStyle = gradient;
+          drawCtx.arc(spot.x, spot.y, radius, 0, 2 * Math.PI);
+          drawCtx.fill();
+
+          drawCtx.beginPath();
+          drawCtx.strokeStyle = index <= 3 ? 'rgba(255, 231, 120, 0.95)' : 'rgba(255, 203, 82, 0.58)';
+          drawCtx.lineWidth = (index <= 3 ? 2.2 : 1.2) / (scaleFactor * zoomScale);
+          drawCtx.arc(spot.x, spot.y, Math.max(spot.radius * 0.34, 4200), 0, 2 * Math.PI);
+          drawCtx.stroke();
+
+          if (zoomScale >= minZoom * 2.1 || index <= 3) {
+            const sx = (spot.x - panX) * scaleFactor * zoomScale;
+            const sy = (spot.y - panY) * scaleFactor * zoomScale;
+            drawCtx.save();
+            drawCtx.setTransform(1, 0, 0, 1, 0, 0);
+            drawCtx.font = 'bold 10px "JetBrains Mono", monospace';
+            drawCtx.textAlign = 'center';
+            drawCtx.textBaseline = 'middle';
+            const label = `${Math.round(spot.avgDwellSeconds)}s`;
+            const w = drawCtx.measureText(label).width + 10;
+            const h = 18;
+            const x = sx - w / 2;
+            const y = sy - h / 2;
+            drawCtx.fillStyle = 'rgba(0,0,0,0.62)';
+            drawCtx.strokeStyle = 'rgba(255,203,82,0.38)';
+            drawCtx.lineWidth = 1;
+            drawCtx.beginPath();
+            if (drawCtx.roundRect) drawCtx.roundRect(x, y, w, h, 4);
+            else drawCtx.rect(x, y, w, h);
+            drawCtx.fill();
+            drawCtx.stroke();
+            drawCtx.fillStyle = 'rgba(255,236,170,0.95)';
+            drawCtx.fillText(label, sx, sy);
+            drawCtx.restore();
+          }
+        });
+
+        const best = advice.best;
+        drawCtx.beginPath();
+        drawCtx.strokeStyle = 'rgba(255, 245, 175, 0.98)';
+        drawCtx.lineWidth = 2.6 / (scaleFactor * zoomScale);
+        drawCtx.arc(best.x, best.y, Math.max(best.radius * 0.52, 6200), 0, 2 * Math.PI);
+        drawCtx.stroke();
+        drawCtx.restore();
+      }
+
+      function drawParachuteIcon(x, y, pointSize) {
+        const w = pointSize * 5.1;
+        const h = pointSize * 4.2;
+        const topY = y - pointSize * 5.7;
+        const bottomY = topY + h * 0.62;
+        const attachY = y - pointSize * 0.85;
+        const left = x - w / 2;
+        const right = x + w / 2;
+        const ribPoints = [
+          { x: left, y: bottomY },
+          { x: x - w * 0.25, y: bottomY },
+          { x, y: bottomY },
+          { x: x + w * 0.25, y: bottomY },
+          { x: right, y: bottomY },
+        ];
+
+        drawCtx.save();
+        drawCtx.lineCap = 'round';
+        drawCtx.lineJoin = 'round';
+
+        drawCtx.strokeStyle = 'rgba(0,0,0,0.82)';
+        drawCtx.lineWidth = pointSize * 0.32;
+        ribPoints.forEach(p => {
+          drawCtx.beginPath();
+          drawCtx.moveTo(p.x, p.y);
+          drawCtx.lineTo(x, attachY);
+          drawCtx.stroke();
+        });
+
+        drawCtx.beginPath();
+        drawCtx.moveTo(left, bottomY);
+        drawCtx.quadraticCurveTo(x - w * 0.43, topY + h * 0.06, x, topY);
+        drawCtx.quadraticCurveTo(x + w * 0.43, topY + h * 0.06, right, bottomY);
+        drawCtx.quadraticCurveTo(x + w * 0.38, bottomY - h * 0.15, x + w * 0.25, bottomY);
+        drawCtx.quadraticCurveTo(x + w * 0.13, bottomY - h * 0.15, x, bottomY);
+        drawCtx.quadraticCurveTo(x - w * 0.13, bottomY - h * 0.15, x - w * 0.25, bottomY);
+        drawCtx.quadraticCurveTo(x - w * 0.38, bottomY - h * 0.15, left, bottomY);
+        drawCtx.closePath();
+        drawCtx.fillStyle = 'rgba(18,18,20,0.94)';
+        drawCtx.strokeStyle = 'rgba(255,255,255,0.95)';
+        drawCtx.lineWidth = pointSize * 0.18;
+        drawCtx.fill();
+        drawCtx.stroke();
+
+        drawCtx.strokeStyle = 'rgba(255,255,255,0.88)';
+        drawCtx.lineWidth = pointSize * 0.12;
+        ribPoints.slice(1, -1).forEach(p => {
+          drawCtx.beginPath();
+          drawCtx.moveTo(x, topY + pointSize * 0.1);
+          drawCtx.quadraticCurveTo((x + p.x) / 2, topY + h * 0.26, p.x, p.y - pointSize * 0.05);
+          drawCtx.stroke();
+        });
+
+        drawCtx.strokeStyle = 'rgba(255,255,255,0.70)';
+        drawCtx.lineWidth = pointSize * 0.10;
+        ribPoints.forEach(p => {
+          drawCtx.beginPath();
+          drawCtx.moveTo(p.x, p.y + pointSize * 0.12);
+          drawCtx.lineTo(x, attachY);
+          drawCtx.stroke();
+        });
+
+        drawCtx.restore();
+      }
+
       function renderFrame() {
         const safeZone = interpolatedData[currentIndex];
 
@@ -843,6 +1441,8 @@ export function startModal(matchId, platform, mapName) {
 
         const currentTime = interpolatedData[currentIndex]?.elapsedTime ?? 0;
         const currentTimeSmooth = currentTime + subProgress;
+        drawMapSpotOverlay(safeZone, currentTime);
+        drawSafeAdvisorOverlay(safeZone, currentTime);
 
         if (window.teamTrackVisibility) {
           Object.keys(playerLocationsByTime).forEach(accountId => {
@@ -858,10 +1458,17 @@ export function startModal(matchId, platform, mapName) {
             drawCtx.lineWidth = 1.5 / (scaleFactor * zoomScale);
             drawCtx.lineJoin = 'round'; drawCtx.lineCap = 'round';
             let started = false;
+            let lastT = null;
             times.forEach(t => {
               const pos = byTime[t];
               if (!pos) return;
-              if (!started) { drawCtx.moveTo(pos.x, pos.y); started = true; } else drawCtx.lineTo(pos.x, pos.y);
+              if (!started || (lastT !== null && t - lastT > 1)) {
+                drawCtx.moveTo(pos.x, pos.y);
+                started = true;
+              } else {
+                drawCtx.lineTo(pos.x, pos.y);
+              }
+              lastT = t;
             });
             drawCtx.stroke();
           });
@@ -870,7 +1477,7 @@ export function startModal(matchId, platform, mapName) {
         const ps = window._replayPlayerSize ?? 6;
         const pointSize  = ps / (scaleFactor * zoomScale);
         const borderWidth = Math.max(1, ps * 0.22) / (scaleFactor * zoomScale);
-        const nextIndex = Math.min(currentIndex + 1, interpolatedData.length - 1);
+        const currentElapsedRounded = Math.round(currentTimeSmooth);
 
         bulletEvents.filter(b => b.t <= currentTimeSmooth && b.t + b.duration > currentTimeSmooth).forEach(bullet => {
           const age = (currentTimeSmooth - bullet.t) / bullet.duration;
@@ -887,40 +1494,43 @@ export function startModal(matchId, platform, mapName) {
           drawCtx.lineWidth = 2 / (scaleFactor * zoomScale);
           drawCtx.lineCap = 'round';
           drawCtx.stroke();
-          const rp = age;
-          drawCtx.globalAlpha = (1 - rp) * alpha;
-          drawCtx.beginPath();
-          drawCtx.arc(bullet.targetX, bullet.targetY, pointSize * 1.5 + pointSize * 4 * rp, 0, 2 * Math.PI);
-          drawCtx.strokeStyle = 'rgb(255,80,80)';
-          drawCtx.lineWidth = 1.5 / (scaleFactor * zoomScale);
-          drawCtx.stroke();
+          const impactT = bullet.impactT ?? bullet.t;
+          if (currentTimeSmooth >= impactT) {
+            const impactDuration = Math.max(0.18, bullet.t + bullet.duration - impactT);
+            const rp = Math.min(1, (currentTimeSmooth - impactT) / impactDuration);
+            drawCtx.globalAlpha = (1 - rp) * alpha;
+            drawCtx.beginPath();
+            drawCtx.arc(bullet.targetX, bullet.targetY, pointSize * 1.5 + pointSize * 4 * rp, 0, 2 * Math.PI);
+            drawCtx.strokeStyle = 'rgb(255,80,80)';
+            drawCtx.lineWidth = 1.5 / (scaleFactor * zoomScale);
+            drawCtx.stroke();
+          }
           drawCtx.restore();
         });
 
         const playerRenderData = [];
-        Object.keys(playerLocationsByTime).forEach(accountId => {
-          const byTime = playerLocationsByTime[accountId];
+        Object.keys(playerPositionTimeline).forEach(accountId => {
           const pid = globalMatchData.included.filter(p => p.type === 'participant').find(p => p.attributes.stats.playerId === accountId)?.id;
           const roster = globalMatchData.included.filter(r => r.type === 'roster').find(r => r.relationships.participants.data.some(p => p.id === pid));
-          const currentElapsed = Math.round(interpolatedData[currentIndex]?.elapsedTime ?? 0);
-          const nextElapsed = Math.round(interpolatedData[nextIndex]?.elapsedTime ?? currentElapsed);
-          if (isPlayerDead(accountId, currentElapsed)) return;
-          const locA = byTime[currentElapsed];
-          const locB = byTime[nextElapsed] || locA;
-          if (!locA) return;
+          if (isPlayerDead(accountId, currentTimeSmooth)) return;
+          const loc = getPlayerPositionAt(accountId, currentTimeSmooth);
+          if (!loc) return;
 
-          const px = locA.x + (locB.x - locA.x) * subProgress;
-          const py = locA.y + (locB.y - locA.y) * subProgress;
+          const px = loc.x;
+          const py = loc.y;
 
-          const knocked = isPlayerKnocked(accountId, currentElapsed);
-          const hp      = playerHpByTime[accountId]?.[currentElapsed] ?? 100;
+          const knocked = isPlayerKnocked(accountId, currentTimeSmooth);
+          const hp      = getPlayerHpAt(accountId, currentTimeSmooth);
           const hpRatio = knocked ? 0 : Math.max(0, Math.min(1, hp / 100));
+          const parachuting = isPlayerParachuting(accountId, currentTimeSmooth);
 
           const isSearchedTeam = roster?.attributes?.stats?.teamId === searchedTeamId;
           // knocked → vermelho; time do jogador → verde; todos os outros → branco
           const fillColor = knocked ? 'rgb(215,40,40)'
                           : isSearchedTeam ? 'rgb(50,215,80)'
                           : 'rgb(255,255,255)';
+
+          if (parachuting) drawParachuteIcon(px, py, pointSize);
 
           // 1. Fundo vermelho completo (representa vida em falta)
           drawCtx.beginPath();
@@ -945,7 +1555,7 @@ export function startModal(matchId, platform, mapName) {
           drawCtx.lineWidth = borderWidth;
           drawCtx.stroke();
 
-          if (playerVehicleByTime[accountId]?.[currentElapsed]) {
+          if (playerVehicleByTime[accountId]?.[currentElapsedRounded]) {
             const r = pointSize;
             drawCtx.save();
             drawCtx.translate(px, py);

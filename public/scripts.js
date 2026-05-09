@@ -1,5 +1,6 @@
 import { showModal } from './modal.js';
 import { translateMapName } from './utils.js';
+import { renderWeaponStatsPage } from './weaponStats.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SVG Icons (inline, 24×24 viewBox)
@@ -178,6 +179,9 @@ function renderHeader(query = '', season = '') {
     </div>
     <div class="pi-header-actions">
       <div class="pi-popover-host">
+        <button id="btn-weapons" class="pi-btn subtle" type="button">${Icon.target(14)} Weapons</button>
+      </div>
+      <div class="pi-popover-host">
         <button id="btn-history" class="pi-btn subtle" type="button">${Icon.clock(14)} History</button>
       </div>
       <div class="pi-popover-host">
@@ -188,6 +192,10 @@ function renderHeader(query = '', season = '') {
   document.getElementById('header-search-form').addEventListener('submit', e => { e.preventDefault(); doSearch(); });
   document.getElementById('header-logo-link').addEventListener('click', e => { e.preventDefault(); showLanding(); });
   document.getElementById('header-platform-select')?.addEventListener('change', e => changePlatform(e.target.value));
+  document.getElementById('btn-weapons')?.addEventListener('click', e => {
+    e.preventDefault();
+    showWeaponStatsPage();
+  });
   document.getElementById('btn-history').addEventListener('click', e => {
     e.stopPropagation();
     togglePlayerListPopover('btn-history', 'History', recentSearches, name => {
@@ -238,6 +246,7 @@ function showLanding() {
   document.getElementById('landing-wrap').style.display = '';
   document.getElementById('loading-state').style.display = 'none';
   document.getElementById('player-page').style.display = 'none';
+  document.getElementById('weapon-stats-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'none';
   renderLanding();
   closeDrawer();
@@ -299,11 +308,17 @@ function renderLanding() {
         <div class="feature-title">2D replay</div>
         <div class="feature-body">Rewatch every match with a top-down telemetry timeline and team panel.</div>
       </div>
+      <button id="landing-weapons-btn" class="feature-card feature-card-button" type="button">
+        <div class="feature-icon">${Icon.target(16)}</div>
+        <div class="feature-title">Weapon damage</div>
+        <div class="feature-body">Compare base damage, armor reductions and distance falloff on a target dummy.</div>
+      </button>
     </div>`;
 
   populateSeasonSelect('landing-season-select');
   document.getElementById('landing-form').addEventListener('submit', e => { e.preventDefault(); doSearch(); });
   document.getElementById('landing-platform-select')?.addEventListener('change', e => changePlatform(e.target.value));
+  document.getElementById('landing-weapons-btn')?.addEventListener('click', showWeaponStatsPage);
   document.querySelectorAll('.recent-chip').forEach(btn => {
     btn.addEventListener('click', e => {
       if (e.target.closest('.recent-chip-x')) {
@@ -327,6 +342,7 @@ function showLoading() {
   document.getElementById('landing-wrap').style.display = 'none';
   document.getElementById('loading-state').style.display = 'block';
   document.getElementById('player-page').style.display = 'none';
+  document.getElementById('weapon-stats-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'flex';
   document.getElementById('loading-state').innerHTML = `
     <div style="max-width:1080px;margin:0 auto;padding:28px 32px">
@@ -354,6 +370,7 @@ function showPlayerPage(playerName, seasonId) {
   document.getElementById('landing-wrap').style.display = 'none';
   document.getElementById('loading-state').style.display = 'none';
   document.getElementById('player-page').style.display = 'block';
+  document.getElementById('weapon-stats-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'flex';
   renderPlayerHeader(playerName, seasonId);
   renderModeTabs();
@@ -361,6 +378,23 @@ function showPlayerPage(playerName, seasonId) {
   renderCareerChart();      // skeleton first; data fills in async
   renderMatchList();
   loadCareerData(playerName);
+}
+
+function showWeaponStatsPage() {
+  document.getElementById('landing-wrap').style.display = 'none';
+  document.getElementById('loading-state').style.display = 'none';
+  document.getElementById('player-page').style.display = 'none';
+  document.getElementById('weapon-stats-page').style.display = 'block';
+  document.getElementById('pi-header').style.display = 'flex';
+  renderHeader(getQuery(), getCurrentSeason());
+  closeDrawer();
+  closeAllPopovers();
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('view', 'weapons');
+  window.history.replaceState({}, '', url.toString());
+  renderWeaponStatsPage(document.getElementById('weapon-stats-page'));
 }
 
 function renderPlayerHeader(name, seasonId) {
@@ -1066,6 +1100,7 @@ async function doSearch(opts = {}) {
 
     // Reflect search in URL (without reloading)
     const url = new URL(window.location.href);
+    url.searchParams.delete('view');
     url.searchParams.set('p', name);
     if (seasonId) url.searchParams.set('s', seasonId);
     if (!opts.matchId) url.searchParams.delete('m');
@@ -1257,6 +1292,7 @@ function buildAppShell() {
         <div id="match-list-area"></div>
       </div>
     </div>
+    <div id="weapon-stats-page" style="display:none"></div>
     <div id="drawer-backdrop"></div>
     <aside id="match-drawer"></aside>`;
 
@@ -1278,6 +1314,11 @@ async function init() {
 
     const defaultSeason = allSeasons.find(s => s.attributes.isCurrentSeason)?.id || '';
     renderHeader('', defaultSeason);
+
+    if (params.get('view') === 'weapons') {
+      showWeaponStatsPage();
+      return;
+    }
 
     // Deep link: ?p=<name>&s=<season>&m=<matchId>&platform=<platform>
     const linkedPlayer = params.get('p');
