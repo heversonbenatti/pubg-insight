@@ -210,7 +210,7 @@ function extractEquipment() {
     helmets: [0, 1, 2, 3].map(level => ({
       id: `helmet-${level}`,
       level,
-      label: level ? `Capacete ${level}` : 'Sem Capacete',
+      label: level ? `Helmet ${level}` : 'No Helmet',
       image: helmetIcons[level] ? `${IMAGE_PREFIX}/Equipment/${helmetIcons[level].replace(/^Equipment\//, '')}` : null,
       ...(level ? equipmentValue(`Item_Equip_Helmet_Lv${level}.json`) : { durability: 0 }),
       reduction: ARMOR_DAMAGE_REDUCTION[level] || 0,
@@ -218,7 +218,7 @@ function extractEquipment() {
     vests: [0, 1, 2, 3].map(level => ({
       id: `vest-${level}`,
       level,
-      label: level ? `Colete ${level}` : 'Sem Colete',
+      label: level ? `Vest ${level}` : 'No Vest',
       image: vestIcons[level] ? `${IMAGE_PREFIX}/Equipment/${vestIcons[level].replace(/^Equipment\//, '')}` : null,
       ...(level ? equipmentValue(`Item_Equip_Armor_Lv${level}.json`) : { durability: 0 }),
       reduction: ARMOR_DAMAGE_REDUCTION[level] || 0,
@@ -242,7 +242,7 @@ const data = {
   brokenArmor: {
     vestReduction: BROKEN_VEST_REDUCTION,
     helmetReduction: BROKEN_HELMET_REDUCTION,
-    note: 'Capacete quebrado voa do personagem (proteção=0). Colete quebrado fica vestido com redução fixa de 0.20 independente do nível original.',
+    note: 'Broken helmet is removed from the character (protection=0). Broken vest remains equipped with a fixed 0.20 reduction regardless of original level.',
   },
   weapons: extractWeapons(),
   equipment: extractEquipment(),

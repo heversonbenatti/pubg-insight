@@ -4,7 +4,7 @@
   "brokenArmor": {
     "vestReduction": 0.2,
     "helmetReduction": 0,
-    "note": "Capacete quebrado voa do personagem (proteção=0). Colete quebrado fica vestido com redução fixa de 0.20 independente do nível original."
+    "note": "Broken helmet is removed from the character (protection=0). Broken vest remains equipped with a fixed 0.20 reduction regardless of original level."
   },
   "weapons": [
     {
@@ -2317,7 +2317,7 @@
       {
         "id": "helmet-0",
         "level": 0,
-        "label": "Sem Capacete",
+        "label": "No Helmet",
         "image": null,
         "durability": 0,
         "reduction": 0
@@ -2325,7 +2325,7 @@
       {
         "id": "helmet-1",
         "level": 1,
-        "label": "Capacete 1",
+        "label": "Helmet 1",
         "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Headgear/Item_Head_E_00_Lv1_C.png",
         "reduction": 0.3,
         "durability": 80
@@ -2333,7 +2333,7 @@
       {
         "id": "helmet-2",
         "level": 2,
-        "label": "Capacete 2",
+        "label": "Helmet 2",
         "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Headgear/Item_Head_F_00_Lv2_C.png",
         "reduction": 0.4,
         "durability": 150
@@ -2341,7 +2341,7 @@
       {
         "id": "helmet-3",
         "level": 3,
-        "label": "Capacete 3",
+        "label": "Helmet 3",
         "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Headgear/Item_Head_G_00_Lv3_C.png",
         "reduction": 0.55,
         "durability": 230
@@ -2351,7 +2351,7 @@
       {
         "id": "vest-0",
         "level": 0,
-        "label": "Sem Colete",
+        "label": "No Vest",
         "image": null,
         "durability": 0,
         "reduction": 0
@@ -2359,7 +2359,7 @@
       {
         "id": "vest-1",
         "level": 1,
-        "label": "Colete 1",
+        "label": "Vest 1",
         "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Vest/Item_Armor_E_00_Lv1_C.png",
         "reduction": 0.3,
         "durability": 200
@@ -2367,7 +2367,7 @@
       {
         "id": "vest-2",
         "level": 2,
-        "label": "Colete 2",
+        "label": "Vest 2",
         "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Vest/Item_Armor_D_00_Lv2_C.png",
         "reduction": 0.4,
         "durability": 220
@@ -2375,7 +2375,7 @@
       {
         "id": "vest-3",
         "level": 3,
-        "label": "Colete 3",
+        "label": "Vest 3",
         "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Vest/Item_Armor_C_00_Lv3_C.png",
         "reduction": 0.55,
         "durability": 250
