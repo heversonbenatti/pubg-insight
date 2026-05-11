@@ -4,11 +4,11 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, '..');
-const weaponsDir = path.join(rootDir, 'weapons', 'TslGame', 'Content', 'Blueprints', 'Weapons');
+const weaponsDir = path.join(rootDir, 'weapons', 'AlmostAll', 'TslGame', 'Content', 'Blueprints', 'Weapons');
 const dataAssetsDir = path.join(weaponsDir, 'DataAssets');
 const ballisticDir = path.join(weaponsDir, 'BallisticData');
-const damageConfigPath = path.join(rootDir, 'weapons', 'TslGame', 'Content', 'Blueprints', 'DamageConfigs', 'DefaultDamageConfig.json');
-const equipDir = path.join(rootDir, 'weapons', 'TslGame', 'Content', 'Item', 'TestItems', 'Equip');
+const damageConfigPath = path.join(rootDir, 'weapons', 'AlmostAll', 'TslGame', 'Content', 'Blueprints', 'DamageConfigs', 'DefaultDamageConfig.json');
+const equipDir = path.join(rootDir, 'weapons', 'AlmostAll', 'TslGame', 'Content', 'Item', 'TestItems', 'Equip');
 const itemDictPath = path.join(rootDir, 'pubg-api-assets', 'dictionaries', 'telemetry', 'item', 'itemId.json');
 const iconRoot = path.join(rootDir, 'pubg-api-assets', 'Assets', 'Icons', 'Item', 'Weapon');
 const outputDir = path.join(rootDir, 'public', 'data');
@@ -16,6 +16,11 @@ const outputFile = path.join(outputDir, 'weapon-stats.json');
 
 const IMAGE_PREFIX = '/pubg-api-assets/Assets/Icons/Item';
 const ARMOR_DAMAGE_REDUCTION = { 1: 0.30, 2: 0.40, 3: 0.55 };
+// Vest quebrado: redução residual de 20% (factor 0.80), INDEPENDENTE do nível original.
+// Descoberto empiricamente em ~700 amostras de telemetria (scripts/validate-damage-formula.js).
+const BROKEN_VEST_REDUCTION = 0.20;
+// Capacete quebrado: voa da cabeça do personagem (visual confirmation), proteção = 0.
+const BROKEN_HELMET_REDUCTION = 0;
 const HEADSHOT_MULTIPLIER_OVERRIDES = {
   Item_Weapon_Dragunov_C: 2.8,
 };
@@ -97,9 +102,11 @@ function weaponTrajectoryData(trajName) {
   const file = path.join(dataAssetsDir, `${trajName}.json`);
   if (!fs.existsSync(file)) return null;
   const props = readJson(file)[0]?.Properties || {};
+  // O bloco aninhado é identificado pelo campo *e1e3aec97a (= baseDamage). InitialSpeed só existe
+  // em armas com balística customizada (a maioria), mas Vector/JS9 e algumas outras não têm — então
+  // não exigimos InitialSpeed.
   return Object.values(props).find(v =>
     v && typeof v === 'object' &&
-    typeof v.InitialSpeed === 'number' &&
     typeof v['*e1e3aec97a'] === 'number'
   ) || null;
 }
@@ -116,34 +123,38 @@ function extractWeapons() {
 
     const entry = defaultObject(readJson(path.join(weaponsDir, file)));
     const props = entry?.Properties || {};
-    const icon = resolveWeaponIcon(fileBase, iconIndex);
-    if (!icon || seen.has(icon.itemId)) continue;
-
     const trajectory = weaponTrajectoryData(assetName(props.WeaponTrajectoryData));
     if (!trajectory) continue;
 
+    const icon = resolveWeaponIcon(fileBase, iconIndex);
     const cls = className(props.WeaponConfig?.['*6f6b05f0e9']);
     const ballisticName = assetName(trajectory['*73867de22e']);
     const damageCurve = ballisticDamageCurve(ballisticName);
 
-    seen.add(icon.itemId);
+    // Inferir itemId: pelo ícone se houver; senão `Item_Weapon_<fileBase sem Weap>_C` (bate com o dicionário de telemetria).
+    const baseNoPrefix = fileBase.replace(/^Weap/, '');
+    const itemId = icon?.itemId || `Item_Weapon_${baseNoPrefix}_C`;
+    if (seen.has(itemId)) continue;
+    seen.add(itemId);
+
+    const kind = icon?.kind || (cls === 'Pistol' ? 'Handgun' : cls === 'Melee' ? 'Melee' : 'Main');
     out.push({
-      id: icon.itemId,
-      name: itemNames[icon.itemId] || props['*709b93d2ba'] || fileBase.replace(/^Weap/, ''),
-      class: cls || (icon.kind === 'Handgun' ? 'Pistol' : 'Unknown'),
-      category: icon.kind,
+      id: itemId,
+      name: itemNames[itemId] || props['*709b93d2ba'] || baseNoPrefix,
+      class: cls || (kind === 'Handgun' ? 'Pistol' : 'Unknown'),
+      category: kind,
       baseDamage: Number(trajectory['*e1e3aec97a']),
-      headshotMultiplier: HEADSHOT_MULTIPLIER_OVERRIDES[icon.itemId] || null,
+      headshotMultiplier: HEADSHOT_MULTIPLIER_OVERRIDES[itemId] || null,
       initialSpeed: Number(trajectory.InitialSpeed || 0),
       rangeModifier: Number(trajectory.RangeModifier ?? 1),
       referenceDistance: Number(trajectory.ReferenceDistance ?? 0),
       travelDistanceMax: Number(trajectory.TravelDistanceMax ?? 1000),
       damageCurve: damageCurve.length ? damageCurve : [{ time: 0, value: 1, interp: 'RCIM_Linear', arriveTangent: 0, leaveTangent: 0 }],
-      image: publicIconPath(icon.kind, icon.fileName),
+      image: icon ? publicIconPath(icon.kind, icon.fileName) : null,
       source: {
-        weapon: `weapons/TslGame/Content/Blueprints/Weapons/${file}`,
-        trajectory: `weapons/TslGame/Content/Blueprints/Weapons/DataAssets/${assetName(props.WeaponTrajectoryData)}.json`,
-        ballistic: ballisticName ? `weapons/TslGame/Content/Blueprints/Weapons/BallisticData/${ballisticName}.json` : null,
+        weapon: `weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/${file}`,
+        trajectory: `weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/${assetName(props.WeaponTrajectoryData)}.json`,
+        ballistic: ballisticName ? `weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/${ballisticName}.json` : null,
       },
     });
   }
@@ -215,9 +226,24 @@ function extractEquipment() {
   };
 }
 
+if (!fs.existsSync(weaponsDir)) {
+  console.warn(`[build-weapon-stats] Pasta de game files não encontrada: ${path.relative(rootDir, weaponsDir)}`);
+  console.warn(`[build-weapon-stats] Extraia os assets do jogo via FModel pra essa pasta antes de re-rodar.`);
+  console.warn(`[build-weapon-stats] Pulando — o weapon-stats.json existente continua válido.`);
+  process.exit(0);
+}
+
 const data = {
   generatedAt: new Date().toISOString(),
   distanceUnit: 'm',
+  // Reduções de armadura aplicadas no cálculo final: damage = base × class × bone × distFactor × (1 - reduction).
+  // Para armadura QUEBRADA (durability=0 mas ainda vestida), a redução fica 0.20 fixa para colete (qualquer nível);
+  // para capacete quebrado, validado em poucas amostras — assumimos o mesmo behavior até ter mais dados.
+  brokenArmor: {
+    vestReduction: BROKEN_VEST_REDUCTION,
+    helmetReduction: BROKEN_HELMET_REDUCTION,
+    note: 'Capacete quebrado voa do personagem (proteção=0). Colete quebrado fica vestido com redução fixa de 0.20 independente do nível original.',
+  },
   weapons: extractWeapons(),
   equipment: extractEquipment(),
   damageZones: parseDamageZones(),

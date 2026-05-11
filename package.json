@@ -7,10 +7,11 @@
     "test": "node tests/run.js",
     "start": "node server.js",
     "tiles": "node scripts/generate-tiles.js",
-    "safezones": "node scripts/build-safezone-hotspots.js",
-    "mapspots": "node scripts/build-map-spots.js",
-    "headshots": "node scripts/extract-headshot-damage.js",
-    "headshots:calibrate": "node scripts/calibrate-headshot-damage.js"
+    "telemetries": "node scripts/fetch-telemetries.js",
+    "weapons:build": "node scripts/build-weapon-stats.js",
+    "weapons:extract": "node --max-old-space-size=8192 scripts/extract-damage-samples.js",
+    "weapons:validate": "node --max-old-space-size=8192 scripts/validate-damage-formula.js",
+    "weapons:refresh": "node scripts/refresh-weapon-data.js"
   },
   "keywords": [],
   "author": "",

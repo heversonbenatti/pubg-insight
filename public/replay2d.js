@@ -1,6 +1,4 @@
 import { translateMapName } from './utils.js';
-import { getMapSpotAdvice, loadMapSpotModel } from './mapSpotAdvisor.js';
-import { getSafeZoneAdvice, loadSafeZoneModel } from './safeZoneAdvisor.js';
 import { clusterTeamPlayers } from './teamOverlay.js';
 
 export function startModal(matchId, platform, mapName) {
@@ -43,52 +41,18 @@ export function startModal(matchId, platform, mapName) {
     speedDisplay.textContent = playbackSpeed + 'x';
   });
 
-  const safeAdvisorButton = document.getElementById('safeAdvisorToggle');
-  const safeAdvisorStatus = document.getElementById('safeAdvisorStatus');
-  const mapSpotButton = document.getElementById('mapSpotToggle');
-  const mapSpotStatus = document.getElementById('mapSpotStatus');
   const teamOverlayButton = document.getElementById('teamOverlayToggle');
   const teamOverlayStatus = document.getElementById('teamOverlayStatus');
-  let safeAdvisorEnabled = false;
-  let safeAdvisorModel = null;
-  let safeAdvisorStatusText = '';
-  let mapSpotEnabled = false;
-  let mapSpotModel = null;
-  let mapSpotStatusText = '';
   let teamOverlayEnabled = (() => {
     try { return localStorage.getItem('pi_teamOverlay') === '1'; }
     catch (_) { return false; }
   })();
   let teamOverlayStatusText = '';
 
-  function setSafeAdvisorStatus(text) {
-    if (!safeAdvisorStatus || safeAdvisorStatusText === text) return;
-    safeAdvisorStatusText = text;
-    safeAdvisorStatus.textContent = text;
-  }
-
-  function setMapSpotStatus(text) {
-    if (!mapSpotStatus || mapSpotStatusText === text) return;
-    mapSpotStatusText = text;
-    mapSpotStatus.textContent = text;
-  }
-
   function setTeamOverlayStatus(text) {
     if (!teamOverlayStatus || teamOverlayStatusText === text) return;
     teamOverlayStatusText = text;
     teamOverlayStatus.textContent = text;
-  }
-
-  function syncSafeAdvisorButton() {
-    if (!safeAdvisorButton) return;
-    safeAdvisorButton.classList.toggle('active', safeAdvisorEnabled);
-    safeAdvisorButton.setAttribute('aria-pressed', safeAdvisorEnabled ? 'true' : 'false');
-  }
-
-  function syncMapSpotButton() {
-    if (!mapSpotButton) return;
-    mapSpotButton.classList.toggle('active', mapSpotEnabled);
-    mapSpotButton.setAttribute('aria-pressed', mapSpotEnabled ? 'true' : 'false');
   }
 
   function syncTeamOverlayButton() {
@@ -99,18 +63,6 @@ export function startModal(matchId, platform, mapName) {
   }
 
   syncTeamOverlayButton();
-
-  loadSafeZoneModel().then(model => {
-    safeAdvisorModel = model;
-    if (safeAdvisorButton) safeAdvisorButton.disabled = false;
-    setSafeAdvisorStatus(model?.loadError ? 'FALLBACK' : 'READY');
-  });
-
-  loadMapSpotModel().then(model => {
-    mapSpotModel = model;
-    if (mapSpotButton) mapSpotButton.disabled = false;
-    setMapSpotStatus(model?.loadError ? 'FALLBACK' : 'READY');
-  });
 
   const translatedMapName = translateMapName(mapName);
   const mapLower = translatedMapName.toLowerCase();
@@ -1079,18 +1031,6 @@ export function startModal(matchId, platform, mapName) {
 
       function updateSafeZone() { subProgress = 0; renderFrame(); }
 
-      safeAdvisorButton?.addEventListener('click', () => {
-        safeAdvisorEnabled = !safeAdvisorEnabled;
-        syncSafeAdvisorButton();
-        updateSafeZone();
-      });
-
-      mapSpotButton?.addEventListener('click', () => {
-        mapSpotEnabled = !mapSpotEnabled;
-        syncMapSpotButton();
-        updateSafeZone();
-      });
-
       teamOverlayButton?.addEventListener('click', () => {
         teamOverlayEnabled = !teamOverlayEnabled;
         try { localStorage.setItem('pi_teamOverlay', teamOverlayEnabled ? '1' : '0'); } catch (_) {}
@@ -1411,178 +1351,6 @@ export function startModal(matchId, platform, mapName) {
         return labels;
       }
 
-      function drawSafeAdvisorOverlay(safeZone, currentElapsed) {
-        if (!safeAdvisorEnabled) {
-          setSafeAdvisorStatus(safeAdvisorModel ? (safeAdvisorModel.loadError ? 'FALLBACK' : 'READY') : 'LOADING');
-          return;
-        }
-
-        const safe = {
-          x: safeZone.safetyZonePosition?.x ?? 0,
-          y: safeZone.safetyZonePosition?.y ?? 0,
-          radius: safeZone.safetyZoneRadius ?? 0,
-        };
-        const alivePlayers = alivePlayersAt(currentElapsed);
-        const teamCentroid = teamCentroidAt(alivePlayers, searchedTeamId);
-        const advice = getSafeZoneAdvice({
-          model: safeAdvisorModel,
-          mapName,
-          phase: safeZone.phase,
-          safeZone: safe,
-          mapSize: { width: MAP_WIDTH, height: MAP_HEIGHT },
-          alivePlayers,
-          currentTeamId: searchedTeamId,
-          teamCentroid,
-          limit: 9,
-        });
-
-        window.safeZoneAdvisorLastAdvice = advice;
-        setSafeAdvisorStatus(`P${advice.phase} ${advice.source === 'model' ? 'PRO' : 'BASE'}`);
-
-        if (!advice.best) return;
-
-        drawCtx.save();
-        advice.candidates.slice().reverse().forEach((candidate, index) => {
-          const rank = advice.candidates.length - index;
-          const alpha = Math.max(0.16, Math.min(0.48, 0.18 + candidate.score * 0.28));
-          const gradient = drawCtx.createRadialGradient(candidate.x, candidate.y, 0, candidate.x, candidate.y, candidate.radius);
-          gradient.addColorStop(0, `rgba(80, 255, 150, ${alpha})`);
-          gradient.addColorStop(0.55, `rgba(80, 210, 255, ${alpha * 0.45})`);
-          gradient.addColorStop(1, 'rgba(80, 255, 150, 0)');
-          drawCtx.beginPath();
-          drawCtx.fillStyle = gradient;
-          drawCtx.arc(candidate.x, candidate.y, candidate.radius, 0, 2 * Math.PI);
-          drawCtx.fill();
-
-          if (rank <= 3) {
-            drawCtx.beginPath();
-            drawCtx.strokeStyle = `rgba(110, 255, 170, ${0.35 + candidate.score * 0.35})`;
-            drawCtx.lineWidth = 1.2 / (scaleFactor * zoomScale);
-            drawCtx.arc(candidate.x, candidate.y, candidate.radius * 0.42, 0, 2 * Math.PI);
-            drawCtx.stroke();
-          }
-        });
-
-        const best = advice.best;
-        if (teamCentroid) {
-          drawCtx.save();
-          drawCtx.beginPath();
-          drawCtx.setLineDash([10 / (scaleFactor * zoomScale), 7 / (scaleFactor * zoomScale)]);
-          drawCtx.moveTo(teamCentroid.x, teamCentroid.y);
-          drawCtx.lineTo(best.x, best.y);
-          drawCtx.strokeStyle = 'rgba(255, 216, 80, 0.78)';
-          drawCtx.lineWidth = 2 / (scaleFactor * zoomScale);
-          drawCtx.stroke();
-          drawCtx.restore();
-        }
-
-        const ring = Math.max(best.radius * 0.34, 7000);
-        drawCtx.beginPath();
-        drawCtx.strokeStyle = 'rgba(255, 216, 80, 0.98)';
-        drawCtx.lineWidth = 3 / (scaleFactor * zoomScale);
-        drawCtx.arc(best.x, best.y, ring, 0, 2 * Math.PI);
-        drawCtx.stroke();
-
-        drawCtx.beginPath();
-        drawCtx.moveTo(best.x - ring * 0.45, best.y);
-        drawCtx.lineTo(best.x + ring * 0.45, best.y);
-        drawCtx.moveTo(best.x, best.y - ring * 0.45);
-        drawCtx.lineTo(best.x, best.y + ring * 0.45);
-        drawCtx.strokeStyle = 'rgba(255, 216, 80, 0.95)';
-        drawCtx.lineWidth = 1.6 / (scaleFactor * zoomScale);
-        drawCtx.stroke();
-        drawCtx.restore();
-      }
-
-      function drawMapSpotOverlay(safeZone, currentElapsed) {
-        if (!mapSpotEnabled) {
-          setMapSpotStatus(mapSpotModel ? (mapSpotModel.loadError ? 'FALLBACK' : 'READY') : 'LOADING');
-          return;
-        }
-
-        const safe = {
-          x: safeZone.safetyZonePosition?.x ?? 0,
-          y: safeZone.safetyZonePosition?.y ?? 0,
-          radius: safeZone.safetyZoneRadius ?? 0,
-        };
-        const alivePlayers = alivePlayersAt(currentElapsed);
-        const teamCentroid = teamCentroidAt(alivePlayers, searchedTeamId);
-        const advice = getMapSpotAdvice({
-          model: mapSpotModel,
-          mapName,
-          phase: safeZone.phase,
-          safeZone: safe,
-          mapSize: { width: MAP_WIDTH, height: MAP_HEIGHT },
-          alivePlayers,
-          currentTeamId: searchedTeamId,
-          teamCentroid,
-          limit: 16,
-        });
-
-        window.mapSpotLastAdvice = advice;
-        if (advice.source !== 'model') {
-          setMapSpotStatus('NO DATA');
-          return;
-        }
-        setMapSpotStatus(`${advice.spots.length}/${advice.totalSpots}`);
-        if (!advice.spots.length) return;
-
-        drawCtx.save();
-        advice.spots.slice().reverse().forEach((spot, reverseIndex) => {
-          const index = advice.spots.length - reverseIndex;
-          const alpha = Math.max(0.14, Math.min(0.44, 0.16 + spot.score * 0.28));
-          const radius = spot.radius * (index <= 3 ? 1.15 : 1);
-          const gradient = drawCtx.createRadialGradient(spot.x, spot.y, 0, spot.x, spot.y, radius);
-          gradient.addColorStop(0, `rgba(255, 203, 82, ${alpha})`);
-          gradient.addColorStop(0.5, `rgba(255, 128, 70, ${alpha * 0.44})`);
-          gradient.addColorStop(1, 'rgba(255, 203, 82, 0)');
-          drawCtx.beginPath();
-          drawCtx.fillStyle = gradient;
-          drawCtx.arc(spot.x, spot.y, radius, 0, 2 * Math.PI);
-          drawCtx.fill();
-
-          drawCtx.beginPath();
-          drawCtx.strokeStyle = index <= 3 ? 'rgba(255, 231, 120, 0.95)' : 'rgba(255, 203, 82, 0.58)';
-          drawCtx.lineWidth = (index <= 3 ? 2.2 : 1.2) / (scaleFactor * zoomScale);
-          drawCtx.arc(spot.x, spot.y, Math.max(spot.radius * 0.34, 4200), 0, 2 * Math.PI);
-          drawCtx.stroke();
-
-          if (zoomScale >= minZoom * 2.1 || index <= 3) {
-            const sx = (spot.x - panX) * scaleFactor * zoomScale;
-            const sy = (spot.y - panY) * scaleFactor * zoomScale;
-            drawCtx.save();
-            drawCtx.setTransform(1, 0, 0, 1, 0, 0);
-            drawCtx.font = 'bold 10px "JetBrains Mono", monospace';
-            drawCtx.textAlign = 'center';
-            drawCtx.textBaseline = 'middle';
-            const label = `${Math.round(spot.avgDwellSeconds)}s`;
-            const w = drawCtx.measureText(label).width + 10;
-            const h = 18;
-            const x = sx - w / 2;
-            const y = sy - h / 2;
-            drawCtx.fillStyle = 'rgba(0,0,0,0.62)';
-            drawCtx.strokeStyle = 'rgba(255,203,82,0.38)';
-            drawCtx.lineWidth = 1;
-            drawCtx.beginPath();
-            if (drawCtx.roundRect) drawCtx.roundRect(x, y, w, h, 4);
-            else drawCtx.rect(x, y, w, h);
-            drawCtx.fill();
-            drawCtx.stroke();
-            drawCtx.fillStyle = 'rgba(255,236,170,0.95)';
-            drawCtx.fillText(label, sx, sy);
-            drawCtx.restore();
-          }
-        });
-
-        const best = advice.best;
-        drawCtx.beginPath();
-        drawCtx.strokeStyle = 'rgba(255, 245, 175, 0.98)';
-        drawCtx.lineWidth = 2.6 / (scaleFactor * zoomScale);
-        drawCtx.arc(best.x, best.y, Math.max(best.radius * 0.52, 6200), 0, 2 * Math.PI);
-        drawCtx.stroke();
-        drawCtx.restore();
-      }
-
       function drawParachuteIcon(x, y, pointSize) {
         const w = pointSize * 5.1;
         const h = pointSize * 4.2;
@@ -1672,8 +1440,6 @@ export function startModal(matchId, platform, mapName) {
 
         const currentTime = interpolatedData[currentIndex]?.elapsedTime ?? 0;
         const currentTimeSmooth = currentTime + subProgress;
-        drawMapSpotOverlay(safeZone, currentTime);
-        drawSafeAdvisorOverlay(safeZone, currentTime);
         const teamOverlayLabels = drawTeamOverlay(currentTimeSmooth);
 
         if (window.teamTrackVisibility) {

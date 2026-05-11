@@ -20,6 +20,7 @@ let state = {
   weaponId: '',
   helmetLevel: 0,
   vestLevel: 0,
+  vestBroken: false,
   distance: 100,
   query: '',
   category: 'all',
@@ -80,6 +81,19 @@ function selectedEquipment(data) {
   };
 }
 
+function effectiveReduction(zone, equipment, data) {
+  if (zone?.equipSlot === 'Head') {
+    if (equipment.helmet.level === 0) return 0;
+    return equipment.helmet.reduction;
+  }
+  if (zone?.equipSlot === 'TorsoArmor') {
+    if (equipment.vest.level === 0) return 0;
+    if (state.vestBroken) return data.brokenArmor?.vestReduction ?? 0.20;
+    return equipment.vest.reduction;
+  }
+  return 0;
+}
+
 function partDamage(data, weapon, part) {
   const zone = zoneByName(data, part.zone);
   const classMult = part.zone === 'Head' && weapon.headshotMultiplier
@@ -89,11 +103,7 @@ function partDamage(data, weapon, part) {
   const distMult = evalCurve(weapon.damageCurve, damageDistance, weapon);
   const boneMult = boneMultiplier(zone, part.bone);
   const equipment = selectedEquipment(data);
-  const reduction = zone?.equipSlot === 'Head'
-    ? equipment.helmet.reduction
-    : zone?.equipSlot === 'TorsoArmor'
-      ? equipment.vest.reduction
-      : 0;
+  const reduction = effectiveReduction(zone, equipment, data);
   return weapon.baseDamage * distMult * classMult * boneMult * (1 - reduction);
 }
 
@@ -107,10 +117,23 @@ function optionButton(item, type) {
   </button>`;
 }
 
+function brokenToggle(type) {
+  const level = type === 'helmet' ? state.helmetLevel : state.vestLevel;
+  const broken = type === 'helmet' ? state.helmetBroken : state.vestBroken;
+  const disabled = level === 0;
+  return `<label class="damage-broken-toggle${disabled ? ' disabled' : ''}${broken ? ' active' : ''}">
+    <input type="checkbox" data-broken="${type}" ${broken ? 'checked' : ''} ${disabled ? 'disabled' : ''}>
+    <span>Quebrado</span>
+  </label>`;
+}
+
 function weaponCard(weapon) {
   const active = weapon.id === state.weaponId;
+  const img = weapon.image
+    ? `<img src="${weapon.image}" alt="">`
+    : `<div class="damage-weapon-placeholder">${weapon.name.split(/\s+/).map(s => s[0] || '').join('').slice(0, 3).toUpperCase()}</div>`;
   return `<button class="damage-weapon-card${active ? ' active' : ''}" data-weapon-id="${weapon.id}" type="button">
-    <img src="${weapon.image}" alt="">
+    ${img}
     <span class="damage-weapon-name">${weapon.name}</span>
     <span class="damage-weapon-meta">${weapon.class}</span>
     <strong>${weapon.baseDamage}</strong>
@@ -212,7 +235,7 @@ function renderHTML(data) {
         <h1>Weapon damage</h1>
       </div>
       <div class="damage-selected-weapon">
-        <img src="${weapon.image}" alt="">
+        ${weapon.image ? `<img src="${weapon.image}" alt="">` : `<div class="damage-weapon-placeholder">${weapon.name.split(/\s+/).map(s => s[0] || '').join('').slice(0, 3).toUpperCase()}</div>`}
         <div>
           <span>${weapon.name}</span>
           <strong>${weapon.baseDamage} base damage</strong>
@@ -246,11 +269,12 @@ function renderHTML(data) {
           <div class="damage-equipment-list">
             ${data.equipment.vests.map(item => optionButton(item, 'vest')).join('')}
           </div>
+          ${brokenToggle('vest')}
         </div>
 
         <div class="damage-equipment-summary">
-          <span>${equipment.helmet.label}: ${(equipment.helmet.reduction * 100).toFixed(0)}%</span>
-          <span>${equipment.vest.label}: ${(equipment.vest.reduction * 100).toFixed(0)}%</span>
+          <span>${equipment.helmet.label}: ${Math.round(effectiveReduction({equipSlot:'Head'}, equipment, data) * 100)}%</span>
+          <span>${equipment.vest.label}: ${Math.round(effectiveReduction({equipSlot:'TorsoArmor'}, equipment, data) * 100)}%${state.vestBroken && equipment.vest.level ? ' (quebrado)' : ''}</span>
         </div>
       </section>
     </div>
@@ -283,6 +307,13 @@ function bind(container, data) {
   container.querySelectorAll('[data-vest]').forEach(btn => {
     btn.addEventListener('click', () => {
       state.vestLevel = Number(btn.dataset.vest);
+      if (state.vestLevel === 0) state.vestBroken = false;
+      renderLoaded(container, data);
+    });
+  });
+  container.querySelectorAll('[data-broken]').forEach(input => {
+    input.addEventListener('change', () => {
+      if (input.dataset.broken === 'vest') state.vestBroken = input.checked;
       renderLoaded(container, data);
     });
   });
