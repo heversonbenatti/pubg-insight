@@ -56,6 +56,8 @@ const GROUP_ORDER = Object.fromEntries(WEAPON_GROUPS.map((group, index) => [grou
 const SORT_OPTIONS = [
   { key: 'category', label: 'Category' },
   { key: 'damage', label: 'Damage' },
+  { key: 'rpm', label: 'RPM' },
+  { key: 'dps', label: 'DPS' },
   { key: 'ammo', label: 'Ammo' },
 ];
 
@@ -132,6 +134,7 @@ let state = {
   query: '',
   category: 'all',
   sortBy: 'category',
+  targetMetric: 'damage', // 'damage' | 'dps'
 };
 
 async function loadData() {
@@ -194,9 +197,18 @@ function compareByAmmo(a, b) {
   return order || compareByCategory(a, b);
 }
 
+// DPS "cru" = baseDamage × rpm / 60 (sem armadura, sem multiplicadores de zona).
+// Usado só pra ordenação rápida — comparação real com armor sai no comparador abaixo.
+function rawDps(weapon) {
+  if (!weapon?.rpm || !weapon?.baseDamage) return 0;
+  return weapon.baseDamage * weapon.rpm / 60;
+}
+
 function sortWeapons(weapons) {
   return [...weapons].sort((a, b) => {
     if (state.sortBy === 'damage') return (b.baseDamage - a.baseDamage) || compareByCategory(a, b);
+    if (state.sortBy === 'rpm') return ((b.rpm || 0) - (a.rpm || 0)) || compareByCategory(a, b);
+    if (state.sortBy === 'dps') return (rawDps(b) - rawDps(a)) || compareByCategory(a, b);
     if (state.sortBy === 'ammo') return compareByAmmo(a, b);
     return compareByCategory(a, b);
   });
@@ -291,6 +303,14 @@ function partDamage(data, weapon, part) {
   return weapon.baseDamage * distMult * classMult * boneMult * (1 - reduction);
 }
 
+// Valor exibido em cada marcador da figura: dano por tiro OU DPS (dano × rpm / 60).
+// Para armas sem rpm (raras), faz fallback pro dano.
+function partTargetValue(data, weapon, part) {
+  const damage = partDamage(data, weapon, part);
+  if (state.targetMetric === 'dps' && weapon?.rpm) return damage * weapon.rpm / 60;
+  return damage;
+}
+
 function optionButton(item, type) {
   const active = type === 'helmet' ? item.level === state.helmetLevel : item.level === state.vestLevel;
   const shortLabel = item.level ? `Lv ${item.level}` : 'None';
@@ -315,10 +335,11 @@ function brokenToggle(type) {
 function weaponCard(weapon) {
   const active = weapon.id === state.weaponId;
   const group = weaponGroup(weapon);
+  const rpmText = weapon.rpm ? `${weapon.rpm} rpm` : '';
   return `<button class="damage-weapon-card${active ? ' active' : ''}" data-weapon-id="${escapeHTML(weapon.id)}" type="button">
     ${weaponImage(weapon)}
     <span class="damage-weapon-name">${escapeHTML(weapon.name)}</span>
-    <span class="damage-weapon-meta"><span>${group.label}</span><span>${escapeHTML(ammoType(weapon))}</span></span>
+    <span class="damage-weapon-meta"><span>${group.label}</span><span>${escapeHTML(ammoType(weapon))}</span>${rpmText ? `<span>${rpmText}</span>` : ''}</span>
     <span class="damage-weapon-damage"><span>DMG</span><strong>${weapon.baseDamage}</strong></span>
   </button>`;
 }
@@ -335,16 +356,22 @@ function filteredWeapons(data) {
 
 function renderTarget(data, weapon) {
   const markers = BODY_PARTS.map(part => {
-    const damage = fmtDamage(partDamage(data, weapon, part));
+    const value = fmtDamage(partTargetValue(data, weapon, part));
     const [x, y] = TARGET_MARKERS[part.key];
     return `<g class="target-damage-marker ${part.css}" data-part="${part.key}" transform="translate(${x} ${y})">
       <title>${escapeHTML(part.label)}</title>
       <rect x="-58" y="-27" width="116" height="54" rx="27" />
-      <text data-part-damage="${part.key}" text-anchor="middle" dominant-baseline="central">${damage}</text>
+      <text data-part-damage="${part.key}" text-anchor="middle" dominant-baseline="central">${value}</text>
     </g>`;
   }).join('');
 
+  const metricToggle = `<div class="damage-target-metric" role="tablist" aria-label="Target metric">
+    <button class="damage-target-metric-btn${state.targetMetric === 'damage' ? ' active' : ''}" data-target-metric="damage" type="button" role="tab" aria-selected="${state.targetMetric === 'damage'}">DMG</button>
+    <button class="damage-target-metric-btn${state.targetMetric === 'dps' ? ' active' : ''}" data-target-metric="dps" type="button" role="tab" aria-selected="${state.targetMetric === 'dps'}" ${weapon?.rpm ? '' : 'disabled'}>DPS</button>
+  </div>`;
+
   return `<div class="damage-target-wrap">
+    ${metricToggle}
     <div class="damage-target">
       <svg class="target-figure" viewBox="245 -60 560 1600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
         <defs>
@@ -403,7 +430,7 @@ function updateDistanceDamage(container, data) {
   if (distanceLabel) distanceLabel.textContent = `${state.distance}m`;
   for (const part of BODY_PARTS) {
     const value = container.querySelector(`[data-part-damage="${part.key}"]`);
-    if (value) value.textContent = fmtDamage(partDamage(data, weapon, part));
+    if (value) value.textContent = fmtDamage(partTargetValue(data, weapon, part));
   }
 }
 
@@ -429,15 +456,25 @@ function compareStatRow(label, left, right, numeric = false) {
   </tr>`;
 }
 
+function dpsForPart(data, weapon, part) {
+  if (!weapon?.rpm) return 0;
+  return partDamage(data, weapon, part) * weapon.rpm / 60;
+}
+
 function renderComparator(data, weapon, compareWeapon) {
+  const chestPart = BODY_PARTS.find(item => item.key === 'chest');
+  const headPart = BODY_PARTS.find(item => item.key === 'head');
   const rows = [
     compareStatRow('Category', weaponGroup(weapon).label, weaponGroup(compareWeapon).label),
     compareStatRow('Ammo', ammoType(weapon), ammoType(compareWeapon)),
     compareStatRow('Base', weapon.baseDamage, compareWeapon.baseDamage, true),
+    compareStatRow('RPM', weapon.rpm ?? 0, compareWeapon.rpm ?? 0, true),
     ...COMPARE_PART_KEYS.map(key => {
       const part = BODY_PARTS.find(item => item.key === key);
       return compareStatRow(part.label, partDamage(data, weapon, part), partDamage(data, compareWeapon, part), true);
     }),
+    compareStatRow('DPS (chest)', dpsForPart(data, weapon, chestPart), dpsForPart(data, compareWeapon, chestPart), true),
+    compareStatRow('DPS (head)', dpsForPart(data, weapon, headPart), dpsForPart(data, compareWeapon, headPart), true),
   ].join('');
 
   return `<section class="damage-comparison-panel">
@@ -499,7 +536,7 @@ function renderHTML(data) {
         ${weaponImage(weapon)}
         <div>
           <span>${escapeHTML(weapon.name)}</span>
-          <strong>${weaponGroup(weapon).label} / ${escapeHTML(ammoType(weapon))} / ${weapon.baseDamage} dmg</strong>
+          <strong>${weaponGroup(weapon).label} / ${escapeHTML(ammoType(weapon))} / ${weapon.baseDamage} dmg${weapon.rpm ? ` / ${weapon.rpm} rpm` : ''}</strong>
         </div>
       </div>
     </div>
@@ -592,6 +629,21 @@ function bind(container, data) {
     input.addEventListener('change', () => {
       if (input.dataset.broken === 'vest') state.vestBroken = input.checked;
       renderLoaded(container, data);
+    });
+  });
+  container.querySelectorAll('[data-target-metric]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.disabled) return;
+      const metric = btn.dataset.targetMetric;
+      if (metric === state.targetMetric) return;
+      state.targetMetric = metric === 'dps' ? 'dps' : 'damage';
+      // Toggle local sem full re-render: atualiza botões + valores
+      container.querySelectorAll('[data-target-metric]').forEach(b => {
+        const isActive = b.dataset.targetMetric === state.targetMetric;
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+      updateDistanceDamage(container, data);
     });
   });
   container.querySelectorAll('[data-weapon-id]').forEach(btn => {

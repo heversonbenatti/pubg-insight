@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-11T00:31:12.864Z",
+  "generatedAt": "2026-05-11T14:10:24.271Z",
   "distanceUnit": "m",
   "brokenArmor": {
     "vestReduction": 0.2,
@@ -15,6 +15,8 @@
       "baseDamage": 62,
       "headshotMultiplier": null,
       "initialSpeed": 450,
+      "fireInterval": null,
+      "rpm": null,
       "rangeModifier": 0.93,
       "referenceDistance": 200,
       "travelDistanceMax": 1000,
@@ -50,9 +52,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Handgun/Item_Weapon_DesertEagle_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapDesertEagle.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapDesertEagle_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Eagle.json"
+        "weapon": "Blueprints/Weapons/WeapDesertEagle.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapDesertEagle_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Eagle.json"
       }
     },
     {
@@ -63,6 +65,8 @@
       "baseDamage": 23,
       "headshotMultiplier": null,
       "initialSpeed": 375,
+      "fireInterval": 0.06,
+      "rpm": 1000,
       "rangeModifier": 0.83,
       "referenceDistance": 75,
       "travelDistanceMax": 1000,
@@ -77,8 +81,8 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Handgun/Item_Weapon_G18_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapG18.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapG18_WeaponTrajectoryData.json",
+        "weapon": "Blueprints/Weapons/WeapG18.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapG18_WeaponTrajectoryData.json",
         "ballistic": null
       }
     },
@@ -90,6 +94,8 @@
       "baseDamage": 42,
       "headshotMultiplier": null,
       "initialSpeed": 250,
+      "fireInterval": 0.11,
+      "rpm": 545,
       "rangeModifier": 0.91,
       "referenceDistance": 100,
       "travelDistanceMax": 1000,
@@ -104,8 +110,8 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Handgun/Item_Weapon_M1911_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapM1911.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapM1911_WeaponTrajectoryData.json",
+        "weapon": "Blueprints/Weapons/WeapM1911.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapM1911_WeaponTrajectoryData.json",
         "ballistic": null
       }
     },
@@ -117,6 +123,8 @@
       "baseDamage": 34,
       "headshotMultiplier": null,
       "initialSpeed": 380,
+      "fireInterval": 0.1,
+      "rpm": 600,
       "rangeModifier": 0.88,
       "referenceDistance": 100,
       "travelDistanceMax": 1000,
@@ -131,8 +139,8 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Handgun/Item_Weapon_M9_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapM9.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapM9_WeaponTrajectoryData.json",
+        "weapon": "Blueprints/Weapons/WeapM9.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapM9_WeaponTrajectoryData.json",
         "ballistic": null
       }
     },
@@ -144,6 +152,8 @@
       "baseDamage": 64,
       "headshotMultiplier": null,
       "initialSpeed": 330,
+      "fireInterval": null,
+      "rpm": null,
       "rangeModifier": 0.93,
       "referenceDistance": 200,
       "travelDistanceMax": 1000,
@@ -158,8 +168,8 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Handgun/Item_Weapon_NagantM1895_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapNagantM1895.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapNagantM1895_WeaponTrajectoryData.json",
+        "weapon": "Blueprints/Weapons/WeapNagantM1895.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapNagantM1895_WeaponTrajectoryData.json",
         "ballistic": null
       }
     },
@@ -171,6 +181,8 @@
       "baseDamage": 65,
       "headshotMultiplier": null,
       "initialSpeed": 330,
+      "fireInterval": 0.25,
+      "rpm": 240,
       "rangeModifier": 0.93,
       "referenceDistance": 200,
       "travelDistanceMax": 1000,
@@ -185,8 +197,8 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Handgun/Item_Weapon_Rhino_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapRhino.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapRhino_WeaponTrajectoryData.json",
+        "weapon": "Blueprints/Weapons/WeapRhino.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapRhino_WeaponTrajectoryData.json",
         "ballistic": null
       }
     },
@@ -198,6 +210,8 @@
       "baseDamage": 21,
       "headshotMultiplier": null,
       "initialSpeed": 330,
+      "fireInterval": 0.25,
+      "rpm": 240,
       "rangeModifier": 0.93,
       "referenceDistance": 200,
       "travelDistanceMax": 150,
@@ -240,9 +254,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Handgun/Item_Weapon_Sawnoff_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapSawnOff.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapSawnoff_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Sawnoff.json"
+        "weapon": "Blueprints/Weapons/WeapSawnOff.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapSawnoff_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Sawnoff.json"
       }
     },
     {
@@ -253,6 +267,8 @@
       "baseDamage": 22,
       "headshotMultiplier": null,
       "initialSpeed": 350,
+      "fireInterval": 0.070588,
+      "rpm": 850,
       "rangeModifier": 0.88,
       "referenceDistance": 150,
       "travelDistanceMax": 1000,
@@ -281,9 +297,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Handgun/Item_Weapon_vz61Skorpion_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/Weapvz61Skorpion.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/Weapvz61Skorpion_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Skorpion.json"
+        "weapon": "Blueprints/Weapons/Weapvz61Skorpion.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/Weapvz61Skorpion_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Skorpion.json"
       }
     },
     {
@@ -294,6 +310,8 @@
       "baseDamage": 43,
       "headshotMultiplier": null,
       "initialSpeed": 720,
+      "fireInterval": 0.088235,
+      "rpm": 680,
       "rangeModifier": 0.95,
       "referenceDistance": 400,
       "travelDistanceMax": 1000,
@@ -322,9 +340,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_ACE32_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapACE32.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapACE32_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_ACE32.json"
+        "weapon": "Blueprints/Weapons/WeapACE32.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapACE32_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_ACE32.json"
       }
     },
     {
@@ -335,6 +353,8 @@
       "baseDamage": 48,
       "headshotMultiplier": null,
       "initialSpeed": 715,
+      "fireInterval": 0.1,
+      "rpm": 600,
       "rangeModifier": 0.95,
       "referenceDistance": 380,
       "travelDistanceMax": 1000,
@@ -363,9 +383,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_AK47_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapAK47.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapAK47_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_AKM.json"
+        "weapon": "Blueprints/Weapons/WeapAK47.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapAK47_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_AKM.json"
       }
     },
     {
@@ -376,6 +396,8 @@
       "baseDamage": 40,
       "headshotMultiplier": null,
       "initialSpeed": 890,
+      "fireInterval": 0.083333,
+      "rpm": 720,
       "rangeModifier": 0.94,
       "referenceDistance": 350,
       "travelDistanceMax": 1000,
@@ -404,9 +426,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_AUG_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapAUG.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapAUG_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_AUG.json"
+        "weapon": "Blueprints/Weapons/WeapAUG.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapAUG_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_AUG.json"
       }
     },
     {
@@ -417,6 +439,8 @@
       "baseDamage": 105,
       "headshotMultiplier": null,
       "initialSpeed": 945,
+      "fireInterval": 1.85,
+      "rpm": 32,
       "rangeModifier": 0.98,
       "referenceDistance": 650,
       "travelDistanceMax": 1000,
@@ -445,9 +469,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_AWM_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapAWM.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapAWM_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_AWM.json"
+        "weapon": "Blueprints/Weapons/WeapAWM.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapAWM_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_AWM.json"
       }
     },
     {
@@ -458,6 +482,8 @@
       "baseDamage": 44,
       "headshotMultiplier": null,
       "initialSpeed": 715,
+      "fireInterval": 0.085714,
+      "rpm": 700,
       "rangeModifier": 0.95,
       "referenceDistance": 380,
       "travelDistanceMax": 1000,
@@ -486,9 +512,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_BerylM762_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapBerylM762.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapBerylM762_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_BerylM762.json"
+        "weapon": "Blueprints/Weapons/WeapBerylM762.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapBerylM762_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_BerylM762.json"
       }
     },
     {
@@ -499,6 +525,8 @@
       "baseDamage": 38,
       "headshotMultiplier": null,
       "initialSpeed": 350,
+      "fireInterval": null,
+      "rpm": null,
       "rangeModifier": 0.89,
       "referenceDistance": 200,
       "travelDistanceMax": 1000,
@@ -527,9 +555,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_BizonPP19_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapBizonPP19.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapPP19Bizon_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Bizon.json"
+        "weapon": "Blueprints/Weapons/WeapBizonPP19.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapPP19Bizon_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Bizon.json"
       }
     },
     {
@@ -540,6 +568,8 @@
       "baseDamage": 105,
       "headshotMultiplier": null,
       "initialSpeed": 160,
+      "fireInterval": 2.5,
+      "rpm": 24,
       "rangeModifier": 0.98,
       "referenceDistance": 100,
       "travelDistanceMax": 1000,
@@ -554,8 +584,8 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Crossbow_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapCrossbow_1.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapCrossbow_1_WeaponTrajectoryData.json",
+        "weapon": "Blueprints/Weapons/WeapCrossbow_1.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapCrossbow_1_WeaponTrajectoryData.json",
         "ballistic": null
       }
     },
@@ -567,6 +597,8 @@
       "baseDamage": 28,
       "headshotMultiplier": null,
       "initialSpeed": 360,
+      "fireInterval": 0.125,
+      "rpm": 480,
       "rangeModifier": 0.7,
       "referenceDistance": 60,
       "travelDistanceMax": 150,
@@ -623,9 +655,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_DP12_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapDP12.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapDP12_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_DP12.json"
+        "weapon": "Blueprints/Weapons/WeapDP12.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapDP12_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_DP12.json"
       }
     },
     {
@@ -636,6 +668,8 @@
       "baseDamage": 52,
       "headshotMultiplier": null,
       "initialSpeed": 715,
+      "fireInterval": 0.109,
+      "rpm": 550,
       "rangeModifier": 0.95,
       "referenceDistance": 380,
       "travelDistanceMax": 1000,
@@ -664,9 +698,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_DP28_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapDP28.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapDP28_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_DP28.json"
+        "weapon": "Blueprints/Weapons/WeapDP28.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapDP28_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_DP28.json"
       }
     },
     {
@@ -677,6 +711,8 @@
       "baseDamage": 53,
       "headshotMultiplier": 2.8,
       "initialSpeed": 830,
+      "fireInterval": 0.3333,
+      "rpm": 180,
       "rangeModifier": 0.96,
       "referenceDistance": 500,
       "travelDistanceMax": 1000,
@@ -705,9 +741,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Dragunov_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapDragunov.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapDragunov_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Dragunov.json"
+        "weapon": "Blueprints/Weapons/WeapDragunov.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapDragunov_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Dragunov.json"
       }
     },
     {
@@ -718,6 +754,8 @@
       "baseDamage": 39,
       "headshotMultiplier": null,
       "initialSpeed": 925,
+      "fireInterval": 0.06666,
+      "rpm": 900,
       "rangeModifier": 0.94,
       "referenceDistance": 350,
       "travelDistanceMax": 1000,
@@ -746,9 +784,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_FAMASG2_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapFamasG2.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapFamasG2_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_FamasG2.json"
+        "weapon": "Blueprints/Weapons/WeapFamasG2.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapFamasG2_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_FamasG2.json"
       }
     },
     {
@@ -759,6 +797,8 @@
       "baseDamage": 41,
       "headshotMultiplier": null,
       "initialSpeed": 870,
+      "fireInterval": 0.0857,
+      "rpm": 700,
       "rangeModifier": 0.94,
       "referenceDistance": 350,
       "travelDistanceMax": 1000,
@@ -787,9 +827,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_G36C_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapG36C.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapG36C_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_G36.json"
+        "weapon": "Blueprints/Weapons/WeapG36C.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapG36C_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_G36.json"
       }
     },
     {
@@ -800,6 +840,8 @@
       "baseDamage": 47,
       "headshotMultiplier": null,
       "initialSpeed": 715,
+      "fireInterval": 0.08,
+      "rpm": 750,
       "rangeModifier": 0.95,
       "referenceDistance": 380,
       "travelDistanceMax": 1000,
@@ -828,9 +870,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Groza_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapGroza.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapGroza_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Groza.json"
+        "weapon": "Blueprints/Weapons/WeapGroza.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapGroza_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Groza.json"
       }
     },
     {
@@ -841,6 +883,8 @@
       "baseDamage": 32,
       "headshotMultiplier": null,
       "initialSpeed": 400,
+      "fireInterval": 0.06666,
+      "rpm": 900,
       "rangeModifier": 0.89,
       "referenceDistance": 200,
       "travelDistanceMax": 1000,
@@ -869,9 +913,9 @@
       ],
       "image": null,
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapJS9.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapJS9_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_JS9.json"
+        "weapon": "Blueprints/Weapons/WeapJS9.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapJS9_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_JS9.json"
       }
     },
     {
@@ -882,6 +926,8 @@
       "baseDamage": 41,
       "headshotMultiplier": null,
       "initialSpeed": 880,
+      "fireInterval": null,
+      "rpm": null,
       "rangeModifier": 0.94,
       "referenceDistance": 350,
       "travelDistanceMax": 1000,
@@ -910,9 +956,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_K2_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapK2.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/Weap_K2_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_K2.json"
+        "weapon": "Blueprints/Weapons/WeapK2.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/Weap_K2_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_K2.json"
       }
     },
     {
@@ -923,6 +969,8 @@
       "baseDamage": 79,
       "headshotMultiplier": null,
       "initialSpeed": 760,
+      "fireInterval": 1.55,
+      "rpm": 39,
       "rangeModifier": 0.95,
       "referenceDistance": 500,
       "travelDistanceMax": 1000,
@@ -951,9 +999,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Kar98k_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapKar98k.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapKar98k_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Kar98.json"
+        "weapon": "Blueprints/Weapons/WeapKar98k.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapKar98k_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Kar98.json"
       }
     },
     {
@@ -964,6 +1012,8 @@
       "baseDamage": 118,
       "headshotMultiplier": null,
       "initialSpeed": 1200,
+      "fireInterval": 0.7,
+      "rpm": 86,
       "rangeModifier": 1,
       "referenceDistance": 750,
       "travelDistanceMax": 1000,
@@ -992,9 +1042,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_L6_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapL6.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapL6_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_L6.json"
+        "weapon": "Blueprints/Weapons/WeapL6.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapL6_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_L6.json"
       }
     },
     {
@@ -1005,6 +1055,8 @@
       "baseDamage": 43,
       "headshotMultiplier": null,
       "initialSpeed": 900,
+      "fireInterval": 0.075,
+      "rpm": 800,
       "rangeModifier": 0.94,
       "referenceDistance": 400,
       "travelDistanceMax": 1000,
@@ -1033,9 +1085,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_M16A4_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapM16A4.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapM16A4_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_M16A4.json"
+        "weapon": "Blueprints/Weapons/WeapM16A4.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapM16A4_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_M16A4.json"
       }
     },
     {
@@ -1046,6 +1098,8 @@
       "baseDamage": 75,
       "headshotMultiplier": null,
       "initialSpeed": 790,
+      "fireInterval": 1.42,
+      "rpm": 42,
       "rangeModifier": 0.96,
       "referenceDistance": 600,
       "travelDistanceMax": 1000,
@@ -1074,9 +1128,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_M24_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapM24.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapM24_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_M24.json"
+        "weapon": "Blueprints/Weapons/WeapM24.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapM24_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_M24.json"
       }
     },
     {
@@ -1087,6 +1141,8 @@
       "baseDamage": 41,
       "headshotMultiplier": null,
       "initialSpeed": 915,
+      "fireInterval": 0.075,
+      "rpm": 800,
       "rangeModifier": 0.94,
       "referenceDistance": 450,
       "travelDistanceMax": 1000,
@@ -1115,9 +1171,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_M249_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapM249.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapM249_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_M249.json"
+        "weapon": "Blueprints/Weapons/WeapM249.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapM249_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_M249.json"
       }
     },
     {
@@ -1128,6 +1184,8 @@
       "baseDamage": 40,
       "headshotMultiplier": null,
       "initialSpeed": 880,
+      "fireInterval": 0.0857,
+      "rpm": 700,
       "rangeModifier": 0.94,
       "referenceDistance": 360,
       "travelDistanceMax": 1000,
@@ -1156,9 +1214,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_HK416_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapHK416.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapHK416_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_HK416.json"
+        "weapon": "Blueprints/Weapons/WeapHK416.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapHK416_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_HK416.json"
       }
     },
     {
@@ -1169,6 +1227,8 @@
       "baseDamage": 34,
       "headshotMultiplier": null,
       "initialSpeed": 380,
+      "fireInterval": null,
+      "rpm": null,
       "rangeModifier": 0.88,
       "referenceDistance": 100,
       "travelDistanceMax": 1000,
@@ -1183,8 +1243,8 @@
       ],
       "image": null,
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapM10.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapM9_WeaponTrajectoryData.json",
+        "weapon": "Blueprints/Weapons/WeapM10.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapM9_WeaponTrajectoryData.json",
         "ballistic": null
       }
     },
@@ -1196,6 +1256,8 @@
       "baseDamage": 42,
       "headshotMultiplier": null,
       "initialSpeed": 820,
+      "fireInterval": 0.085714,
+      "rpm": 700,
       "rangeModifier": 0.94,
       "referenceDistance": 450,
       "travelDistanceMax": 1000,
@@ -1224,9 +1286,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_MG3_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapMG3.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapMG3_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_MG3.json"
+        "weapon": "Blueprints/Weapons/WeapMG3.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapMG3_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_MG3.json"
       }
     },
     {
@@ -1237,6 +1299,8 @@
       "baseDamage": 26,
       "headshotMultiplier": null,
       "initialSpeed": 350,
+      "fireInterval": 0.048,
+      "rpm": 1250,
       "rangeModifier": 0.88,
       "referenceDistance": 150,
       "travelDistanceMax": 1000,
@@ -1265,9 +1329,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_UZI_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapUZI.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapUZI_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Uzi.json"
+        "weapon": "Blueprints/Weapons/WeapUZI.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapUZI_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Uzi.json"
       }
     },
     {
@@ -1278,6 +1342,8 @@
       "baseDamage": 42,
       "headshotMultiplier": null,
       "initialSpeed": 990,
+      "fireInterval": 0.181818,
+      "rpm": 330,
       "rangeModifier": 0.95,
       "referenceDistance": 400,
       "travelDistanceMax": 1000,
@@ -1306,9 +1372,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Mini14_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapMini14.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapMini14_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Mini14.json"
+        "weapon": "Blueprints/Weapons/WeapMini14.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapMini14_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Mini14.json"
       }
     },
     {
@@ -1319,6 +1385,8 @@
       "baseDamage": 43,
       "headshotMultiplier": null,
       "initialSpeed": 900,
+      "fireInterval": 0.181818,
+      "rpm": 330,
       "rangeModifier": 0.95,
       "referenceDistance": 400,
       "travelDistanceMax": 1000,
@@ -1347,9 +1415,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Mk12_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapMk12.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapMk12_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Mk12.json"
+        "weapon": "Blueprints/Weapons/WeapMk12.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapMk12_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Mk12.json"
       }
     },
     {
@@ -1360,6 +1428,8 @@
       "baseDamage": 54,
       "headshotMultiplier": null,
       "initialSpeed": 853,
+      "fireInterval": 0.15,
+      "rpm": 400,
       "rangeModifier": 0.96,
       "referenceDistance": 500,
       "travelDistanceMax": 1000,
@@ -1388,9 +1458,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Mk14_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapMk14.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapMk14_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_M14.json"
+        "weapon": "Blueprints/Weapons/WeapMk14.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapMk14_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_M14.json"
       }
     },
     {
@@ -1401,6 +1471,8 @@
       "baseDamage": 49,
       "headshotMultiplier": null,
       "initialSpeed": 780,
+      "fireInterval": 0.075,
+      "rpm": 800,
       "rangeModifier": 0.95,
       "referenceDistance": 380,
       "travelDistanceMax": 1000,
@@ -1429,9 +1501,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Mk47Mutant_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapMk47Mutant.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapMk47Mutant_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Mutant.json"
+        "weapon": "Blueprints/Weapons/WeapMk47Mutant.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapMk47Mutant_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Mutant.json"
       }
     },
     {
@@ -1442,6 +1514,8 @@
       "baseDamage": 79,
       "headshotMultiplier": null,
       "initialSpeed": 760,
+      "fireInterval": 1.55,
+      "rpm": 39,
       "rangeModifier": 0.95,
       "referenceDistance": 500,
       "travelDistanceMax": 1000,
@@ -1470,9 +1544,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Mosin_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapMosinNagant.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapMosinNagant_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Kar98.json"
+        "weapon": "Blueprints/Weapons/WeapMosinNagant.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapMosinNagant_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Kar98.json"
       }
     },
     {
@@ -1483,6 +1557,8 @@
       "baseDamage": 32,
       "headshotMultiplier": null,
       "initialSpeed": 400,
+      "fireInterval": 0.0666,
+      "rpm": 901,
       "rangeModifier": 0.89,
       "referenceDistance": 200,
       "travelDistanceMax": 1000,
@@ -1511,9 +1587,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_MP5K_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapMP5K.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapMP5K_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_MP5K.json"
+        "weapon": "Blueprints/Weapons/WeapMP5K.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapMP5K_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_MP5K.json"
       }
     },
     {
@@ -1524,6 +1600,8 @@
       "baseDamage": 31,
       "headshotMultiplier": null,
       "initialSpeed": 400,
+      "fireInterval": 0.06,
+      "rpm": 1000,
       "rangeModifier": 0.89,
       "referenceDistance": 200,
       "travelDistanceMax": 1000,
@@ -1552,9 +1630,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_MP9_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapMP9.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapMP9_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_MP9.json"
+        "weapon": "Blueprints/Weapons/WeapMP9.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapMP9_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_MP9.json"
       }
     },
     {
@@ -1565,6 +1643,8 @@
       "baseDamage": 100,
       "headshotMultiplier": null,
       "initialSpeed": 625,
+      "fireInterval": 0.125,
+      "rpm": 480,
       "rangeModifier": 0.96,
       "referenceDistance": 200,
       "travelDistanceMax": 1000,
@@ -1621,9 +1701,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_OriginS12_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapOriginS12.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapOriginS12_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Shotgun_Slug.json"
+        "weapon": "Blueprints/Weapons/WeapOriginS12.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapOriginS12_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Shotgun_Slug.json"
       }
     },
     {
@@ -1634,6 +1714,8 @@
       "baseDamage": 35,
       "headshotMultiplier": null,
       "initialSpeed": 716,
+      "fireInterval": null,
+      "rpm": null,
       "rangeModifier": 0.89,
       "referenceDistance": 200,
       "travelDistanceMax": 1000,
@@ -1662,9 +1744,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_P90_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapP90.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/Weap_P90_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_P90.json"
+        "weapon": "Blueprints/Weapons/WeapP90.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/Weap_P90_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_P90.json"
       }
     },
     {
@@ -1675,6 +1757,8 @@
       "baseDamage": 42,
       "headshotMultiplier": null,
       "initialSpeed": 945,
+      "fireInterval": 0.181818,
+      "rpm": 330,
       "rangeModifier": 0.95,
       "referenceDistance": 400,
       "travelDistanceMax": 1000,
@@ -1703,9 +1787,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_QBU88_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapQBU88.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapQBU88_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_QBU.json"
+        "weapon": "Blueprints/Weapons/WeapQBU88.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapQBU88_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_QBU.json"
       }
     },
     {
@@ -1716,6 +1800,8 @@
       "baseDamage": 42,
       "headshotMultiplier": null,
       "initialSpeed": 870,
+      "fireInterval": 0.0923,
+      "rpm": 650,
       "rangeModifier": 0.94,
       "referenceDistance": 350,
       "travelDistanceMax": 1000,
@@ -1744,9 +1830,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_QBZ95_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapQBZ95.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapQBZ95_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_QBZ.json"
+        "weapon": "Blueprints/Weapons/WeapQBZ95.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapQBZ95_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_QBZ.json"
       }
     },
     {
@@ -1757,6 +1843,8 @@
       "baseDamage": 23,
       "headshotMultiplier": null,
       "initialSpeed": 350,
+      "fireInterval": 0.25,
+      "rpm": 240,
       "rangeModifier": 0.7,
       "referenceDistance": 65,
       "travelDistanceMax": 150,
@@ -1806,9 +1894,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Saiga12_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapSaiga12.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapSaiga12_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Saiga.json"
+        "weapon": "Blueprints/Weapons/WeapSaiga12.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapSaiga12_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Saiga.json"
       }
     },
     {
@@ -1819,6 +1907,8 @@
       "baseDamage": 26,
       "headshotMultiplier": null,
       "initialSpeed": 360,
+      "fireInterval": 0.58,
+      "rpm": 103,
       "rangeModifier": 0.7,
       "referenceDistance": 60,
       "travelDistanceMax": 150,
@@ -1868,9 +1958,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Winchester_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapWinchester.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapWinchester_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Winchester.json"
+        "weapon": "Blueprints/Weapons/WeapWinchester.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapWinchester_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Winchester.json"
       }
     },
     {
@@ -1881,6 +1971,8 @@
       "baseDamage": 26,
       "headshotMultiplier": null,
       "initialSpeed": 370,
+      "fireInterval": null,
+      "rpm": null,
       "rangeModifier": 0.72,
       "referenceDistance": 80,
       "travelDistanceMax": 150,
@@ -1937,9 +2029,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Berreta686_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapBerreta686.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapBerreta686_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_S686.json"
+        "weapon": "Blueprints/Weapons/WeapBerreta686.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapBerreta686_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_S686.json"
       }
     },
     {
@@ -1950,6 +2042,8 @@
       "baseDamage": 42,
       "headshotMultiplier": null,
       "initialSpeed": 870,
+      "fireInterval": 0.0923,
+      "rpm": 650,
       "rangeModifier": 0.94,
       "referenceDistance": 350,
       "travelDistanceMax": 1000,
@@ -1978,9 +2072,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_SCAR-L_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapSCAR-L.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapSCAR-L_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_SCAR-L.json"
+        "weapon": "Blueprints/Weapons/WeapSCAR-L.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapSCAR-L_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_SCAR-L.json"
       }
     },
     {
@@ -1991,6 +2085,8 @@
       "baseDamage": 47,
       "headshotMultiplier": null,
       "initialSpeed": 800,
+      "fireInterval": 0.181818,
+      "rpm": 330,
       "rangeModifier": 0.96,
       "referenceDistance": 400,
       "travelDistanceMax": 1000,
@@ -2019,9 +2115,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_SKS_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapSKS.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapSKS_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_SKS.json"
+        "weapon": "Blueprints/Weapons/WeapSKS.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapSKS_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_SKS.json"
       }
     },
     {
@@ -2032,6 +2128,8 @@
       "baseDamage": 49,
       "headshotMultiplier": null,
       "initialSpeed": 840,
+      "fireInterval": 0.181818,
+      "rpm": 330,
       "rangeModifier": 0.96,
       "referenceDistance": 500,
       "travelDistanceMax": 1000,
@@ -2060,9 +2158,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_FNFal_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapFNFal.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapFNFal_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_FAL.json"
+        "weapon": "Blueprints/Weapons/WeapFNFal.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapFNFal_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_FAL.json"
       }
     },
     {
@@ -2073,6 +2171,8 @@
       "baseDamage": 40,
       "headshotMultiplier": null,
       "initialSpeed": 280,
+      "fireInterval": null,
+      "rpm": null,
       "rangeModifier": 0.92,
       "referenceDistance": 250,
       "travelDistanceMax": 1000,
@@ -2101,9 +2201,9 @@
       ],
       "image": null,
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapThompson_old.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapThompson_WeaponTrajectoryData_Old.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Thompson.json"
+        "weapon": "Blueprints/Weapons/WeapThompson_old.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapThompson_WeaponTrajectoryData_Old.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Thompson.json"
       }
     },
     {
@@ -2114,6 +2214,8 @@
       "baseDamage": 40,
       "headshotMultiplier": null,
       "initialSpeed": 280,
+      "fireInterval": 0.08,
+      "rpm": 750,
       "rangeModifier": 0.92,
       "referenceDistance": 250,
       "travelDistanceMax": 1000,
@@ -2142,9 +2244,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Thompson_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapThompson.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapThompson_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Thompson.json"
+        "weapon": "Blueprints/Weapons/WeapThompson.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapThompson_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Thompson.json"
       }
     },
     {
@@ -2155,6 +2257,8 @@
       "baseDamage": 42,
       "headshotMultiplier": null,
       "initialSpeed": 400,
+      "fireInterval": 0.089552,
+      "rpm": 670,
       "rangeModifier": 0.89,
       "referenceDistance": 200,
       "travelDistanceMax": 1000,
@@ -2183,9 +2287,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_UMP_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapUMP.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapUMP_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_UMP45.json"
+        "weapon": "Blueprints/Weapons/WeapUMP.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapUMP_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_UMP45.json"
       }
     },
     {
@@ -2196,6 +2300,8 @@
       "baseDamage": 31,
       "headshotMultiplier": null,
       "initialSpeed": 0,
+      "fireInterval": 0.0545,
+      "rpm": 1101,
       "rangeModifier": 0.8,
       "referenceDistance": 150,
       "travelDistanceMax": 1000,
@@ -2224,9 +2330,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Vector_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapVector.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapVector_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_Vector9.json"
+        "weapon": "Blueprints/Weapons/WeapVector.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapVector_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_Vector9.json"
       }
     },
     {
@@ -2237,6 +2343,8 @@
       "baseDamage": 45,
       "headshotMultiplier": null,
       "initialSpeed": 430,
+      "fireInterval": 0.0856,
+      "rpm": 701,
       "rangeModifier": 1,
       "referenceDistance": 250,
       "travelDistanceMax": 1000,
@@ -2265,9 +2373,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_VSS_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapVSS.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapVSS_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_VSS.json"
+        "weapon": "Blueprints/Weapons/WeapVSS.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapVSS_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_VSS.json"
       }
     },
     {
@@ -2278,6 +2386,8 @@
       "baseDamage": 66,
       "headshotMultiplier": null,
       "initialSpeed": 760,
+      "fireInterval": 0.6,
+      "rpm": 100,
       "rangeModifier": 0.95,
       "referenceDistance": 500,
       "travelDistanceMax": 1000,
@@ -2306,9 +2416,9 @@
       ],
       "image": "/pubg-api-assets/Assets/Icons/Item/Weapon/Main/Item_Weapon_Win1894_C.png",
       "source": {
-        "weapon": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/WeapWin94.json",
-        "trajectory": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/WeapWin94_WeaponTrajectoryData.json",
-        "ballistic": "weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/C_Ballistic_WinchesterRifle.json"
+        "weapon": "Blueprints/Weapons/WeapWin94.json",
+        "trajectory": "Blueprints/Weapons/DataAssets/WeapWin94_WeaponTrajectoryData.json",
+        "ballistic": "Blueprints/Weapons/BallisticData/C_Ballistic_WinchesterRifle.json"
       }
     }
   ],
@@ -2327,24 +2437,24 @@
         "level": 1,
         "label": "Helmet 1",
         "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Headgear/Item_Head_E_00_Lv1_C.png",
-        "reduction": 0.3,
-        "durability": 80
+        "durability": 80,
+        "reduction": 0.3
       },
       {
         "id": "helmet-2",
         "level": 2,
         "label": "Helmet 2",
         "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Headgear/Item_Head_F_00_Lv2_C.png",
-        "reduction": 0.4,
-        "durability": 150
+        "durability": 150,
+        "reduction": 0.4
       },
       {
         "id": "helmet-3",
         "level": 3,
         "label": "Helmet 3",
         "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Headgear/Item_Head_G_00_Lv3_C.png",
-        "reduction": 0.55,
-        "durability": 230
+        "durability": 230,
+        "reduction": 0.55
       }
     ],
     "vests": [
@@ -2361,24 +2471,24 @@
         "level": 1,
         "label": "Vest 1",
         "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Vest/Item_Armor_E_00_Lv1_C.png",
-        "reduction": 0.3,
-        "durability": 200
+        "durability": 200,
+        "reduction": 0.3
       },
       {
         "id": "vest-2",
         "level": 2,
         "label": "Vest 2",
         "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Vest/Item_Armor_D_00_Lv2_C.png",
-        "reduction": 0.4,
-        "durability": 220
+        "durability": 220,
+        "reduction": 0.4
       },
       {
         "id": "vest-3",
         "level": 3,
         "label": "Vest 3",
         "image": "/pubg-api-assets/Assets/Icons/Item/Equipment/Vest/Item_Armor_C_00_Lv3_C.png",
-        "reduction": 0.55,
-        "durability": 250
+        "durability": 250,
+        "reduction": 0.55
       }
     ]
   },

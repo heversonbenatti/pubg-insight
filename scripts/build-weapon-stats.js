@@ -4,11 +4,10 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, '..');
-const weaponsDir = path.join(rootDir, 'weapons', 'AlmostAll', 'TslGame', 'Content', 'Blueprints', 'Weapons');
+const weaponsDir = path.join(rootDir, 'Blueprints', 'Weapons');
 const dataAssetsDir = path.join(weaponsDir, 'DataAssets');
 const ballisticDir = path.join(weaponsDir, 'BallisticData');
-const damageConfigPath = path.join(rootDir, 'weapons', 'AlmostAll', 'TslGame', 'Content', 'Blueprints', 'DamageConfigs', 'DefaultDamageConfig.json');
-const equipDir = path.join(rootDir, 'weapons', 'AlmostAll', 'TslGame', 'Content', 'Item', 'TestItems', 'Equip');
+const damageConfigPath = path.join(rootDir, 'Blueprints', 'DamageConfigs', 'DefaultDamageConfig.json');
 const itemDictPath = path.join(rootDir, 'pubg-api-assets', 'dictionaries', 'telemetry', 'item', 'itemId.json');
 const iconRoot = path.join(rootDir, 'pubg-api-assets', 'Assets', 'Icons', 'Item', 'Weapon');
 const outputDir = path.join(rootDir, 'public', 'data');
@@ -111,6 +110,19 @@ function weaponTrajectoryData(trajName) {
   ) || null;
 }
 
+// Lê o WeaponGunData de uma arma e retorna o bloco com TimeBetweenShots, magazine size, etc.
+// Confirmado: o nested object com TimeBetweenShots é o "gunplay block". O nome do asset bate com
+// o fileBase da weapon (ex.: WeapBerylM762 → WeapBerylM762_WeaponGunData.json).
+function weaponGunData(fileBase) {
+  if (!fileBase) return null;
+  const file = path.join(dataAssetsDir, `${fileBase}_WeaponGunData.json`);
+  if (!fs.existsSync(file)) return null;
+  const props = readJson(file)[0]?.Properties || {};
+  return Object.values(props).find(v =>
+    v && typeof v === 'object' && typeof v.TimeBetweenShots === 'number'
+  ) || null;
+}
+
 function extractWeapons() {
   const itemNames = fs.existsSync(itemDictPath) ? readJson(itemDictPath) : {};
   const iconIndex = readIconIndex();
@@ -130,6 +142,8 @@ function extractWeapons() {
     const cls = className(props.WeaponConfig?.['*6f6b05f0e9']);
     const ballisticName = assetName(trajectory['*73867de22e']);
     const damageCurve = ballisticDamageCurve(ballisticName);
+    const gunData = weaponGunData(fileBase);
+    const timeBetweenShots = gunData ? Number(gunData.TimeBetweenShots) : 0;
 
     // Inferir itemId: pelo ícone se houver; senão `Item_Weapon_<fileBase sem Weap>_C` (bate com o dicionário de telemetria).
     const baseNoPrefix = fileBase.replace(/^Weap/, '');
@@ -146,15 +160,19 @@ function extractWeapons() {
       baseDamage: Number(trajectory['*e1e3aec97a']),
       headshotMultiplier: HEADSHOT_MULTIPLIER_OVERRIDES[itemId] || null,
       initialSpeed: Number(trajectory.InitialSpeed || 0),
+      // Cadência: tempo entre disparos (s) e RPM derivado. Vem de WeaponGunData.TimeBetweenShots,
+      // que é o intervalo do FullAuto/single da arma — não inclui delay de burst-end.
+      fireInterval: timeBetweenShots || null,
+      rpm: timeBetweenShots > 0 ? Math.round(60 / timeBetweenShots) : null,
       rangeModifier: Number(trajectory.RangeModifier ?? 1),
       referenceDistance: Number(trajectory.ReferenceDistance ?? 0),
       travelDistanceMax: Number(trajectory.TravelDistanceMax ?? 1000),
       damageCurve: damageCurve.length ? damageCurve : [{ time: 0, value: 1, interp: 'RCIM_Linear', arriveTangent: 0, leaveTangent: 0 }],
       image: icon ? publicIconPath(icon.kind, icon.fileName) : null,
       source: {
-        weapon: `weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/${file}`,
-        trajectory: `weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/DataAssets/${assetName(props.WeaponTrajectoryData)}.json`,
-        ballistic: ballisticName ? `weapons/AlmostAll/TslGame/Content/Blueprints/Weapons/BallisticData/${ballisticName}.json` : null,
+        weapon: `Blueprints/Weapons/${file}`,
+        trajectory: `Blueprints/Weapons/DataAssets/${assetName(props.WeaponTrajectoryData)}.json`,
+        ballistic: ballisticName ? `Blueprints/Weapons/BallisticData/${ballisticName}.json` : null,
       },
     });
   }
@@ -184,13 +202,11 @@ function parseDamageZones() {
   });
 }
 
-function equipmentValue(fileName) {
-  const props = defaultObject(readJson(path.join(equipDir, fileName)))?.Properties || {};
-  return {
-    reduction: Number(props['*e8f64df1c2'] || 0),
-    durability: Number(props['*61b8a90d8f'] || 0),
-  };
-}
+// Durabilidades dos game files (TestItems/Equip). Hardcoded porque essa pasta não vem no dump
+// da Blueprints/ — os valores são estáveis há vários patches. As reductions já estão em
+// ARMOR_DAMAGE_REDUCTION acima.
+const HELMET_DURABILITY = { 1: 80, 2: 150, 3: 230 };
+const VEST_DURABILITY = { 1: 200, 2: 220, 3: 250 };
 
 function extractEquipment() {
   const helmetIcons = [
@@ -212,7 +228,7 @@ function extractEquipment() {
       level,
       label: level ? `Helmet ${level}` : 'No Helmet',
       image: helmetIcons[level] ? `${IMAGE_PREFIX}/Equipment/${helmetIcons[level].replace(/^Equipment\//, '')}` : null,
-      ...(level ? equipmentValue(`Item_Equip_Helmet_Lv${level}.json`) : { durability: 0 }),
+      durability: HELMET_DURABILITY[level] || 0,
       reduction: ARMOR_DAMAGE_REDUCTION[level] || 0,
     })),
     vests: [0, 1, 2, 3].map(level => ({
@@ -220,7 +236,7 @@ function extractEquipment() {
       level,
       label: level ? `Vest ${level}` : 'No Vest',
       image: vestIcons[level] ? `${IMAGE_PREFIX}/Equipment/${vestIcons[level].replace(/^Equipment\//, '')}` : null,
-      ...(level ? equipmentValue(`Item_Equip_Armor_Lv${level}.json`) : { durability: 0 }),
+      durability: VEST_DURABILITY[level] || 0,
       reduction: ARMOR_DAMAGE_REDUCTION[level] || 0,
     })),
   };
@@ -228,7 +244,8 @@ function extractEquipment() {
 
 if (!fs.existsSync(weaponsDir)) {
   console.warn(`[build-weapon-stats] Pasta de game files não encontrada: ${path.relative(rootDir, weaponsDir)}`);
-  console.warn(`[build-weapon-stats] Extraia os assets do jogo via FModel pra essa pasta antes de re-rodar.`);
+  console.warn(`[build-weapon-stats] Extraia o conteúdo de TslGame/Content/Blueprints (Weapons + DamageConfigs) via FModel`);
+  console.warn(`[build-weapon-stats] e salve no diretório Blueprints/ na raiz do projeto antes de re-rodar.`);
   console.warn(`[build-weapon-stats] Pulando — o weapon-stats.json existente continua válido.`);
   process.exit(0);
 }

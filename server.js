@@ -154,12 +154,92 @@ async function getMatch(platform, matchId) {
         try {
             const r = await pubgGet(`${shardUrl(platform)}/matches/${matchId}`);
             writeCache(cacheFile, r.data);
+            indexMatch(platform, r.data);
             return r.data;
         } catch { return null; }
         finally { matchInflight.delete(inflightKey); }
     })();
     matchInflight.set(inflightKey, promise);
     return promise;
+}
+
+// ── Matches index ────────────────────────────────────────────────────────────
+// Mapeia accountId → [{matchId, createdAt}] a partir dos match files cacheados.
+// Permite incluir partidas que já dropparam do server da PUBG (>14d) no histórico
+// do player. Atualizado on-the-fly toda vez que getMatch() baixa um match novo,
+// e regenerável via scripts/build-matches-index.js.
+
+function matchesIndexFile(platform) {
+    return path.join(cacheDir, `matches_index_${platform}.json`);
+}
+
+const matchesIndexCache = new Map();
+function loadMatchesIndex(platform) {
+    if (matchesIndexCache.has(platform)) return matchesIndexCache.get(platform);
+    const file = matchesIndexFile(platform);
+    let data = { version: 1, players: {} };
+    if (fs.existsSync(file)) {
+        try { data = JSON.parse(fs.readFileSync(file, 'utf8')); }
+        catch { /* keep empty */ }
+    }
+    if (!data.players) data.players = {};
+    matchesIndexCache.set(platform, data);
+    return data;
+}
+
+function saveMatchesIndex(platform) {
+    const data = matchesIndexCache.get(platform);
+    if (!data) return;
+    try { fs.writeFileSync(matchesIndexFile(platform), JSON.stringify(data), 'utf8'); }
+    catch (e) { console.error('matches index write failed:', e.message); }
+}
+
+// Extrai todos os participants do match data (formato JSON:API da PUBG).
+function matchParticipants(matchData) {
+    const matchId = matchData?.data?.id;
+    const createdAt = matchData?.data?.attributes?.createdAt;
+    if (!matchId) return [];
+    return (matchData.included || [])
+        .filter(it => it.type === 'participant')
+        .map(p => ({
+            accountId: p.attributes?.stats?.playerId,
+            name: p.attributes?.stats?.name,
+            matchId,
+            createdAt,
+        }))
+        .filter(p => p.accountId && p.matchId);
+}
+
+function indexMatch(platform, matchData) {
+    const participants = matchParticipants(matchData);
+    if (!participants.length) return;
+    const index = loadMatchesIndex(platform);
+    let dirty = false;
+    for (const p of participants) {
+        const entry = index.players[p.accountId] || { name: p.name, matches: [] };
+        if (!entry.matches.some(m => m.id === p.matchId)) {
+            entry.matches.push({ id: p.matchId, createdAt: p.createdAt });
+            dirty = true;
+        }
+        if (p.name && entry.name !== p.name) { entry.name = p.name; dirty = true; }
+        index.players[p.accountId] = entry;
+    }
+    if (dirty) {
+        index.generatedAt = new Date().toISOString();
+        saveMatchesIndex(platform);
+    }
+}
+
+// Retorna matchIds do player no índice local (ordem mais recente primeiro).
+function localMatchIdsFor(platform, accountId) {
+    if (!accountId) return [];
+    const index = loadMatchesIndex(platform);
+    const entry = index.players[accountId];
+    if (!entry?.matches?.length) return [];
+    return entry.matches
+        .slice()
+        .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
+        .map(m => m.id);
 }
 
 app.get('/api/player/:playerName/matches', async (req, res) => {
@@ -169,12 +249,13 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
 
     const listCacheFile = path.join(cacheDir, `matches_list_${platform}_${safeName(playerName)}.json`);
     let matchIds = readCache(listCacheFile, MATCHES_LIST_TTL);
+    let playerId = null;
 
     try {
         if (!matchIds) {
             // Share the inflight/cache with /career to avoid a duplicate /players call.
             // getPlayerId() writes matchIds to listCacheFile as a side effect when it fetches.
-            const playerId = await getPlayerId(platform, playerName);
+            playerId = await getPlayerId(platform, playerName);
             if (!playerId) return res.status(404).json({ error: 'Player not found' });
             matchIds = readCache(listCacheFile, MATCHES_LIST_TTL);
             if (!matchIds) {
@@ -183,11 +264,27 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
                 matchIds = r.data.data.relationships.matches.data.map(m => m.id);
                 writeCache(listCacheFile, matchIds);
             }
+        } else {
+            // matchIds está em cache mas precisamos do playerId pro índice local
+            playerId = await getPlayerId(platform, playerName);
         }
 
-        const matchDetails = await Promise.all(matchIds.map(id => getMatch(platform, id)));
+        // Merge API matchIds + matches cacheados localmente (já dropparam do server PUBG mas
+        // continuam no disco). Dedup + preserva ordem da API no topo.
+        const localIds = localMatchIdsFor(platform, playerId);
+        const seen = new Set();
+        const mergedIds = [];
+        for (const id of [...matchIds, ...localIds]) {
+            if (!id || seen.has(id)) continue;
+            seen.add(id);
+            mergedIds.push(id);
+        }
+
+        const matchDetails = await Promise.all(mergedIds.map(id => getMatch(platform, id)));
         const validMatches = matchDetails.filter(Boolean);
         if (!validMatches.length) throw new Error('No matches found');
+        // Garante ordem por createdAt desc (a API geralmente já vem ordenada, mas locais podem misturar)
+        validMatches.sort((a, b) => new Date(b?.data?.attributes?.createdAt || 0) - new Date(a?.data?.attributes?.createdAt || 0));
         res.json({ matches: validMatches });
     } catch (error) {
         console.error('Error fetching matches:', error.message);

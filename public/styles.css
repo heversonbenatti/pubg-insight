@@ -1223,7 +1223,43 @@ input[type="range"]::-moz-range-thumb {
 }
 .damage-target-wrap {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+}
+.damage-target-metric {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  z-index: 3;
+  position: relative;
+}
+.damage-target-metric-btn {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 5px 14px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.damage-target-metric-btn:hover:not(:disabled):not(.active) {
+  color: var(--text);
+}
+.damage-target-metric-btn.active {
+  background: var(--accent);
+  color: var(--bg);
+}
+.damage-target-metric-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 .damage-target {
   position: relative;
