@@ -134,19 +134,24 @@ let state = {
   query: '',
   category: 'all',
   sortBy: 'category',
-  targetMetric: 'damage', // 'damage' | 'dps'
+  targetMetric: 'damage', // 'damage' | 'ttk' | 'btk'
 };
+
+const TARGET_METRICS = [
+  { key: 'damage', label: 'DMG', tip: 'Damage per shot' },
+  { key: 'ttk',    label: 'TTK', tip: 'Time to kill — 100 HP target (seconds)' },
+  { key: 'btk',    label: 'BTK', tip: 'Bullets to kill — 100 HP target' },
+];
 
 async function loadData() {
   if (cache) return cache;
   const res = await fetch(DATA_URL);
   if (!res.ok) throw new Error('weapon stats data failed');
   cache = await res.json();
-  const primary = cache.weapons.find(w => w.name === 'M416')
-    || cache.weapons.find(w => weaponGroup(w).key === 'AR')
-    || cache.weapons[0];
-  state.weaponId = primary?.id || '';
-  state.compareWeaponId = defaultCompareWeapon(cache, state.weaponId)?.id || '';
+  // Estado inicial: slots A e B começam vazios — placeholder "drag a weapon here"
+  // até o usuário clicar ou arrastar uma arma.
+  state.weaponId = '';
+  state.compareWeaponId = '';
   return cache;
 }
 
@@ -303,12 +308,33 @@ function partDamage(data, weapon, part) {
   return weapon.baseDamage * distMult * classMult * boneMult * (1 - reduction);
 }
 
-// Valor exibido em cada marcador da figura: dano por tiro OU DPS (dano × rpm / 60).
-// Para armas sem rpm (raras), faz fallback pro dano.
+// Valor exibido em cada marcador da figura. Depende de state.targetMetric:
+//   damage — dano por tiro
+//   btk    — bullets to kill (100 HP), = ceil(100 / damage)
+//   ttk    — time to kill (100 HP) em segundos, = (btk - 1) × fireInterval
 function partTargetValue(data, weapon, part) {
   const damage = partDamage(data, weapon, part);
-  if (state.targetMetric === 'dps' && weapon?.rpm) return damage * weapon.rpm / 60;
+  if (state.targetMetric === 'btk') {
+    if (damage <= 0) return null;
+    return Math.ceil(100 / damage);
+  }
+  if (state.targetMetric === 'ttk') {
+    if (damage <= 0 || !weapon?.fireInterval) return null;
+    const btk = Math.ceil(100 / damage);
+    return Math.max(0, btk - 1) * weapon.fireInterval;
+  }
   return damage;
+}
+
+function fmtTargetValue(value, metric) {
+  if (value == null || !Number.isFinite(value)) return '—';
+  if (metric === 'btk') return String(value);
+  if (metric === 'ttk') {
+    if (value === 0) return '0';
+    if (value < 0.1) return value.toFixed(3) + 's';
+    return value.toFixed(2) + 's';
+  }
+  return fmtDamage(value);
 }
 
 function optionButton(item, type) {
@@ -333,15 +359,20 @@ function brokenToggle(type) {
 }
 
 function weaponCard(weapon) {
-  const active = weapon.id === state.weaponId;
+  const activeA = weapon.id === state.weaponId;
+  const activeB = weapon.id === state.compareWeaponId;
   const group = weaponGroup(weapon);
   const rpmText = weapon.rpm ? `${weapon.rpm} rpm` : '';
-  return `<button class="damage-weapon-card${active ? ' active' : ''}" data-weapon-id="${escapeHTML(weapon.id)}" type="button">
+  const badge = activeA ? '<span class="damage-weapon-badge badge-a">A</span>'
+              : activeB ? '<span class="damage-weapon-badge badge-b">B</span>'
+              : '';
+  return `<div class="damage-weapon-card${activeA ? ' active' : ''}${activeB ? ' compare-active' : ''}" data-weapon-id="${escapeHTML(weapon.id)}" draggable="true" tabindex="0" role="button" aria-label="Select ${escapeHTML(weapon.name)}">
+    ${badge}
     ${weaponImage(weapon)}
     <span class="damage-weapon-name">${escapeHTML(weapon.name)}</span>
     <span class="damage-weapon-meta"><span>${group.label}</span><span>${escapeHTML(ammoType(weapon))}</span>${rpmText ? `<span>${rpmText}</span>` : ''}</span>
     <span class="damage-weapon-damage"><span>DMG</span><strong>${weapon.baseDamage}</strong></span>
-  </button>`;
+  </div>`;
 }
 
 function filteredWeapons(data) {
@@ -354,9 +385,20 @@ function filteredWeapons(data) {
   return sortWeapons(weapons);
 }
 
+// Versão "vazia" do target — usado quando nenhuma arma está selecionada.
+// Reusa o corpo desenhado em renderTarget mas com markers mostrando "—" e toggle disabled.
+function renderEmptyTarget() {
+  return renderTargetInternal(null);
+}
+
 function renderTarget(data, weapon) {
+  return renderTargetInternal({ data, weapon });
+}
+
+function renderTargetInternal(ctx) {
+  const hasWeapon = !!ctx?.weapon;
   const markers = BODY_PARTS.map(part => {
-    const value = fmtDamage(partTargetValue(data, weapon, part));
+    const value = hasWeapon ? fmtTargetValue(partTargetValue(ctx.data, ctx.weapon, part), state.targetMetric) : '—';
     const [x, y] = TARGET_MARKERS[part.key];
     return `<g class="target-damage-marker ${part.css}" data-part="${part.key}" transform="translate(${x} ${y})">
       <title>${escapeHTML(part.label)}</title>
@@ -366,11 +408,14 @@ function renderTarget(data, weapon) {
   }).join('');
 
   const metricToggle = `<div class="damage-target-metric" role="tablist" aria-label="Target metric">
-    <button class="damage-target-metric-btn${state.targetMetric === 'damage' ? ' active' : ''}" data-target-metric="damage" type="button" role="tab" aria-selected="${state.targetMetric === 'damage'}">DMG</button>
-    <button class="damage-target-metric-btn${state.targetMetric === 'dps' ? ' active' : ''}" data-target-metric="dps" type="button" role="tab" aria-selected="${state.targetMetric === 'dps'}" ${weapon?.rpm ? '' : 'disabled'}>DPS</button>
+    ${TARGET_METRICS.map(metric => {
+      const disabled = !hasWeapon || (metric.key === 'ttk' && !ctx.weapon.fireInterval);
+      const active = state.targetMetric === metric.key;
+      return `<button class="damage-target-metric-btn${active ? ' active' : ''}" data-target-metric="${metric.key}" type="button" role="tab" aria-selected="${active}" title="${escapeHTML(metric.tip)}" ${disabled ? 'disabled' : ''}>${metric.label}</button>`;
+    }).join('')}
   </div>`;
 
-  return `<div class="damage-target-wrap">
+  return `<div class="damage-target-wrap${hasWeapon ? '' : ' damage-target-wrap-empty'}">
     ${metricToggle}
     <div class="damage-target">
       <svg class="target-figure" viewBox="245 -60 560 1600" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
@@ -425,98 +470,138 @@ function renderTarget(data, weapon) {
 }
 
 function updateDistanceDamage(container, data) {
-  const weapon = data.weapons.find(w => w.id === state.weaponId) || data.weapons[0];
+  const weapon = data.weapons.find(w => w.id === state.weaponId) || null;
   const distanceLabel = container.querySelector('[data-distance-value]');
   if (distanceLabel) distanceLabel.textContent = `${state.distance}m`;
   for (const part of BODY_PARTS) {
     const value = container.querySelector(`[data-part-damage="${part.key}"]`);
-    if (value) value.textContent = fmtDamage(partTargetValue(data, weapon, part));
+    if (!value) continue;
+    value.textContent = weapon ? fmtTargetValue(partTargetValue(data, weapon, part), state.targetMetric) : '—';
   }
 }
 
-function weaponSelectOptions(data, selectedId) {
-  return sortWeapons(data.weapons).map(weapon => (
-    `<option value="${escapeHTML(weapon.id)}" ${weapon.id === selectedId ? 'selected' : ''}>${escapeHTML(weapon.name)} - ${weaponGroup(weapon).label}</option>`
-  )).join('');
+function btkForDamage(damage) {
+  return damage > 0 ? Math.ceil(100 / damage) : null;
+}
+function ttkForWeaponPart(data, weapon, part) {
+  if (!weapon?.fireInterval) return null;
+  const dmg = partDamage(data, weapon, part);
+  const btk = btkForDamage(dmg);
+  if (btk == null) return null;
+  return Math.max(0, btk - 1) * weapon.fireInterval;
 }
 
-function comparisonDelta(left, right) {
-  const delta = right - left;
-  if (Math.abs(delta) < 0.05) return '<span class="damage-delta neutral">0</span>';
-  const text = delta > 0 ? `+${fmtDamage(delta)}` : fmtDamage(delta);
-  return `<span class="damage-delta ${delta > 0 ? 'positive' : 'negative'}">${text}</span>`;
+// Compara dois valores e retorna 'A', 'B', 'tie' indicando o vencedor.
+// `lowerIsBetter`: pra métricas como TTK/BTK onde menor = melhor.
+function compareWinner(a, b, lowerIsBetter = false) {
+  if (a == null && b == null) return 'tie';
+  if (a == null) return 'B';
+  if (b == null) return 'A';
+  const diff = a - b;
+  if (Math.abs(diff) < 0.001) return 'tie';
+  if (lowerIsBetter) return diff < 0 ? 'A' : 'B';
+  return diff > 0 ? 'A' : 'B';
 }
 
-function compareStatRow(label, left, right, numeric = false) {
-  return `<tr>
-    <th>${label}</th>
-    <td>${numeric ? fmtDamage(left) : escapeHTML(left)}</td>
-    <td>${numeric ? fmtDamage(right) : escapeHTML(right)}</td>
-    <td>${numeric ? comparisonDelta(left, right) : (left === right ? '<span class="damage-delta neutral">same</span>' : '<span class="damage-delta muted">diff</span>')}</td>
-  </tr>`;
+function fmtStat(value, kind) {
+  if (value == null || !Number.isFinite(value)) return '—';
+  if (kind === 'btk') return String(value);
+  if (kind === 'ttk') {
+    if (value === 0) return '0';
+    return value < 0.1 ? value.toFixed(3) + 's' : value.toFixed(2) + 's';
+  }
+  if (kind === 'int') return String(Math.round(value));
+  return fmtDamage(value);
 }
 
-function dpsForPart(data, weapon, part) {
-  if (!weapon?.rpm) return 0;
-  return partDamage(data, weapon, part) * weapon.rpm / 60;
+function buildCompareStats(data, weapon) {
+  const chest = BODY_PARTS.find(p => p.key === 'chest');
+  const head = BODY_PARTS.find(p => p.key === 'head');
+  return {
+    base: { value: weapon.baseDamage, kind: 'int' },
+    rpm:  { value: weapon.rpm ?? null, kind: 'int' },
+    speed: { value: weapon.initialSpeed || null, kind: 'int' },
+    chestDmg: { value: partDamage(data, weapon, chest), kind: 'dmg' },
+    headDmg:  { value: partDamage(data, weapon, head),  kind: 'dmg' },
+    ttkChest: { value: ttkForWeaponPart(data, weapon, chest), kind: 'ttk', lowerBetter: true },
+    ttkHead:  { value: ttkForWeaponPart(data, weapon, head),  kind: 'ttk', lowerBetter: true },
+    btkChest: { value: btkForDamage(partDamage(data, weapon, chest)), kind: 'btk', lowerBetter: true },
+    btkHead:  { value: btkForDamage(partDamage(data, weapon, head)),  kind: 'btk', lowerBetter: true },
+  };
+}
+
+const COMPARE_STAT_ROWS = [
+  { key: 'base',     label: 'Base dmg' },
+  { key: 'rpm',      label: 'RPM' },
+  { key: 'speed',    label: 'Speed (m/s)' },
+  { key: 'chestDmg', label: 'Chest dmg' },
+  { key: 'headDmg',  label: 'Head dmg' },
+  { key: 'ttkChest', label: 'TTK chest' },
+  { key: 'ttkHead',  label: 'TTK head' },
+  { key: 'btkChest', label: 'BTK chest' },
+  { key: 'btkHead',  label: 'BTK head' },
+];
+
+function renderEmptyCompareCard(slot) {
+  return `<div class="compare-card compare-card-empty" data-compare-slot="${slot}">
+    <div class="compare-card-slot">SLOT ${slot}</div>
+    <div class="compare-card-empty-body">
+      <div class="compare-card-empty-icon">+</div>
+      <strong>Drop a weapon here</strong>
+      <span>or click a weapon below to set as A</span>
+    </div>
+  </div>`;
+}
+
+function renderCompareCard(data, weapon, otherWeapon, slot) {
+  if (!weapon) return renderEmptyCompareCard(slot);
+  const stats = buildCompareStats(data, weapon);
+  const other = otherWeapon ? buildCompareStats(data, otherWeapon) : null;
+  const rows = COMPARE_STAT_ROWS.map(row => {
+    const me = stats[row.key];
+    const op = other?.[row.key];
+    const winner = op ? compareWinner(me.value, op.value, !!me.lowerBetter) : 'tie';
+    const myTag = !other ? 'tie' : (winner === slot ? 'win' : winner === 'tie' ? 'tie' : 'lose');
+    return `<div class="compare-stat compare-stat-${myTag}">
+      <span class="compare-stat-label">${row.label}</span>
+      <span class="compare-stat-value">${fmtStat(me.value, me.kind)}</span>
+    </div>`;
+  }).join('');
+
+  return `<div class="compare-card" data-compare-slot="${slot}" data-weapon-id="${escapeHTML(weapon.id)}">
+    <div class="compare-card-slot">SLOT ${slot}</div>
+    <div class="compare-card-head">
+      ${weaponImage(weapon, 'compare-card-img')}
+      <div class="compare-card-id">
+        <strong>${escapeHTML(weapon.name)}</strong>
+        <span>${weaponGroup(weapon).label} · ${escapeHTML(ammoType(weapon))}</span>
+      </div>
+      <button class="compare-card-clear" type="button" data-compare-clear="${slot}" title="Remove from slot">×</button>
+    </div>
+    <div class="compare-card-stats">${rows}</div>
+  </div>`;
 }
 
 function renderComparator(data, weapon, compareWeapon) {
-  const chestPart = BODY_PARTS.find(item => item.key === 'chest');
-  const headPart = BODY_PARTS.find(item => item.key === 'head');
-  const rows = [
-    compareStatRow('Category', weaponGroup(weapon).label, weaponGroup(compareWeapon).label),
-    compareStatRow('Ammo', ammoType(weapon), ammoType(compareWeapon)),
-    compareStatRow('Base', weapon.baseDamage, compareWeapon.baseDamage, true),
-    compareStatRow('RPM', weapon.rpm ?? 0, compareWeapon.rpm ?? 0, true),
-    ...COMPARE_PART_KEYS.map(key => {
-      const part = BODY_PARTS.find(item => item.key === key);
-      return compareStatRow(part.label, partDamage(data, weapon, part), partDamage(data, compareWeapon, part), true);
-    }),
-    compareStatRow('DPS (chest)', dpsForPart(data, weapon, chestPart), dpsForPart(data, compareWeapon, chestPart), true),
-    compareStatRow('DPS (head)', dpsForPart(data, weapon, headPart), dpsForPart(data, compareWeapon, headPart), true),
-  ].join('');
-
-  return `<section class="damage-comparison-panel">
-    <div class="damage-comparison-header">
-      <div>
-        <div class="micro">COMPARATOR</div>
-        <strong>${escapeHTML(weapon.name)} vs ${escapeHTML(compareWeapon.name)}</strong>
+  const canSwap = !!(weapon && compareWeapon);
+  return `<section class="damage-comparator">
+    <div class="damage-comparator-header">
+      <div class="micro">COMPARATOR</div>
+      <div class="damage-comparator-actions">
+        <span class="damage-comparator-hint">drag a weapon · click to set A</span>
+        <button class="damage-comparator-swap" type="button" data-compare-swap title="Swap A and B" ${canSwap ? '' : 'disabled'}>↔</button>
       </div>
-      <span>${state.distance}m</span>
     </div>
-    <div class="damage-compare-selects">
-      <label>
-        <span>Weapon A</span>
-        <select id="damage-compare-a">${weaponSelectOptions(data, weapon.id)}</select>
-      </label>
-      <label>
-        <span>Weapon B</span>
-        <select id="damage-compare-b">${weaponSelectOptions(data, compareWeapon.id)}</select>
-      </label>
-    </div>
-    <div class="damage-comparison-table-wrap">
-      <table class="damage-comparison-table">
-        <thead>
-          <tr>
-            <th></th>
-            <th>${escapeHTML(weapon.name)}</th>
-            <th>${escapeHTML(compareWeapon.name)}</th>
-            <th>B - A</th>
-          </tr>
-        </thead>
-        <tbody>${rows}</tbody>
-      </table>
+    <div class="damage-comparator-grid">
+      ${renderCompareCard(data, weapon, compareWeapon, 'A')}
+      ${renderCompareCard(data, compareWeapon, weapon, 'B')}
     </div>
   </section>`;
 }
 
 function renderHTML(data) {
-  const weapon = data.weapons.find(w => w.id === state.weaponId) || data.weapons[0];
-  if (!data.weapons.some(w => w.id === state.compareWeaponId)) {
-    state.compareWeaponId = defaultCompareWeapon(data, weapon.id)?.id || weapon.id;
-  }
-  const compareWeapon = data.weapons.find(w => w.id === state.compareWeaponId) || defaultCompareWeapon(data, weapon.id) || weapon;
+  const weapon = data.weapons.find(w => w.id === state.weaponId) || null;
+  const compareWeapon = data.weapons.find(w => w.id === state.compareWeaponId) || null;
   const equipment = selectedEquipment(data);
   const weapons = filteredWeapons(data);
   const categoryCounts = data.weapons.reduce((acc, item) => {
@@ -527,78 +612,73 @@ function renderHTML(data) {
   }, {});
 
   return `<div class="damage-page">
-    <div class="damage-page-header">
-      <div>
-        <div class="micro">WEAPON LAB</div>
-        <h1>Weapon damage</h1>
-      </div>
-      <div class="damage-selected-weapon">
-        ${weaponImage(weapon)}
-        <div>
-          <span>${escapeHTML(weapon.name)}</span>
-          <strong>${weaponGroup(weapon).label} / ${escapeHTML(ammoType(weapon))} / ${weapon.baseDamage} dmg${weapon.rpm ? ` / ${weapon.rpm} rpm` : ''}</strong>
-        </div>
-      </div>
-    </div>
-
     <div class="damage-workbench">
-      <aside class="damage-target-panel">
-        ${renderTarget(data, weapon)}
+      <div class="damage-sticky-shelf" aria-hidden="true"></div>
+      <aside class="damage-target-column">
+        <section class="damage-target-panel">
+          ${weapon ? renderTarget(data, weapon) : renderEmptyTarget()}
+        </section>
+
+        <section class="damage-selected-card">
+          ${weapon ? `
+            ${weaponImage(weapon, 'damage-selected-card-img')}
+            <div class="damage-selected-card-info">
+              <strong>${escapeHTML(weapon.name)}</strong>
+              <span>${weaponGroup(weapon).label} · ${escapeHTML(ammoType(weapon))} · ${weapon.baseDamage} dmg${weapon.rpm ? ` · ${weapon.rpm} rpm` : ''}</span>
+            </div>
+          ` : `
+            <div class="damage-selected-card-info">
+              <strong>No weapon selected</strong>
+              <span>click or drag a weapon below</span>
+            </div>
+          `}
+        </section>
       </aside>
 
-      <div class="damage-workspace">
-        <section class="damage-control-panel">
-          <div class="damage-distance-row">
-            <div>
-              <div class="micro">DISTANCE</div>
-              <strong data-distance-value>${state.distance}m</strong>
-            </div>
-            <input id="damage-distance" type="range" min="0" max="1000" step="5" value="${state.distance}">
-          </div>
+      <section class="damage-controls-stack">
+        <div class="damage-controls-distance">
+          <div class="micro">DISTANCE</div>
+          <strong data-distance-value>${state.distance}m</strong>
+          <input id="damage-distance" type="range" min="0" max="1000" step="5" value="${state.distance}">
+        </div>
 
-          <div class="damage-control-group">
-            <div class="micro">HELMET</div>
-            <div class="damage-equipment-list">
-              ${data.equipment.helmets.map(item => optionButton(item, 'helmet')).join('')}
-            </div>
+        <div class="damage-controls-group">
+          <div class="micro">HELMET</div>
+          <div class="damage-equipment-list">
+            ${data.equipment.helmets.map(item => optionButton(item, 'helmet')).join('')}
           </div>
+        </div>
 
-          <div class="damage-control-group">
-            <div class="micro">VEST</div>
-            <div class="damage-equipment-list">
-              ${data.equipment.vests.map(item => optionButton(item, 'vest')).join('')}
-            </div>
-            ${brokenToggle('vest')}
+        <div class="damage-controls-group">
+          <div class="micro">VEST</div>
+          <div class="damage-equipment-list">
+            ${data.equipment.vests.map(item => optionButton(item, 'vest')).join('')}
           </div>
+          ${brokenToggle('vest')}
+        </div>
+      </section>
 
-          <div class="damage-equipment-summary">
-            <span>${escapeHTML(equipment.helmet.label)}: ${Math.round(effectiveReduction({equipSlot:'Head'}, equipment, data) * 100)}%</span>
-            <span>${escapeHTML(equipment.vest.label)}: ${Math.round(effectiveReduction({equipSlot:'TorsoArmor'}, equipment, data) * 100)}%${state.vestBroken && equipment.vest.level ? ' (broken)' : ''}</span>
-          </div>
-        </section>
+      ${renderComparator(data, weapon, compareWeapon)}
 
-        ${renderComparator(data, weapon, compareWeapon)}
-
-        <section class="damage-weapons-section">
-          <div class="damage-weapons-toolbar">
-            <div class="damage-category-tabs">
-              ${WEAPON_GROUPS.map(group => `<button class="${state.category === group.key ? 'active' : ''}" data-category="${group.key}" type="button"><span>${group.label}</span><strong>${categoryCounts[group.key] || 0}</strong></button>`).join('')}
-            </div>
-            <div class="damage-toolbar-actions">
-              <label class="damage-sort-control">
-                <span>Sort</span>
-                <select id="damage-sort">
-                  ${SORT_OPTIONS.map(option => `<option value="${option.key}" ${state.sortBy === option.key ? 'selected' : ''}>${option.label}</option>`).join('')}
-                </select>
-              </label>
-              <input id="damage-weapon-search" value="${escapeHTML(state.query)}" placeholder="Search weapon" autocomplete="off">
-            </div>
+      <section class="damage-weapons-section">
+        <div class="damage-weapons-toolbar">
+          <div class="damage-category-tabs">
+            ${WEAPON_GROUPS.map(group => `<button class="${state.category === group.key ? 'active' : ''}" data-category="${group.key}" type="button"><span>${group.label}</span><strong>${categoryCounts[group.key] || 0}</strong></button>`).join('')}
           </div>
-          <div class="damage-weapon-grid">
-            ${weapons.map(weaponCard).join('') || '<div class="damage-empty-list">No weapons found.</div>'}
+          <div class="damage-toolbar-actions">
+            <label class="damage-sort-control">
+              <span>Sort</span>
+              <select id="damage-sort">
+                ${SORT_OPTIONS.map(option => `<option value="${option.key}" ${state.sortBy === option.key ? 'selected' : ''}>${option.label}</option>`).join('')}
+              </select>
+            </label>
+            <input id="damage-weapon-search" value="${escapeHTML(state.query)}" placeholder="Search weapon" autocomplete="off">
           </div>
-        </section>
-      </div>
+        </div>
+        <div class="damage-weapon-grid">
+          ${weapons.map(weaponCard).join('') || '<div class="damage-empty-list">No weapons found.</div>'}
+        </div>
+      </section>
     </div>
   </div>`;
 }
@@ -636,7 +716,7 @@ function bind(container, data) {
       if (btn.disabled) return;
       const metric = btn.dataset.targetMetric;
       if (metric === state.targetMetric) return;
-      state.targetMetric = metric === 'dps' ? 'dps' : 'damage';
+      state.targetMetric = TARGET_METRICS.some(m => m.key === metric) ? metric : 'damage';
       // Toggle local sem full re-render: atualiza botões + valores
       container.querySelectorAll('[data-target-metric]').forEach(b => {
         const isActive = b.dataset.targetMetric === state.targetMetric;
@@ -646,11 +726,61 @@ function bind(container, data) {
       updateDistanceDamage(container, data);
     });
   });
-  container.querySelectorAll('[data-weapon-id]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      state.weaponId = btn.dataset.weaponId;
+  container.querySelectorAll('.damage-weapon-card[data-weapon-id]').forEach(card => {
+    card.addEventListener('click', () => {
+      state.weaponId = card.dataset.weaponId;
       renderLoaded(container, data);
     });
+    card.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        state.weaponId = card.dataset.weaponId;
+        renderLoaded(container, data);
+      }
+    });
+    card.addEventListener('dragstart', e => {
+      e.dataTransfer.effectAllowed = 'copyMove';
+      e.dataTransfer.setData('text/plain', card.dataset.weaponId);
+      card.classList.add('dragging');
+    });
+    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+  });
+  container.querySelectorAll('.compare-card[data-compare-slot]').forEach(slot => {
+    slot.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      slot.classList.add('drop-target');
+    });
+    slot.addEventListener('dragleave', () => slot.classList.remove('drop-target'));
+    slot.addEventListener('drop', e => {
+      e.preventDefault();
+      slot.classList.remove('drop-target');
+      const weaponId = e.dataTransfer.getData('text/plain');
+      if (!weaponId || !data.weapons.some(w => w.id === weaponId)) return;
+      const targetSlot = slot.dataset.compareSlot;
+      const otherKey = targetSlot === 'A' ? 'compareWeaponId' : 'weaponId';
+      const targetKey = targetSlot === 'A' ? 'weaponId' : 'compareWeaponId';
+      // Se a arma já está no outro slot, faz swap
+      if (state[otherKey] === weaponId) state[otherKey] = state[targetKey];
+      state[targetKey] = weaponId;
+      renderLoaded(container, data);
+    });
+  });
+  container.querySelectorAll('[data-compare-clear]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const slot = btn.dataset.compareClear;
+      if (slot === 'A') state.weaponId = '';
+      else state.compareWeaponId = '';
+      renderLoaded(container, data);
+    });
+  });
+  container.querySelector('[data-compare-swap]')?.addEventListener('click', () => {
+    if (!state.weaponId || !state.compareWeaponId) return;
+    const tmp = state.weaponId;
+    state.weaponId = state.compareWeaponId;
+    state.compareWeaponId = tmp;
+    renderLoaded(container, data);
   });
   container.querySelectorAll('[data-category]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -660,14 +790,6 @@ function bind(container, data) {
   });
   container.querySelector('#damage-sort')?.addEventListener('change', e => {
     state.sortBy = e.target.value;
-    renderLoaded(container, data);
-  });
-  container.querySelector('#damage-compare-a')?.addEventListener('change', e => {
-    state.weaponId = e.target.value;
-    renderLoaded(container, data);
-  });
-  container.querySelector('#damage-compare-b')?.addEventListener('change', e => {
-    state.compareWeaponId = e.target.value;
     renderLoaded(container, data);
   });
   container.querySelector('#damage-weapon-search')?.addEventListener('input', e => {

@@ -1140,86 +1140,159 @@ input[type="range"]::-moz-range-thumb {
 
 /* Weapon damage */
 .damage-page {
-  max-width: 1400px;
+  max-width: 1500px;
   margin: 0 auto;
-  padding: 28px 32px 44px;
-}
-.damage-page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 18px;
-}
-.damage-page h1 {
-  margin: 4px 0 0;
-  font-size: 28px;
-  letter-spacing: 0;
-}
-.damage-selected-weapon {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 260px;
-  padding: 10px 12px;
-  background: var(--surface);
-  border: 1px solid var(--divider);
-  border-radius: var(--r-md);
-}
-.damage-selected-weapon img {
-  width: 78px;
-  height: 44px;
-  object-fit: contain;
-}
-.damage-selected-weapon span,
-.damage-selected-weapon strong {
-  display: block;
-  white-space: nowrap;
-}
-.damage-selected-weapon span {
-  font-size: 13px;
-  font-weight: 600;
-}
-.damage-selected-weapon strong {
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
+  padding: 18px 24px 32px;
 }
 .damage-workbench {
   display: grid;
-  grid-template-columns: minmax(380px, 420px) minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 280px) minmax(260px, 340px) minmax(0, 1fr);
+  grid-template-rows: auto auto;
   gap: 16px;
   align-items: start;
+  position: relative;
 }
-.damage-workspace {
+/* Cobre o vão (gap) entre os elementos sticky da row 1. Ocupa toda a row 1
+   (cols 1/-1), fica sticky junto com eles (top: 24px) e tem z-index abaixo
+   (3 < 5 dos sticky). Sem isso, a lista de armas rolando por baixo da row 1
+   aparece visível nos gaps horizontais entre os 3 painéis sticky. */
+.damage-sticky-shelf {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  align-self: stretch;
+  position: sticky;
+  top: 24px;
+  background: var(--bg);
+  z-index: 3;
+  pointer-events: none;
+}
+.damage-target-column {
+  grid-column: 1;
+  grid-row: 1 / span 2;
   display: flex;
-  min-width: 0;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
+  position: sticky;
+  top: 24px;
+  z-index: 5;
 }
+.damage-controls-stack {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: stretch;
+  position: sticky;
+  top: 24px;
+  z-index: 5;
+}
+.damage-comparator {
+  grid-column: 3;
+  grid-row: 1;
+  position: sticky;
+  top: 24px;
+  z-index: 5;
+}
+.damage-weapons-section {
+  grid-column: 2 / span 2;
+  grid-row: 2;
+}
+.damage-controls-stack,
 .damage-target-panel,
-.damage-control-panel,
-.damage-comparison-panel,
+.damage-selected-card,
+.damage-comparator,
 .damage-weapons-section {
   background: var(--surface);
   border: 1px solid var(--divider);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-1);
+  flex-shrink: 0;
 }
-.damage-target-panel {
-  position: sticky;
-  top: 82px;
-  min-height: 640px;
-  padding: 14px 18px 16px;
+.damage-controls-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
   overflow: hidden;
 }
-.damage-control-panel {
-  display: grid;
-  grid-template-columns: minmax(230px, 1fr) minmax(150px, 0.78fr) minmax(150px, 0.78fr);
+.damage-controls-stack > * { flex-shrink: 0; }
+.damage-controls-distance,
+.damage-controls-group {
+  min-width: 0;
+  padding: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.damage-controls-distance {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.damage-controls-distance strong {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  color: var(--text);
+}
+.damage-controls-distance input[type="range"] {
+  width: 100%;
+  margin-top: 4px;
+  height: 24px;
+  background: transparent;
+  accent-color: var(--accent);
+}
+.damage-controls-distance input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  background: var(--surface-3);
+  border-radius: 999px;
+}
+.damage-controls-distance input[type="range"]::-webkit-slider-thumb { margin-top: -4px; }
+.damage-controls-distance input[type="range"]::-moz-range-track {
+  height: 6px;
+  background: var(--surface-3);
+  border: 0;
+  border-radius: 999px;
+}
+.damage-controls-group .damage-equipment-list { margin-top: 6px; }
+.damage-target-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 10px 10px;
+  overflow: hidden;
+}
+.damage-selected-card {
+  display: flex;
+  align-items: center;
   gap: 10px;
-  align-items: stretch;
-  padding: 12px;
+  padding: 8px 12px;
+}
+.damage-selected-card img,
+.damage-selected-card-img {
+  width: 54px;
+  height: 32px;
+  object-fit: contain;
+}
+.damage-selected-card .damage-weapon-placeholder {
+  width: 54px;
+  height: 32px;
+  font-size: 11px;
+}
+.damage-selected-card-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.damage-selected-card-info strong {
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.damage-selected-card-info span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
 }
 .damage-target-wrap {
   display: flex;
@@ -1263,18 +1336,23 @@ input[type="range"]::-moz-range-thumb {
 }
 .damage-target {
   position: relative;
-  width: min(100%, 370px);
-  height: 500px;
+  height: clamp(420px, calc(100vh - 220px), 760px);
+  aspect-ratio: 56 / 160;
+  max-width: 100%;
   flex: 0 0 auto;
-  transform: translateY(-34px) scale(0.62);
-  transform-origin: top center;
+  margin-top: 6px;
 }
 .target-figure {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   z-index: 1;
-  overflow: hidden;
+  overflow: visible;
 }
+.damage-target-wrap-empty .target-figure { opacity: 0.45; }
+.damage-target-wrap-empty .target-damage-marker text { fill: var(--text-faint); }
+.damage-target-wrap-empty .target-damage-marker rect { opacity: 0.5; }
 .target-ground { fill: oklch(0.05 0 0 / 0.38); }
 .target-zone {
   stroke: oklch(0.04 0 0);
@@ -1351,54 +1429,6 @@ input[type="range"]::-moz-range-thumb {
 .target-calf { color: oklch(0.70 0.20 286); }
 .target-hand,
 .target-foot { color: oklch(0.72 0.02 240); }
-.damage-distance-row {
-  display: grid;
-  grid-template-columns: 88px 1fr;
-  gap: 10px;
-  align-items: center;
-  min-width: 0;
-  padding: 10px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-}
-.damage-distance-row strong {
-  display: block;
-  margin-top: 2px;
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 22px;
-}
-.damage-distance-row input[type="range"] {
-  width: 100%;
-  min-width: 0;
-  height: 26px;
-  background: transparent;
-  accent-color: var(--accent);
-  position: relative;
-  z-index: 2;
-}
-.damage-distance-row input[type="range"]::-webkit-slider-runnable-track {
-  height: 6px;
-  background: var(--surface-3);
-  border-radius: 999px;
-}
-.damage-distance-row input[type="range"]::-webkit-slider-thumb {
-  margin-top: -4px;
-}
-.damage-distance-row input[type="range"]::-moz-range-track {
-  height: 6px;
-  background: var(--surface-3);
-  border: 0;
-  border-radius: 999px;
-}
-.damage-control-group {
-  min-width: 0;
-  padding: 10px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-}
 .damage-equipment-list {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -1451,60 +1481,6 @@ input[type="range"]::-moz-range-thumb {
   font-family: var(--font-mono);
   font-size: 11px;
 }
-.damage-equipment-summary {
-  display: flex;
-  flex-wrap: wrap;
-  grid-column: 1 / -1;
-  gap: 8px;
-  margin-top: -2px;
-}
-.damage-equipment-summary span {
-  padding: 4px 8px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-}
-.damage-comparison-panel {
-  display: grid;
-  grid-template-columns: minmax(220px, 0.72fr) minmax(420px, 1fr);
-  gap: 10px;
-  align-items: start;
-  padding: 12px;
-}
-.damage-comparison-header {
-  display: flex;
-  grid-column: 1;
-  align-items: flex-start;
-  justify-content: flex-start;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-.damage-comparison-header strong {
-  display: block;
-  margin-top: 2px;
-  font-size: 13px;
-}
-.damage-comparison-header > span {
-  padding: 5px 8px;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  color: var(--accent);
-  font-family: var(--font-mono);
-  font-size: 11px;
-}
-.damage-compare-selects {
-  display: grid;
-  grid-column: 1;
-  grid-template-columns: 1fr;
-  gap: 7px;
-  margin-bottom: 0;
-}
-.damage-compare-selects label,
 .damage-sort-control {
   display: grid;
   gap: 4px;
@@ -1514,7 +1490,6 @@ input[type="range"]::-moz-range-thumb {
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.damage-compare-selects select,
 .damage-sort-control select {
   height: 34px;
   min-width: 0;
@@ -1526,57 +1501,197 @@ input[type="range"]::-moz-range-thumb {
   font: 12px 'Inter', system-ui, sans-serif;
   outline: none;
 }
-.damage-compare-selects select:focus,
-.damage-sort-control select:focus {
-  border-color: var(--border-strong);
+.damage-sort-control select:focus { border-color: var(--border-strong); }
+
+/* Comparator (2 cards lado a lado) */
+.damage-comparator {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
 }
-.damage-comparison-table-wrap {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  overflow-x: auto;
-  min-width: 0;
+.damage-comparator-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
-.damage-comparison-table {
-  width: 100%;
-  min-width: 0;
-  border-collapse: separate;
-  border-spacing: 0;
-  table-layout: fixed;
+.damage-comparator-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-.damage-comparison-table th,
-.damage-comparison-table td {
-  padding: 5px 8px;
-  border-bottom: 1px solid var(--divider);
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  text-align: right;
-  white-space: nowrap;
-}
-.damage-comparison-table th:first-child,
-.damage-comparison-table td:first-child {
-  text-align: left;
-}
-.damage-comparison-table thead th {
+.damage-comparator-hint {
   color: var(--text-faint);
-  font-size: 9.5px;
-  font-weight: 600;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
-.damage-comparison-table tbody th {
-  color: var(--text-dim);
+.damage-comparator-swap {
+  appearance: none;
+  width: 30px;
+  height: 30px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 16px;
+  transition: background 120ms, border-color 120ms;
+}
+.damage-comparator-swap:hover {
+  background: var(--surface-3);
+  border-color: var(--accent-border);
+}
+.damage-comparator-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.compare-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  min-width: 0;
+  transition: border-color 140ms, background 140ms;
+}
+.compare-card.drop-target {
+  border-color: var(--accent);
+  background: oklch(0.32 0.08 60);
+}
+.compare-card-empty {
+  border-style: dashed;
+  border-color: var(--border-strong);
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  background: transparent;
+}
+.compare-card-empty-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 24px 12px;
+  text-align: center;
+}
+.compare-card-empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 22px;
+  line-height: 1;
+}
+.compare-card-empty strong {
+  color: var(--text);
+  font-size: 13px;
   font-weight: 600;
 }
-.damage-delta {
-  display: inline-flex;
-  min-width: 0;
-  justify-content: flex-end;
-  font-weight: 700;
+.compare-card-empty span {
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
 }
-.damage-delta.positive { color: oklch(0.76 0.16 152); }
-.damage-delta.negative { color: oklch(0.69 0.16 28); }
-.damage-delta.neutral,
-.damage-delta.muted { color: var(--text-faint); }
+.compare-card-clear {
+  appearance: none;
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  transition: color 120ms, border-color 120ms, background 120ms;
+}
+.compare-card-clear:hover {
+  color: var(--text);
+  border-color: var(--accent-border);
+  background: var(--surface-3);
+}
+.damage-comparator-swap:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.compare-card-slot {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+.compare-card-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.compare-card-img {
+  width: 56px;
+  height: 36px;
+  object-fit: contain;
+}
+.compare-card-head .damage-weapon-placeholder {
+  width: 56px;
+  height: 36px;
+  font-size: 11px;
+}
+.compare-card-id strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.compare-card-id span {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+.compare-card-stats {
+  display: grid;
+  grid-template-columns: 1fr;
+  margin-top: 8px;
+}
+.compare-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 4px 0;
+  border-bottom: 1px dashed oklch(from var(--border) l c h / 0.5);
+  font-family: var(--font-mono);
+}
+.compare-stat:last-child { border-bottom: 0; }
+.compare-stat-label {
+  color: var(--text-muted);
+  font-size: 10.5px;
+}
+.compare-stat-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.compare-stat-win .compare-stat-value { color: oklch(0.78 0.16 152); }
+.compare-stat-lose .compare-stat-value { color: var(--text-faint); }
+.compare-stat-tie .compare-stat-value { color: var(--text-muted); }
 .damage-weapons-section {
   padding: 12px;
 }
@@ -1646,6 +1761,7 @@ input[type="range"]::-moz-range-thumb {
   gap: 6px;
 }
 .damage-weapon-card {
+  position: relative;
   display: grid;
   grid-template-rows: 42px auto auto auto;
   gap: 3px;
@@ -1655,16 +1771,44 @@ input[type="range"]::-moz-range-thumb {
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   color: var(--text);
-  cursor: pointer;
+  cursor: grab;
   text-align: left;
-  transition: background 140ms, border-color 140ms, transform 140ms;
+  transition: background 140ms, border-color 140ms, transform 140ms, box-shadow 140ms;
+  user-select: none;
 }
+.damage-weapon-card:hover { transform: translateY(-1px); }
 .damage-weapon-card:hover,
-.damage-weapon-card.active {
+.damage-weapon-card.active,
+.damage-weapon-card.compare-active {
   background: var(--surface-3);
   border-color: var(--accent-border);
 }
-.damage-weapon-card:hover { transform: translateY(-1px); }
+.damage-weapon-card.active { box-shadow: 0 0 0 1px var(--accent) inset; }
+.damage-weapon-card.compare-active { box-shadow: 0 0 0 1px oklch(0.72 0.13 226) inset; }
+.damage-weapon-card.dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+.damage-weapon-card:active { cursor: grabbing; }
+.damage-weapon-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--bg);
+  z-index: 2;
+  pointer-events: none;
+}
+.damage-weapon-badge.badge-a { background: var(--accent); }
+.damage-weapon-badge.badge-b { background: oklch(0.72 0.13 226); }
 .damage-weapon-card img {
   width: 100%;
   height: 42px;
@@ -1719,11 +1863,6 @@ input[type="range"]::-moz-range-thumb {
   font-weight: 700;
   color: var(--text-muted);
   letter-spacing: 0;
-}
-.damage-selected-weapon .damage-weapon-placeholder {
-  width: 56px;
-  height: 56px;
-  font-size: 13px;
 }
 .damage-broken-toggle {
   display: inline-flex;
@@ -1788,11 +1927,20 @@ input[type="range"]::-moz-range-thumb {
   .match-row-new { grid-template-columns: 56px 1fr 320px 16px; }
   .match-ago { display: none; }
   #match-drawer { width: 92vw; max-width: 480px; }
-  .damage-workbench { grid-template-columns: 1fr; }
-  .damage-target-panel { position: static; top: auto; min-height: auto; }
-  .damage-control-panel { grid-template-columns: 1fr 1fr; }
-  .damage-distance-row,
-  .damage-equipment-summary { grid-column: 1 / -1; }
+  .damage-workbench {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+  }
+  .damage-target-column,
+  .damage-controls-stack,
+  .damage-comparator,
+  .damage-weapons-section {
+    grid-column: 1;
+    grid-row: auto;
+    position: static;
+  }
+  .damage-target { height: clamp(380px, 80vw, 560px); }
+  .damage-comparator-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 720px) {
@@ -1820,23 +1968,12 @@ input[type="range"]::-moz-range-thumb {
   .pi-search-form.large .pi-search-input-wrap { height: auto; padding: 8px; flex-wrap: wrap; }
   .pi-search-form.large .pi-search-input-wrap input { height: 36px; min-width: 0; flex-basis: 100%; order: -1; }
   .damage-page { padding: 20px 16px 32px; }
-  .damage-page-header { align-items: stretch; flex-direction: column; }
-  .damage-selected-weapon { min-width: 0; }
-  .damage-control-panel { grid-template-columns: 1fr; }
+  .damage-controls-row { grid-template-columns: 1fr; }
   .damage-equipment-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .damage-weapons-toolbar { align-items: stretch; flex-direction: column; }
   .damage-toolbar-actions { align-items: stretch; flex-direction: column; }
   .damage-category-tabs { overflow-x: auto; }
   #damage-weapon-search { width: 100%; }
-  .damage-comparison-panel { grid-template-columns: 1fr; }
-  .damage-comparison-header,
-  .damage-compare-selects,
-  .damage-comparison-table-wrap {
-    grid-column: 1;
-    grid-row: auto;
-  }
-  .damage-compare-selects { grid-template-columns: 1fr; }
-  .damage-comparison-table { min-width: 480px; }
   .damage-target-panel { min-height: auto; padding: 12px; }
   .damage-target {
     width: min(100%, 320px);
