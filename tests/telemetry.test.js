@@ -66,6 +66,101 @@ function extractBulletEvents(telemetry) {
   );
 }
 
+function extractAircraftRouteSamples(telemetry) {
+  const INITIAL_AIRCRAFT_SECONDS = 60;
+  const LEAVE_SAMPLE_GRACE_SECONDS = 1.5;
+  const LEAVE_SAMPLE_GRACE_MS = 1500;
+  const gsTimeline = buildGsTimeline(telemetry);
+  const eventTimes = telemetry
+    .map(item => new Date(item._D).getTime())
+    .filter(Number.isFinite);
+  const baseMs = eventTimes.length ? Math.min(...eventTimes) : 0;
+  const elapsedForEvent = item => {
+    const dMs = new Date(item._D).getTime();
+    if (!Number.isFinite(dMs)) return null;
+    if (Number.isFinite(item.elapsed)) return { dMs, elapsed: item.elapsed };
+    if (gsTimeline.length) {
+      const first = gsTimeline[0];
+      if (dMs <= first.dMs) return { dMs, elapsed: first.elapsed + (dMs - first.dMs) / 1000 };
+      for (let i = 0; i < gsTimeline.length - 1; i++) {
+        const prev = gsTimeline[i], next = gsTimeline[i + 1];
+        if (dMs >= prev.dMs && dMs <= next.dMs) {
+          const ratio = (dMs - prev.dMs) / (next.dMs - prev.dMs);
+          return { dMs, elapsed: prev.elapsed + (next.elapsed - prev.elapsed) * ratio };
+        }
+      }
+      const last = gsTimeline[gsTimeline.length - 1];
+      return { dMs, elapsed: last.elapsed + (dMs - last.dMs) / 1000 };
+    }
+    return { dMs, elapsed: (dMs - baseMs) / 1000 };
+  };
+  const dedupeSamples = points => {
+    const samples = [];
+    const seen = new Set();
+    points.slice().sort((a, b) => a.dMs - b.dMs).forEach(point => {
+      const key = [
+        Math.round(point.dMs / 1000),
+        Math.round(point.x / 100),
+        Math.round(point.y / 100),
+      ].join(':');
+      if (seen.has(key)) return;
+      seen.add(key);
+      samples.push(point);
+    });
+    return samples;
+  };
+
+  const initialLeaves = telemetry
+    .filter(item =>
+      item._T === 'LogVehicleLeave' &&
+      item.vehicle?.vehicleType === 'TransportAircraft' &&
+      item.character?.accountId &&
+      !isReplayBear(item.character)
+    )
+    .map(item => {
+      const timing = elapsedForEvent(item);
+      return timing ? { item, ...timing } : null;
+    })
+    .filter(leave => leave && leave.elapsed >= 0 && leave.elapsed <= INITIAL_AIRCRAFT_SECONDS)
+    .map(leave => ({
+      accountId: leave.item.character.accountId,
+      t: leave.elapsed,
+      dMs: leave.dMs,
+    }))
+    .sort((a, b) => (b.t - a.t) || (b.dMs - a.dMs));
+
+  const positionPointsByAccount = new Map();
+  telemetry.forEach(item => {
+    if (item._T !== 'LogPlayerPosition') return;
+    if (item.vehicle?.vehicleType !== 'TransportAircraft') return;
+    const accountId = item.character?.accountId;
+    if (!accountId || isReplayBear(item.character)) return;
+    const location = item.vehicle?.location || item.character?.location;
+    if (!Number.isFinite(location?.x) || !Number.isFinite(location?.y)) return;
+    const timing = elapsedForEvent(item);
+    if (!timing || timing.elapsed < 0 || timing.elapsed > INITIAL_AIRCRAFT_SECONDS + LEAVE_SAMPLE_GRACE_SECONDS) return;
+    if (!positionPointsByAccount.has(accountId)) positionPointsByAccount.set(accountId, []);
+    positionPointsByAccount.get(accountId).push({
+      accountId,
+      dMs: timing.dMs,
+      t: timing.elapsed,
+      x: location.x,
+      y: location.y,
+      eventType: item._T,
+    });
+  });
+
+  for (const leave of initialLeaves) {
+    const samples = dedupeSamples((positionPointsByAccount.get(leave.accountId) || [])
+      .filter(point =>
+        point.dMs <= leave.dMs + LEAVE_SAMPLE_GRACE_MS &&
+        point.t <= leave.t + LEAVE_SAMPLE_GRACE_SECONDS
+      ));
+    if (samples.length >= 2) return samples;
+  }
+  return [];
+}
+
 // ── playerNames ───────────────────────────────────────────────────────────────
 
 test('extractPlayerNames: extracts name from LogPlayerPosition events', () => {
@@ -268,6 +363,159 @@ test('extractBulletEvents: missing attacker accountId is excluded', () => {
     attacker: { location: { x: 100, y: 200, z: 0 } }, // no accountId
   }]);
   assert.equal(events.length, 0);
+});
+
+test('extractAircraftRouteSamples: uses LogPlayerPosition from a late first-plane leaver', () => {
+  const samples = extractAircraftRouteSamples([
+    {
+      _T: 'LogPlayerPosition',
+      _D: '2024-01-01T00:00:05.000Z',
+      character: { accountId: 'account.early' },
+      vehicle: { vehicleType: 'TransportAircraft', location: { x: 100, y: 200, z: 150000 } },
+    },
+    {
+      _T: 'LogVehicleLeave',
+      _D: '2024-01-01T00:00:20.000Z',
+      character: { accountId: 'account.early' },
+      vehicle: { vehicleType: 'TransportAircraft', location: { x: 200, y: 300, z: 150000 } },
+    },
+    {
+      _T: 'LogPlayerPosition',
+      _D: '2024-01-01T00:00:06.000Z',
+      character: { accountId: 'account.late' },
+      vehicle: { vehicleType: 'TransportAircraft', location: { x: 1000, y: 2000, z: 150000 } },
+    },
+    {
+      _T: 'LogPlayerPosition',
+      _D: '2024-01-01T00:00:16.000Z',
+      character: { accountId: 'account.late' },
+      vehicle: { vehicleType: 'TransportAircraft', location: { x: 2000, y: 3000, z: 150000 } },
+    },
+    {
+      _T: 'LogPlayerPosition',
+      _D: '2024-01-01T00:00:26.000Z',
+      character: { accountId: 'account.late' },
+      vehicle: { vehicleType: 'TransportAircraft', location: { x: 3000, y: 4000, z: 150000 } },
+    },
+    {
+      _T: 'LogVehicleLeave',
+      _D: '2024-01-01T00:00:30.000Z',
+      character: { accountId: 'account.late' },
+      vehicle: { vehicleType: 'TransportAircraft', location: { x: 3500, y: 4500, z: 150000 } },
+    },
+    {
+      _T: 'LogPlayerPosition',
+      _D: '2024-01-01T00:01:20.000Z',
+      character: { accountId: 'account.revive' },
+      vehicle: { vehicleType: 'TransportAircraft', location: { x: 9000, y: 9000, z: 150000 } },
+    },
+    {
+      _T: 'LogVehicleLeave',
+      _D: '2024-01-01T00:01:30.000Z',
+      character: { accountId: 'account.revive' },
+      vehicle: { vehicleType: 'TransportAircraft', location: { x: 9500, y: 9500, z: 150000 } },
+    },
+  ]);
+  assert.equal(samples.length, 3);
+  assert.equal(samples[0].accountId, 'account.late');
+  assert.equal(samples[0].x, 1000);
+  assert.equal(samples[2].x, 3000);
+});
+
+test('extractAircraftRouteSamples: extrapolates aircraft positions before first game state', () => {
+  const samples = extractAircraftRouteSamples([
+    {
+      _T: 'LogGameStatePeriodic',
+      _D: '2024-01-01T00:00:10.000Z',
+      gameState: { elapsedTime: 10 },
+    },
+    {
+      _T: 'LogPlayerPosition',
+      _D: '2024-01-01T00:00:04.000Z',
+      character: { accountId: 'account.late' },
+      vehicle: { vehicleType: 'TransportAircraft', location: { x: 1000, y: 2000, z: 150000 } },
+    },
+    {
+      _T: 'LogPlayerPosition',
+      _D: '2024-01-01T00:00:14.000Z',
+      character: { accountId: 'account.late' },
+      vehicle: { vehicleType: 'TransportAircraft', location: { x: 2000, y: 3000, z: 150000 } },
+    },
+    {
+      _T: 'LogVehicleLeave',
+      _D: '2024-01-01T00:00:16.000Z',
+      character: { accountId: 'account.late' },
+      vehicle: { vehicleType: 'TransportAircraft', location: { x: 2200, y: 3200, z: 150000 } },
+    },
+  ]);
+  assert.equal(samples.length, 2);
+  assert.equal(samples[0].t, 4);
+  assert.equal(samples[1].t, 14);
+});
+
+test('extractAircraftRouteSamples: ignores other vehicles and duplicate same-second points', () => {
+  const samples = extractAircraftRouteSamples([
+    {
+      _T: 'LogPlayerPosition',
+      _D: '2024-01-01T00:00:10.100Z',
+      character: { accountId: 'account.late' },
+      vehicle: { vehicleType: 'TransportAircraft', location: { x: 1000, y: 2000, z: 150000 } },
+    },
+    {
+      _T: 'LogPlayerPosition',
+      _D: '2024-01-01T00:00:10.400Z',
+      character: { accountId: 'account.late' },
+      vehicle: { vehicleType: 'TransportAircraft', location: { x: 1040, y: 2040, z: 150000 } },
+    },
+    {
+      _T: 'LogPlayerPosition',
+      _D: '2024-01-01T00:00:15.000Z',
+      character: { accountId: 'account.late' },
+      vehicle: { vehicleType: 'TransportAircraft', location: { x: 2000, y: 3000, z: 150000 } },
+    },
+    {
+      _T: 'LogPlayerPosition',
+      _D: '2024-01-01T00:00:20.000Z',
+      character: { accountId: 'account.late' },
+      vehicle: { vehicleType: 'WheeledVehicle', location: { x: 5000, y: 6000, z: 0 } },
+    },
+    {
+      _T: 'LogVehicleLeave',
+      _D: '2024-01-01T00:00:25.000Z',
+      character: { accountId: 'account.late' },
+      vehicle: { vehicleType: 'TransportAircraft', location: { x: 3000, y: 4000, z: 150000 } },
+    },
+  ]);
+  assert.equal(samples.length, 2);
+  assert.equal(samples[0].x, 1000);
+  assert.equal(samples[1].x, 2000);
+});
+
+test('extractAircraftRouteSamples: falls back to character location', () => {
+  const samples = extractAircraftRouteSamples([
+    {
+      _T: 'LogPlayerPosition',
+      _D: '2024-01-01T00:00:10.000Z',
+      character: { accountId: 'account.late', location: { x: 700, y: 800, z: 150208 } },
+      vehicle: { vehicleType: 'TransportAircraft' },
+    },
+    {
+      _T: 'LogPlayerPosition',
+      _D: '2024-01-01T00:00:20.000Z',
+      character: { accountId: 'account.late', location: { x: 900, y: 1000, z: 150208 } },
+      vehicle: { vehicleType: 'TransportAircraft' },
+    },
+    {
+      _T: 'LogVehicleLeave',
+      _D: '2024-01-01T00:00:25.000Z',
+      character: { accountId: 'account.late' },
+      vehicle: { vehicleType: 'TransportAircraft', location: { x: 1000, y: 1100, z: 150000 } },
+    },
+  ]);
+  assert.equal(samples.length, 2);
+  assert.equal(samples[0].x, 700);
+  assert.equal(samples[0].y, 800);
+  assert.equal(samples[1].x, 900);
 });
 
 // ── stats formatting (mirrors scripts.js) ────────────────────────────────────

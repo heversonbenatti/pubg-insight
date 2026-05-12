@@ -257,6 +257,12 @@ export function showModal(matchData, platform = 'steam') {
         feedMaxValueEl.textContent = feedMaxSlider.value;
         try { localStorage.setItem('pi_feedMax', feedMaxSlider.value); } catch (_) {}
     });
+    window._replayFeedScale = 1;
+    window._replayFeedMax = 10;
+    window._replayKillfeedEnabled = (() => {
+        try { return localStorage.getItem('pi_killfeed') !== '0'; }
+        catch (_) { return true; }
+    })();
 
     const viewPanel = document.createElement('div');
     viewPanel.className = 'replay-view-panel';
@@ -288,8 +294,73 @@ export function showModal(matchData, platform = 'steam') {
     teamOverlayRow.appendChild(teamOverlayButton);
     teamOverlayRow.appendChild(teamOverlayStatus);
 
+    const aircraftRouteRow = document.createElement('div');
+    aircraftRouteRow.className = 'replay-view-toggle-row';
+    const aircraftRouteButton = document.createElement('button');
+    aircraftRouteButton.id = 'aircraftRouteToggle';
+    aircraftRouteButton.className = 'replay-advisor-button replay-aircraft-toggle';
+    aircraftRouteButton.type = 'button';
+    aircraftRouteButton.title = 'Mostrar rota do aviao no mapa';
+    aircraftRouteButton.setAttribute('aria-pressed', 'true');
+    aircraftRouteButton.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M10.5 20.5l2-7.5-7.5-4.5 1.3-2 8.4 2 4.6-4.6c.8-.8 2.1-.8 2.9 0s.8 2.1 0 2.9l-4.6 4.6 2 8.4-2 1.3-4.5-7.5-7.5 2-1.1-1.1 6.4-4.2-4.2-6.4 1.1-1.1 6.4 4.2 4.2-6.4 1.1 1.1-2 7.5 7.5 4.5-1.3 2-8.4-2-4.6 4.6z"/>
+        </svg>
+        <span>Plane</span>
+    `;
+    const aircraftRouteStatus = document.createElement('span');
+    aircraftRouteStatus.id = 'aircraftRouteStatus';
+    aircraftRouteStatus.className = 'replay-advisor-status';
+    aircraftRouteStatus.textContent = '...';
+    aircraftRouteRow.appendChild(aircraftRouteButton);
+    aircraftRouteRow.appendChild(aircraftRouteStatus);
+
+    const playerSizeButton = document.createElement('button');
+    playerSizeButton.id = 'playerSizeToggle';
+    playerSizeButton.className = 'replay-advisor-button replay-player-size-toggle';
+    playerSizeButton.type = 'button';
+    playerSizeButton.title = `Tamanho dos players: ${window._replayPlayerSize}`;
+    playerSizeButton.setAttribute('aria-label', playerSizeButton.title);
+    playerSizeButton.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="3.2"/>
+            <path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2"/>
+        </svg>
+        <span>Players Size</span>
+    `;
+    playerSizeButton.addEventListener('click', () => {
+        window._replayPlayerSize = window._replayPlayerSize >= 8 ? 4 : window._replayPlayerSize + 1;
+        playerSizeButton.title = `Tamanho dos players: ${window._replayPlayerSize}`;
+        playerSizeButton.setAttribute('aria-label', playerSizeButton.title);
+        try { localStorage.setItem('pi_playerSize', String(window._replayPlayerSize)); } catch (_) {}
+    });
+
+    const killfeedButton = document.createElement('button');
+    killfeedButton.id = 'killfeedToggle';
+    killfeedButton.className = 'replay-advisor-button replay-killfeed-toggle';
+    killfeedButton.type = 'button';
+    killfeedButton.title = 'Ligar/desligar killfeed';
+    killfeedButton.setAttribute('aria-pressed', window._replayKillfeedEnabled ? 'true' : 'false');
+    killfeedButton.classList.toggle('active', window._replayKillfeedEnabled);
+    killfeedButton.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 7h16M4 12h12M4 17h9"/>
+            <path d="M18 15l2 2-2 2"/>
+        </svg>
+        <span>Killfeed</span>
+    `;
+    killfeedButton.addEventListener('click', () => {
+        window._replayKillfeedEnabled = !window._replayKillfeedEnabled;
+        killfeedButton.classList.toggle('active', window._replayKillfeedEnabled);
+        killfeedButton.setAttribute('aria-pressed', window._replayKillfeedEnabled ? 'true' : 'false');
+        try { localStorage.setItem('pi_killfeed', window._replayKillfeedEnabled ? '1' : '0'); } catch (_) {}
+    });
+
     viewPanel.appendChild(viewFooterLabel);
     viewPanel.appendChild(teamOverlayRow);
+    viewPanel.appendChild(aircraftRouteRow);
+    viewPanel.appendChild(playerSizeButton);
+    viewPanel.appendChild(killfeedButton);
     viewPanel.appendChild(voRow(voLabel('PLAYERS'), sizeSlider, sizeValueEl));
     viewPanel.appendChild(voRow(voLabel('FEED'), feedSlider, feedValueEl));
     viewPanel.appendChild(voRow(voLabel('EVENTS'), feedMaxSlider, feedMaxValueEl));

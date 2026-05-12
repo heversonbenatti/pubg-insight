@@ -48,6 +48,17 @@ export function startModal(matchId, platform, mapName) {
     catch (_) { return false; }
   })();
   let teamOverlayStatusText = '';
+  const aircraftRouteButton = document.getElementById('aircraftRouteToggle');
+  const aircraftRouteStatus = document.getElementById('aircraftRouteStatus');
+  let aircraftRouteEnabled = (() => {
+    try { return localStorage.getItem('pi_aircraftRoute') !== '0'; }
+    catch (_) { return true; }
+  })();
+  let aircraftRoutePointCount = null;
+  let aircraftRouteStatusText = '';
+  const aircraftRouteImg = new Image();
+  aircraftRouteImg.src = '/images/plane.png';
+  let aircraftRouteWhiteImg = null;
 
   function setTeamOverlayStatus(text) {
     if (!teamOverlayStatus || teamOverlayStatusText === text) return;
@@ -63,6 +74,24 @@ export function startModal(matchId, platform, mapName) {
   }
 
   syncTeamOverlayButton();
+
+  function setAircraftRouteStatus(text) {
+    if (!aircraftRouteStatus || aircraftRouteStatusText === text) return;
+    aircraftRouteStatusText = text;
+    aircraftRouteStatus.textContent = text;
+  }
+
+  function syncAircraftRouteButton() {
+    if (!aircraftRouteButton) return;
+    aircraftRouteButton.classList.toggle('active', aircraftRouteEnabled);
+    aircraftRouteButton.setAttribute('aria-pressed', aircraftRouteEnabled ? 'true' : 'false');
+    if (!aircraftRouteEnabled) setAircraftRouteStatus('OFF');
+    else if (aircraftRoutePointCount === null) setAircraftRouteStatus('...');
+    else if (aircraftRoutePointCount < 2) setAircraftRouteStatus('NO DATA');
+    else setAircraftRouteStatus(`${aircraftRoutePointCount} PTS`);
+  }
+
+  syncAircraftRouteButton();
 
   const translatedMapName = translateMapName(mapName);
   const mapLower = translatedMapName.toLowerCase();
@@ -432,6 +461,193 @@ export function startModal(matchId, platform, mapName) {
         return prev.elapsed + (next.elapsed - prev.elapsed) * ratio;
       }
 
+      function isFiniteLocation(location) {
+        return Number.isFinite(location?.x) && Number.isFinite(location?.y);
+      }
+
+      function routeLineForMap(a, b) {
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        if (Math.hypot(dx, dy) < 1) return null;
+
+        const hits = [];
+        const addHit = (x, y, t) => {
+          if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(t)) return;
+          if (x < -0.5 || y < -0.5 || x > MAP_WIDTH + 0.5 || y > MAP_HEIGHT + 0.5) return;
+          if (hits.some(hit => Math.hypot(hit.x - x, hit.y - y) < 1)) return;
+          hits.push({
+            x: Math.max(0, Math.min(MAP_WIDTH, x)),
+            y: Math.max(0, Math.min(MAP_HEIGHT, y)),
+            t,
+          });
+        };
+
+        if (Math.abs(dx) > 0.0001) {
+          let t = (0 - a.x) / dx;
+          addHit(0, a.y + dy * t, t);
+          t = (MAP_WIDTH - a.x) / dx;
+          addHit(MAP_WIDTH, a.y + dy * t, t);
+        }
+        if (Math.abs(dy) > 0.0001) {
+          let t = (0 - a.y) / dy;
+          addHit(a.x + dx * t, 0, t);
+          t = (MAP_HEIGHT - a.y) / dy;
+          addHit(a.x + dx * t, MAP_HEIGHT, t);
+        }
+
+        if (hits.length < 2) return null;
+        hits.sort((left, right) => left.t - right.t);
+        return { start: hits[0], end: hits[hits.length - 1] };
+      }
+
+      function buildAircraftRoute(events) {
+        const INITIAL_AIRCRAFT_SECONDS = 60;
+        const LEAVE_SAMPLE_GRACE_SECONDS = 1.5;
+        const LEAVE_SAMPLE_GRACE_MS = 1500;
+
+        const elapsedForEvent = item => {
+          const dMs = new Date(item._D).getTime();
+          if (!Number.isFinite(dMs)) return null;
+          if (gsTimeline.length) {
+            const first = gsTimeline[0];
+            if (dMs <= first.dMs) {
+              return { dMs, elapsed: first.elapsed + (dMs - first.dMs) / 1000 };
+            }
+            const last = gsTimeline[gsTimeline.length - 1];
+            if (dMs >= last.dMs) {
+              return { dMs, elapsed: last.elapsed + (dMs - last.dMs) / 1000 };
+            }
+          }
+          return { dMs, elapsed: dMsToElapsed(dMs) };
+        };
+
+        const dedupeSamples = points => {
+          const ordered = points.slice().sort((a, b) => a.dMs - b.dMs);
+          const samples = [];
+          const seen = new Set();
+          ordered.forEach(point => {
+            const key = [
+              Math.round(point.dMs / 1000),
+              Math.round(point.x / 100),
+              Math.round(point.y / 100),
+            ].join(':');
+            if (seen.has(key)) return;
+            seen.add(key);
+            samples.push(point);
+          });
+          return samples;
+        };
+
+        const initialLeaves = [];
+        events.forEach(item => {
+          if (item._T !== 'LogVehicleLeave') return;
+          if (item.vehicle?.vehicleType !== 'TransportAircraft') return;
+          const accountId = item.character?.accountId;
+          if (!accountId || isReplayBear(item.character)) return;
+          const timing = elapsedForEvent(item);
+          if (!timing || timing.elapsed < 0 || timing.elapsed > INITIAL_AIRCRAFT_SECONDS) return;
+          initialLeaves.push({
+            accountId,
+            name: item.character?.name || '',
+            t: timing.elapsed,
+            dMs: timing.dMs,
+            location: item.vehicle?.location || item.character?.location,
+          });
+        });
+
+        initialLeaves.sort((a, b) => (b.t - a.t) || (b.dMs - a.dMs));
+
+        const positionPointsByAccount = new Map();
+        events.forEach(item => {
+          if (item._T !== 'LogPlayerPosition') return;
+          if (item.vehicle?.vehicleType !== 'TransportAircraft') return;
+          const accountId = item.character?.accountId;
+          if (!accountId || isReplayBear(item.character)) return;
+          const location = item.vehicle?.location || item.character?.location;
+          if (!item._D || !isFiniteLocation(location)) return;
+          const timing = elapsedForEvent(item);
+          if (!timing || timing.elapsed < 0 || timing.elapsed > INITIAL_AIRCRAFT_SECONDS + LEAVE_SAMPLE_GRACE_SECONDS) return;
+          if (!positionPointsByAccount.has(accountId)) positionPointsByAccount.set(accountId, []);
+          positionPointsByAccount.get(accountId).push({
+            t: timing.elapsed,
+            dMs: timing.dMs,
+            x: location.x,
+            y: location.y,
+            z: Number.isFinite(location.z) ? location.z : 0,
+            eventType: item._T,
+            accountId,
+          });
+        });
+
+        let selected = null;
+        let samples = [];
+        for (const leave of initialLeaves) {
+          const raw = (positionPointsByAccount.get(leave.accountId) || [])
+            .filter(point =>
+              point.dMs <= leave.dMs + LEAVE_SAMPLE_GRACE_MS &&
+              point.t <= leave.t + LEAVE_SAMPLE_GRACE_SECONDS
+            );
+          const deduped = dedupeSamples(raw);
+          if (deduped.length >= 2) {
+            selected = leave;
+            samples = deduped;
+            break;
+          }
+        }
+
+        if (!selected && initialLeaves.length >= 2) {
+          samples = dedupeSamples(initialLeaves
+            .slice()
+            .sort((a, b) => a.dMs - b.dMs)
+            .filter(leave => isFiniteLocation(leave.location))
+            .map(leave => ({
+              t: leave.t,
+              dMs: leave.dMs,
+              x: leave.location.x,
+              y: leave.location.y,
+              z: Number.isFinite(leave.location.z) ? leave.location.z : 0,
+              eventType: 'LogVehicleLeave',
+              accountId: leave.accountId,
+            })));
+        }
+
+        if (!samples.length) return { samples: [], segment: null, selected };
+
+        const seen = new Set();
+        samples = samples.filter(point => {
+          const key = [
+            Math.round(point.x / 100),
+            Math.round(point.y / 100),
+          ].join(':');
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+        let start = samples[0] || null;
+        let end = samples[samples.length - 1] || null;
+        if (samples.length >= 2 && Math.hypot(end.x - start.x, end.y - start.y) < 1000) {
+          let best = null;
+          for (let i = 0; i < samples.length - 1; i++) {
+            for (let j = i + 1; j < samples.length; j++) {
+              const dist = Math.hypot(samples[j].x - samples[i].x, samples[j].y - samples[i].y);
+              if (!best || dist > best.dist) best = { a: samples[i], b: samples[j], dist };
+            }
+          }
+          if (best) {
+            start = best.a.dMs <= best.b.dMs ? best.a : best.b;
+            end = best.a.dMs <= best.b.dMs ? best.b : best.a;
+          }
+        }
+
+        const segment = start && end ? routeLineForMap(start, end) : null;
+        return { samples, segment, selected };
+      }
+
+      const aircraftRoute = buildAircraftRoute(data);
+      aircraftRoutePointCount = aircraftRoute.samples.length;
+      syncAircraftRouteButton();
+
       const playerDeathIntervals = {};
       data.forEach(item => {
         if ((item._T === 'LogPlayerKillV2' || item._T === 'LogPlayerKill') &&
@@ -507,6 +723,7 @@ export function startModal(matchId, platform, mapName) {
       }
 
       const playerAirborneIntervals = {};
+      const playerFirstAircraftExitTime = {};
       data.forEach(item => {
         if (item._T === 'LogVehicleLeave' &&
           item.vehicle?.vehicleType === 'TransportAircraft' &&
@@ -514,6 +731,9 @@ export function startModal(matchId, platform, mapName) {
           item.character?.accountId) {
           const id = item.character.accountId;
           const t = dMsToElapsed(new Date(item._D).getTime());
+          if (playerFirstAircraftExitTime[id] === undefined || t < playerFirstAircraftExitTime[id]) {
+            playerFirstAircraftExitTime[id] = t;
+          }
           if (!playerAirborneIntervals[id]) playerAirborneIntervals[id] = [];
           playerAirborneIntervals[id].push({ start: t, end: null });
         }
@@ -541,6 +761,11 @@ export function startModal(matchId, platform, mapName) {
         return false;
       }
 
+      function hasPlayerExitedAircraft(accountId, elapsed) {
+        const firstExit = playerFirstAircraftExitTime[accountId];
+        return firstExit === undefined || elapsed >= firstExit - 0.05;
+      }
+
       const players = {};
 
       characterData.forEach(item => {
@@ -548,6 +773,7 @@ export function startModal(matchId, platform, mapName) {
         if (!players[id]) players[id] = [];
         const t = dMsToElapsed(new Date(item._D).getTime());
         if (t <= 9) return;
+        if (!hasPlayerExitedAircraft(id, t)) return;
         if (isPlayerDead(id, t)) return;
         const state = characterAnchorState(item.character, item.vehicle, {
           isAirborne: isPlayerAirborne(id, t),
@@ -585,6 +811,7 @@ export function startModal(matchId, platform, mapName) {
           const location = character?.location;
           if (isReplayBear(character)) return;
           if (!accountId || !location || !players[accountId]) return;
+          if (!hasPlayerExitedAircraft(accountId, t)) return;
           if (isPlayerDead(accountId, t)) return;
           const state = characterAnchorState(character, vehicle, {
             ...options,
@@ -1029,12 +1256,30 @@ export function startModal(matchId, platform, mapName) {
         drawCtx.stroke();
       }
 
+      function drawGasOverlay(radius, position) {
+        if (!Number.isFinite(radius) || radius <= 0 || !isFiniteLocation(position)) return;
+        drawCtx.save();
+        drawCtx.fillStyle = 'rgba(0, 0, 255, 0.50)';
+        drawCtx.beginPath();
+        drawCtx.rect(0, 0, MAP_WIDTH, MAP_HEIGHT);
+        drawCtx.arc(position.x, position.y, radius, 0, 2 * Math.PI, true);
+        drawCtx.fill('evenodd');
+        drawCtx.restore();
+      }
+
       function updateSafeZone() { subProgress = 0; renderFrame(); }
 
       teamOverlayButton?.addEventListener('click', () => {
         teamOverlayEnabled = !teamOverlayEnabled;
         try { localStorage.setItem('pi_teamOverlay', teamOverlayEnabled ? '1' : '0'); } catch (_) {}
         syncTeamOverlayButton();
+        updateSafeZone();
+      });
+
+      aircraftRouteButton?.addEventListener('click', () => {
+        aircraftRouteEnabled = !aircraftRouteEnabled;
+        try { localStorage.setItem('pi_aircraftRoute', aircraftRouteEnabled ? '1' : '0'); } catch (_) {}
+        syncAircraftRouteButton();
         updateSafeZone();
       });
 
@@ -1416,6 +1661,158 @@ export function startModal(matchId, platform, mapName) {
         drawCtx.restore();
       }
 
+      function drawAircraftRoute(currentElapsed) {
+        const segment = aircraftRoute?.segment;
+        if (!aircraftRouteEnabled || !segment) return;
+
+        const px = 1 / scaleFactor;
+        const rawStart = segment.start;
+        const rawEnd = segment.end;
+        const dx = rawEnd.x - rawStart.x;
+        const dy = rawEnd.y - rawStart.y;
+        const length = Math.hypot(dx, dy);
+        if (length <= 1) return;
+
+        const trim = 0.15;
+        const start = {
+          x: rawStart.x + dx * trim,
+          y: rawStart.y + dy * trim,
+        };
+        const end = {
+          x: rawStart.x + dx * (1 - trim),
+          y: rawStart.y + dy * (1 - trim),
+        };
+        const angle = Math.atan2(end.y - start.y, end.x - start.x);
+        const routeLineWidth = 3.06 * px;
+        const dash = 20 * px;
+        const gap = dash;
+        const dashPeriod = dash + gap;
+        const dashSpeedPxPerSecond = 26;
+        const dashOffset = -(((performance.now() / 1000) * dashSpeedPxPerSecond) % (dashPeriod / px)) * px;
+        const arrowLength = 12 * px;
+        const arrowWidth = 7.2 * px;
+        const dotRadius = arrowWidth;
+        const rawLengthSq = dx * dx + dy * dy;
+        const sampleProgress = point => {
+          if (!point || rawLengthSq <= 0) return null;
+          return ((point.x - rawStart.x) * dx + (point.y - rawStart.y) * dy) / rawLengthSq;
+        };
+        const samples = (aircraftRoute.samples || [])
+          .filter(point => Number.isFinite(point?.t) && Number.isFinite(point?.x) && Number.isFinite(point?.y));
+        const projectedSamples = samples
+          .map(point => ({ t: point.t, progress: sampleProgress(point) }))
+          .filter(point => Number.isFinite(point.t) && Number.isFinite(point.progress));
+        let routeStartT = Number.isFinite(projectedSamples[0]?.t) ? projectedSamples[0].t : 0;
+        let routeEndT = Number.isFinite(projectedSamples[projectedSamples.length - 1]?.t)
+          ? projectedSamples[projectedSamples.length - 1].t
+          : routeStartT + 1;
+        if (projectedSamples.length >= 2) {
+          const meanT = projectedSamples.reduce((sum, point) => sum + point.t, 0) / projectedSamples.length;
+          const meanProgress = projectedSamples.reduce((sum, point) => sum + point.progress, 0) / projectedSamples.length;
+          let covariance = 0;
+          let variance = 0;
+          projectedSamples.forEach(point => {
+            const progressDelta = point.progress - meanProgress;
+            covariance += progressDelta * (point.t - meanT);
+            variance += progressDelta * progressDelta;
+          });
+          const secondsPerProgress = variance > 0 ? covariance / variance : 0;
+          if (Number.isFinite(secondsPerProgress) && secondsPerProgress > 0) {
+            routeStartT = meanT - meanProgress * secondsPerProgress;
+            routeEndT = routeStartT + secondsPerProgress;
+          }
+        }
+        const routeDuration = routeEndT - routeStartT;
+        const planeProgress = routeDuration > 0
+          ? ((Number(currentElapsed) || 0) - routeStartT) / routeDuration
+          : 0;
+        const planePosition = {
+          x: rawStart.x + dx * planeProgress,
+          y: rawStart.y + dy * planeProgress,
+        };
+        const routeComplete = planeProgress >= 1 - trim;
+        const lineOpacity = routeComplete ? 0.40 : 0.90;
+        const dashStartProgress = Math.max(trim, Math.min(1 - trim, planeProgress));
+        const dashStart = {
+          x: rawStart.x + dx * dashStartProgress,
+          y: rawStart.y + dy * dashStartProgress,
+        };
+
+        function getWhiteAircraftRouteImg() {
+          if (aircraftRouteWhiteImg) return aircraftRouteWhiteImg;
+          if (!aircraftRouteImg.complete || !aircraftRouteImg.naturalWidth) return null;
+          const canvas = document.createElement('canvas');
+          canvas.width = aircraftRouteImg.naturalWidth;
+          canvas.height = aircraftRouteImg.naturalHeight;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(aircraftRouteImg, 0, 0);
+          ctx.globalCompositeOperation = 'source-in';
+          ctx.fillStyle = 'rgba(255,255,255,0.98)';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          aircraftRouteWhiteImg = canvas;
+          return aircraftRouteWhiteImg;
+        }
+
+        drawCtx.save();
+        drawCtx.lineCap = 'round';
+        drawCtx.lineJoin = 'round';
+
+        drawCtx.beginPath();
+        drawCtx.moveTo(start.x, start.y);
+        drawCtx.lineTo(end.x, end.y);
+        drawCtx.strokeStyle = `rgba(255,255,255,${lineOpacity})`;
+        drawCtx.lineWidth = routeLineWidth;
+        drawCtx.stroke();
+
+        if (!routeComplete) {
+          drawCtx.beginPath();
+          drawCtx.moveTo(dashStart.x, dashStart.y);
+          drawCtx.lineTo(end.x, end.y);
+          drawCtx.strokeStyle = 'rgba(225,36,48,0.90)';
+          drawCtx.lineWidth = routeLineWidth;
+          drawCtx.lineCap = 'butt';
+          drawCtx.setLineDash([dash, gap]);
+          drawCtx.lineDashOffset = dashOffset;
+          drawCtx.stroke();
+          drawCtx.setLineDash([]);
+          drawCtx.lineDashOffset = 0;
+          drawCtx.lineCap = 'round';
+        }
+
+        drawCtx.fillStyle = 'rgba(255,255,255,0.98)';
+        drawCtx.beginPath();
+        drawCtx.arc(start.x, start.y, dotRadius, 0, 2 * Math.PI);
+        drawCtx.fill();
+
+        const planeIcon = getWhiteAircraftRouteImg();
+        if (planeIcon) {
+          const iconW = 61.2 * px;
+          const iconH = iconW * (planeIcon.height / planeIcon.width);
+          drawCtx.save();
+          drawCtx.translate(planePosition.x, planePosition.y);
+          drawCtx.rotate(angle - 3 * Math.PI / 4 + Math.PI / 72);
+          drawCtx.drawImage(planeIcon, -iconW / 2, -iconH / 2, iconW, iconH);
+          drawCtx.restore();
+        } else {
+          drawCtx.fillStyle = 'rgba(255,255,255,0.98)';
+          drawCtx.beginPath();
+          drawCtx.arc(planePosition.x, planePosition.y, dotRadius, 0, 2 * Math.PI);
+          drawCtx.fill();
+        }
+
+        drawCtx.translate(end.x, end.y);
+        drawCtx.rotate(angle);
+        drawCtx.beginPath();
+        drawCtx.moveTo(arrowLength, 0);
+        drawCtx.lineTo(-arrowLength * 0.56, arrowWidth);
+        drawCtx.lineTo(-arrowLength * 0.56, -arrowWidth);
+        drawCtx.closePath();
+        drawCtx.fillStyle = 'rgba(255,255,255,0.98)';
+        drawCtx.fill();
+
+        drawCtx.restore();
+      }
+
       function renderFrame() {
         const safeZone = interpolatedData[currentIndex];
         syncProgressThumb(currentIndex + subProgress);
@@ -1434,12 +1831,14 @@ export function startModal(matchId, platform, mapName) {
         drawCtx.scale(scaleFactor * zoomScale, scaleFactor * zoomScale);
         drawCtx.translate(-panX, -panY);
 
-        drawSafeZone(safeZone.safetyZoneRadius, safeZone.safetyZonePosition, 'blue');
-        drawSafeZone(safeZone.poisonGasWarningRadius, safeZone.poisonGasWarningPosition, 'white');
-        drawGrid();
-
         const currentTime = interpolatedData[currentIndex]?.elapsedTime ?? 0;
         const currentTimeSmooth = currentTime + subProgress;
+
+        drawGasOverlay(safeZone.safetyZoneRadius, safeZone.safetyZonePosition);
+        drawSafeZone(safeZone.safetyZoneRadius, safeZone.safetyZonePosition, 'rgba(0, 0, 255, 0.6)');
+        drawSafeZone(safeZone.poisonGasWarningRadius, safeZone.poisonGasWarningPosition, 'rgb(255, 255, 255)');
+        drawGrid();
+        drawAircraftRoute(currentTimeSmooth);
         const teamOverlayLabels = drawTeamOverlay(currentTimeSmooth);
 
         if (window.teamTrackVisibility) {
@@ -1603,7 +2002,9 @@ export function startModal(matchId, platform, mapName) {
 
         // ── Kill/knock feed — one box per event, right-anchored ──────────────
         const feedDuration = 5;
-        const activeFeed = feedEvents.filter(e => e.t <= currentTimeSmooth && e.t + feedDuration > currentTimeSmooth).slice(-(window._replayFeedMax ?? 5));
+        const activeFeed = window._replayKillfeedEnabled === false
+          ? []
+          : feedEvents.filter(e => e.t <= currentTimeSmooth && e.t + feedDuration > currentTimeSmooth).slice(-(window._replayFeedMax ?? 10));
         if (activeFeed.length > 0) {
           const _fs   = window._replayFeedScale ?? 1;
           const fs    = Math.round(12 * _fs);   // name font size

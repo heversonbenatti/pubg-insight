@@ -773,9 +773,11 @@ input[type="range"]::-moz-range-thumb {
 .replay-stage {
   display: flex;
   align-items: stretch;
-  justify-content: center;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 5px;
   height: 100%;
+  width: fit-content;
+  max-width: 100%;
   min-width: 0;
 }
 .replay-map-column {
@@ -788,17 +790,23 @@ input[type="range"]::-moz-range-thumb {
   align-items: flex-start;
 }
 .replay-view-panel {
-  width: 156px;
+  width: 124px;
   flex-shrink: 0;
   align-self: flex-start;
+  margin-left: -66px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 6px;
+  padding: 6px;
   box-sizing: border-box;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
+}
+.replay-view-panel > span,
+.replay-view-panel .replay-view-row,
+.replay-view-panel .replay-advisor-status {
+  display: none;
 }
 .replay-view-row {
   display: flex;
@@ -928,7 +936,8 @@ input[type="range"]::-moz-range-thumb {
 #speedSlider { width: 80px; }
 .replay-advisor-button {
   height: 32px;
-  min-width: 96px;
+  min-width: 0;
+  width: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2044,6 +2053,7 @@ input[type="range"]::-moz-range-thumb {
   .replay-view-panel {
     width: 100%;
     max-width: none;
+    margin-left: 0;
     flex-direction: row;
     flex-wrap: wrap;
     gap: 7px;
