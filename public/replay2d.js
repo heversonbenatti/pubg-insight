@@ -1922,17 +1922,22 @@ export function startModal(matchId, platform, mapName) {
           const parachuting = isPlayerParachuting(accountId, currentTimeSmooth);
 
           const isSearchedTeam = roster?.attributes?.stats?.teamId === searchedTeamId;
-          // knocked → vermelho; time do jogador → verde; todos os outros → branco
-          const fillColor = knocked ? 'rgb(215,40,40)'
-                          : isSearchedTeam ? 'rgb(50,215,80)'
-                          : 'rgb(255,255,255)';
+          const teamColorMode = window._replayPlayerColorMode === 'team';
+          // HP mode: knocked → vermelho; time pesquisado → verde; outros → branco. Fundo (vida perdida) → vermelho.
+          // Team mode: cada player com a cor do seu time; fundo (vida perdida) → preto.
+          const fillColor = teamColorMode
+            ? (roster?.color || 'rgb(255,255,255)')
+            : (knocked ? 'rgb(215,40,40)'
+              : isSearchedTeam ? 'rgb(50,215,80)'
+              : 'rgb(255,255,255)');
+          const bgColor = teamColorMode ? 'rgb(0,0,0)' : 'rgb(200,30,30)';
 
           if (parachuting) drawParachuteIcon(px, py, pointSize);
 
-          // 1. Fundo vermelho completo (representa vida em falta)
+          // 1. Fundo completo (representa vida em falta)
           drawCtx.beginPath();
           drawCtx.arc(px, py, pointSize, 0, 2 * Math.PI);
-          drawCtx.fillStyle = 'rgb(200,30,30)';
+          drawCtx.fillStyle = bgColor;
           drawCtx.fill();
 
           // 2. Fatia de HP (branco/verde) do topo em sentido horário — efeito "pizza"
@@ -1956,8 +1961,8 @@ export function startModal(matchId, platform, mapName) {
             const r = pointSize;
             drawCtx.save();
             drawCtx.translate(px, py);
-            drawCtx.strokeStyle = 'rgba(255,255,255,0.9)';
-            drawCtx.lineWidth = r * 0.32;
+            drawCtx.strokeStyle = teamColorMode ? 'rgba(0,0,0,0.95)' : 'rgba(255,255,255,0.9)';
+            drawCtx.lineWidth = teamColorMode ? r * 0.18 : r * 0.32;
             drawCtx.lineCap = 'round';
             drawCtx.beginPath(); drawCtx.arc(0, 0, r * 0.72, 0, 2 * Math.PI); drawCtx.stroke();
             drawCtx.beginPath(); drawCtx.arc(0, 0, r * 0.22, 0, 2 * Math.PI); drawCtx.stroke();

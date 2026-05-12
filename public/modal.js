@@ -263,6 +263,10 @@ export function showModal(matchData, platform = 'steam') {
         try { return localStorage.getItem('pi_killfeed') !== '0'; }
         catch (_) { return true; }
     })();
+    window._replayPlayerColorMode = (() => {
+        try { return localStorage.getItem('pi_playerColorMode') === 'team' ? 'team' : 'hp'; }
+        catch (_) { return 'hp'; }
+    })();
 
     const viewPanel = document.createElement('div');
     viewPanel.className = 'replay-view-panel';
@@ -356,11 +360,38 @@ export function showModal(matchData, platform = 'steam') {
         try { localStorage.setItem('pi_killfeed', window._replayKillfeedEnabled ? '1' : '0'); } catch (_) {}
     });
 
+    const playerColorButton = document.createElement('button');
+    playerColorButton.id = 'playerColorToggle';
+    playerColorButton.className = 'replay-advisor-button replay-player-color-toggle';
+    playerColorButton.type = 'button';
+    playerColorButton.title = 'Cor dos players: HP (branco -> vermelho) ou Time (cor do time -> preto)';
+    const playerColorActive = () => window._replayPlayerColorMode === 'team';
+    playerColorButton.setAttribute('aria-pressed', playerColorActive() ? 'true' : 'false');
+    playerColorButton.classList.toggle('active', playerColorActive());
+    playerColorButton.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3a9 9 0 1 0 0 18c1.7 0 2.5-1.3 2-2.5-.5-1.3.4-2.5 1.8-2.5H18a3 3 0 0 0 3-3 9 9 0 0 0-9-9z"/>
+            <circle cx="7.5" cy="11" r="1.2" fill="currentColor"/>
+            <circle cx="10.5" cy="7" r="1.2" fill="currentColor"/>
+            <circle cx="15" cy="7.5" r="1.2" fill="currentColor"/>
+            <circle cx="17.5" cy="11.5" r="1.2" fill="currentColor"/>
+        </svg>
+        <span>Team Colors</span>
+    `;
+    playerColorButton.addEventListener('click', () => {
+        window._replayPlayerColorMode = playerColorActive() ? 'hp' : 'team';
+        const active = playerColorActive();
+        playerColorButton.classList.toggle('active', active);
+        playerColorButton.setAttribute('aria-pressed', active ? 'true' : 'false');
+        try { localStorage.setItem('pi_playerColorMode', window._replayPlayerColorMode); } catch (_) {}
+    });
+
     viewPanel.appendChild(viewFooterLabel);
     viewPanel.appendChild(teamOverlayRow);
     viewPanel.appendChild(aircraftRouteRow);
     viewPanel.appendChild(playerSizeButton);
     viewPanel.appendChild(killfeedButton);
+    viewPanel.appendChild(playerColorButton);
     viewPanel.appendChild(voRow(voLabel('PLAYERS'), sizeSlider, sizeValueEl));
     viewPanel.appendChild(voRow(voLabel('FEED'), feedSlider, feedValueEl));
     viewPanel.appendChild(voRow(voLabel('EVENTS'), feedMaxSlider, feedMaxValueEl));
