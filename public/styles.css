@@ -423,6 +423,16 @@ button { font-family: inherit; }
 }
 
 /* ── Career chart ────────────────────────────── */
+#career-page { padding-top: 24px; }
+.career-page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.career-page-header #career-back-btn { align-self: flex-start; }
+.career-page-title h1 { margin: 0; }
+.career-page-title .player-meta { margin-top: 4px; }
 .career-section {
   margin-bottom: 36px;
   background: var(--surface);

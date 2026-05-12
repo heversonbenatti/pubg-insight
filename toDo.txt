@@ -5,5 +5,5 @@ Possíveis próximos passos:
 - Sincronizar drawer aberto na URL (?m=)
 - Adicionar na esquerda da página de estatísticas porcentagem de vitória por mapa, e logo acima os mapas lado a lado mostrando os mais jogados.
 - Adicionar página de estatísticas gerais como armas mais usadas, armas que mais vencem combate, etc.
-- Organizar projeto em mais arquivos para facilitar manutenção e alterações.
+- Organizar projeto em mais arquivos para facilitar manutenção e alterações se necessário.
 - Deixar no public só o que realmente for publico, tirar cache e outros que for necessário, preparar projeto para produção.

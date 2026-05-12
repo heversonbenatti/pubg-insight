@@ -260,6 +260,7 @@ function showLanding() {
   document.getElementById('loading-state').style.display = 'none';
   document.getElementById('player-page').style.display = 'none';
   document.getElementById('weapon-stats-page').style.display = 'none';
+  document.getElementById('career-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'none';
   renderLanding();
   closeDrawer();
@@ -356,6 +357,7 @@ function showLoading() {
   document.getElementById('loading-state').style.display = 'block';
   document.getElementById('player-page').style.display = 'none';
   document.getElementById('weapon-stats-page').style.display = 'none';
+  document.getElementById('career-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'flex';
   document.getElementById('loading-state').innerHTML = `
     <div style="max-width:1080px;margin:0 auto;padding:28px 32px">
@@ -384,13 +386,12 @@ function showPlayerPage(playerName, seasonId) {
   document.getElementById('loading-state').style.display = 'none';
   document.getElementById('player-page').style.display = 'block';
   document.getElementById('weapon-stats-page').style.display = 'none';
+  document.getElementById('career-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'flex';
   renderPlayerHeader(playerName, seasonId);
   renderModeTabs();
   renderStatsGrid();
-  renderCareerChart();      // skeleton first; data fills in async
   renderMatchList();
-  loadCareerData(playerName);
 }
 
 function showWeaponStatsPage() {
@@ -398,6 +399,7 @@ function showWeaponStatsPage() {
   document.getElementById('loading-state').style.display = 'none';
   document.getElementById('player-page').style.display = 'none';
   document.getElementById('weapon-stats-page').style.display = 'block';
+  document.getElementById('career-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'flex';
   renderHeader(getQuery(), getCurrentSeason());
   closeDrawer();
@@ -408,6 +410,54 @@ function showWeaponStatsPage() {
   url.searchParams.set('view', 'weapons');
   window.history.replaceState({}, '', url.toString());
   renderWeaponStatsPage(document.getElementById('weapon-stats-page'));
+}
+
+function showCareerPage(playerName) {
+  const name = playerName || currentPlayerName;
+  if (!name) { showLanding(); return; }
+  currentPlayerName = name;
+
+  document.getElementById('landing-wrap').style.display = 'none';
+  document.getElementById('loading-state').style.display = 'none';
+  document.getElementById('player-page').style.display = 'none';
+  document.getElementById('weapon-stats-page').style.display = 'none';
+  document.getElementById('career-page').style.display = 'block';
+  document.getElementById('pi-header').style.display = 'flex';
+  renderHeader(name, getCurrentSeason());
+  closeDrawer();
+  closeAllPopovers();
+
+  const seasonId = getCurrentSeason();
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('view', 'career');
+  url.searchParams.set('p', name);
+  if (seasonId) url.searchParams.set('s', seasonId);
+  if (currentPlatform) url.searchParams.set('platform', currentPlatform);
+  window.history.replaceState({}, '', url.toString());
+
+  renderCareerPageShell(name);
+  loadCareerData(name);
+}
+
+function renderCareerPageShell(name) {
+  const page = document.getElementById('career-page');
+  page.innerHTML = `
+    <div class="player-content">
+      <div class="career-page-header">
+        <button id="career-back-btn" class="pi-btn ghost" type="button">← Back to ${name}</button>
+        <div class="career-page-title">
+          <h1 class="player-name">Career trends</h1>
+          <div class="player-meta"><span>${name}</span><span>·</span><span>${platformLabel()} account</span></div>
+        </div>
+      </div>
+      <div id="career-chart-area"></div>
+    </div>`;
+  document.getElementById('career-back-btn').addEventListener('click', () => {
+    const seasonId = getCurrentSeason();
+    doSearch({ name, seasonId });
+  });
 }
 
 function renderPlayerHeader(name, seasonId) {
@@ -429,9 +479,11 @@ function renderPlayerHeader(name, seasonId) {
           <span>${platformLabel()} account</span>
         </div>
       </div>
+      <button id="btn-career-player" class="pi-btn ghost" type="button">${Icon.target(14)} Career</button>
       <button id="btn-save-player" class="pi-btn ghost" type="button">${Icon.star(14)} Save</button>
       <button id="btn-share-player" class="pi-btn ghost" type="button">${Icon.share(14)} Share</button>
     </div>`;
+  document.getElementById('btn-career-player').addEventListener('click', () => showCareerPage(currentPlayerName));
   document.getElementById('btn-save-player').addEventListener('click', () => toggleSavePlayer(currentPlayerName));
   document.getElementById('btn-share-player').addEventListener('click', () => copyToClipboard(buildPlayerShareUrl()));
   updateSaveButtonState();
@@ -1301,11 +1353,11 @@ function buildAppShell() {
         <div id="player-header-area"></div>
         <div id="mode-tabs-area"></div>
         <div id="stats-grid-area"></div>
-        <div id="career-chart-area"></div>
         <div id="match-list-area"></div>
       </div>
     </div>
     <div id="weapon-stats-page" style="display:none"></div>
+    <div id="career-page" style="display:none"></div>
     <div id="drawer-backdrop"></div>
     <aside id="match-drawer"></aside>`;
 
@@ -1337,6 +1389,12 @@ async function init() {
     const linkedPlayer = params.get('p');
     if (linkedPlayer) {
       const linkedSeason = params.get('s') || defaultSeason;
+      if (params.get('view') === 'career') {
+        currentPlayerName = linkedPlayer;
+        renderHeader(linkedPlayer, linkedSeason);
+        showCareerPage(linkedPlayer);
+        return;
+      }
       const linkedMatch = params.get('m') || null;
       doSearch({ name: linkedPlayer, seasonId: linkedSeason, matchId: linkedMatch });
     } else {
