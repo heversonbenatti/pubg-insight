@@ -5,7 +5,7 @@
 //
 // Uso:
 //   node scripts/extract-damage-samples.js [--limit N] [--match-id <id>]
-// Default lê tudo de public/jsons/matches/telemetry_*.json
+// Default lê tudo de cache/matches/telemetry_*.json
 
 import fs from 'fs';
 import path from 'path';
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
-const TELEMETRY_DIR = path.join(ROOT, 'public', 'jsons', 'matches');
+const TELEMETRY_DIR = path.join(ROOT, 'cache', 'matches');
 const OUT_FILE = path.join(ROOT, 'scripts', 'output', 'damage_samples.json');
 
 const ITEM_DICT_FILE = path.join(ROOT, 'pubg-api-assets', 'dictionaries', 'telemetry', 'item', 'itemId.json');

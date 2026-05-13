@@ -4,8 +4,9 @@ node_modules/
 api-documentation.md
 CLAUDE.md
 
-# Cache local (gera no primeiro request) — pesado e regenerável
-/public/jsons/
+# Cache local (gera no primeiro request) — pesado e regenerável.
+# Fica fora de /public/ pra não vazar via express.static.
+/cache/
 
 # Inputs do pipeline de build (FModel extract + tiles gen) — regerar quando virar temporada
 /Blueprints/

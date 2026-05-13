@@ -54,11 +54,11 @@ npm run tiles  # gera tiles de mapa a partir das imagens grandes em public/image
 - `public/utils.js`: utilitarios compartilhados de mapa e cores.
 - `tests/`: testes unitarios sem framework externo para regras de telemetry, filtros, plataforma, mapas, timing e loadout.
 - `scripts/generate-tiles.js`: gerador de tiles JPEG dos mapas.
-- `public/jsons/`: cache local gerado em runtime.
+- `cache/`: cache local gerado em runtime (fora do `public/` pra não vazar via static serve).
 
 ## Cache
 
-O cache e baseado em arquivos JSON dentro de `public/jsons/` para reduzir chamadas rate-limited da PUBG API.
+O cache e baseado em arquivos JSON dentro de `cache/` para reduzir chamadas rate-limited da PUBG API.
 
 - Seasons e player IDs ficam por 24h.
 - Estatisticas da season atual ficam por 10min.

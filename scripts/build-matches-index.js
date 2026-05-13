@@ -1,4 +1,4 @@
-// Varre public/jsons/matches/<platform>_*.json e (re)constrói o índice
+// Varre cache/matches/<platform>_*.json e (re)constrói o índice
 // matches_index_<platform>.json mapeando accountId → [{matchId, createdAt}].
 //
 // Necessário rodar uma vez pra criar o índice a partir do cache já existente.
@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
-const CACHE_DIR = path.join(ROOT, 'public', 'jsons');
+const CACHE_DIR = path.join(ROOT, 'cache');
 const MATCHES_DIR = path.join(CACHE_DIR, 'matches');
 
 const PLATFORMS = new Set(['steam', 'psn', 'xbox', 'kakao', 'stadia']);
@@ -94,7 +94,7 @@ function buildIndex(platform) {
 const args = parseArgs(process.argv);
 const platforms = args.platform ? [args.platform] : detectPlatforms();
 if (!platforms.length) {
-  console.log('Nenhum match cacheado encontrado em public/jsons/matches/');
+  console.log('Nenhum match cacheado encontrado em cache/matches/');
   process.exit(0);
 }
 for (const p of platforms) buildIndex(p);

@@ -5,7 +5,7 @@ import axios from 'axios';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
-const MATCHES_DIR = path.join(ROOT, 'public', 'jsons', 'matches');
+const MATCHES_DIR = path.join(ROOT, 'cache', 'matches');
 
 const DEFAULTS = {
   durationMs: 15 * 60 * 1000,
@@ -27,7 +27,7 @@ function parseArgs(argv) {
     else if (a === '--help') {
       console.log(`Usage: node scripts/fetch-telemetries.js [options]
 
-Lê os match jsons já cacheados em public/jsons/matches/<platform>_*.json,
+Lê os match jsons já cacheados em cache/matches/<platform>_*.json,
 descobre quais ainda não têm telemetry_*.json companheiro, e baixa do CDN
 (endpoint público, não consome o rate limit de 10/min da chave).
 

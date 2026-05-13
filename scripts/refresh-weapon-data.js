@@ -1,6 +1,6 @@
 // Pipeline completo de atualização dos dados de armas a partir de telemetrias reais.
 // Ordem das etapas (cada uma pode ser pulada com flag):
-//   1. fetch-telemetries.js   — baixa telemetrias dos matches já cacheados em public/jsons/matches/
+//   1. fetch-telemetries.js   — baixa telemetrias dos matches já cacheados em cache/matches/
 //   2. build-weapon-stats.js  — extrai stats das armas a partir dos game files (weapons/AlmostAll/...)
 //   3. extract-damage-samples.js — varre todas telemetrias e gera AI_training/damage_samples.json
 //   4. validate-damage-formula.js — valida fórmula contra as amostras → AI_training/damage_validation.json
@@ -11,7 +11,7 @@
 //   node scripts/refresh-weapon-data.js --skip-build   # pula re-build de weapon-stats
 //   node scripts/refresh-weapon-data.js --fetch-minutes 30  # passa pra fetch-telemetries
 //
-// Pré-requisito: ter matches cacheados em public/jsons/matches/. Pra encher esse cache,
+// Pré-requisito: ter matches cacheados em cache/matches/. Pra encher esse cache,
 // abrir o app e ver alguns jogadores — cada visualização de partida no replay cria um
 // `steam_<matchId>.json` que serve de fonte pras telemetrias.
 

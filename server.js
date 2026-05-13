@@ -4,14 +4,27 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+app.disable('x-powered-by');
+// Reverse proxy em produção (Render/Heroku/Cloudflare): confia em 1 hop pra
+// req.ip pegar o IP real do cliente (necessário pro rate limit funcionar).
+app.set('trust proxy', 1);
+
 const API_KEY = process.env.API_KEY;
 const VALID_PLATFORMS = new Set(['steam', 'psn', 'xbox', 'kakao', 'stadia']);
+
+// Formatos esperados da PUBG API. Validar estritamente evita path traversal
+// (matchId/season entram em nomes de arquivo cacheados em disco).
+const MATCH_ID_RE = /^[a-f0-9-]{36}$/i;          // UUID
+const SEASON_ID_RE = /^[a-z0-9._-]{1,80}$/i;     // ex: division.bro.official.pc-2018-41
+const PLAYER_NAME_RE = /^[a-zA-Z0-9_-]{1,32}$/;  // PUBG name (max 16 na prática, margem)
 
 function shardUrl(platform) {
     const p = VALID_PLATFORMS.has(platform) ? platform : 'steam';
@@ -60,10 +73,45 @@ async function pubgGet(url, opts = {}) {
 }
 
 
+// ── Security headers ────────────────────────────────────────────────────────
+// CSP frouxa o suficiente pros recursos legítimos (Google Fonts) e nada além.
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+            fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+            imgSrc: ["'self'", 'data:', 'blob:'],
+            connectSrc: ["'self'"],
+            frameAncestors: ["'none'"],
+            objectSrc: ["'none'"],
+            baseUri: ["'self'"],
+        },
+    },
+    // Permite que <canvas> faça toDataURL em imagens do mesmo origin (replay 2D).
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'same-origin' },
+}));
+
+// ── Rate limit ──────────────────────────────────────────────────────────────
+// Protege o endpoint /api/* contra abuso (cada chamada autenticada conta no
+// rate limit da PUBG API, então um spammer queima nossa key inteira).
+const apiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,                    // 60 req/min por IP
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, slow down.' },
+});
+app.use('/api/', apiLimiter);
+
 app.use(express.static('public'));
 app.use('/pubg-api-assets', express.static('pubg-api-assets'));
 
-const cacheDir = path.join(__dirname, 'public', 'jsons');
+// Cache em disco fora do static root — não deve vazar publicamente (IDs/match
+// histórico de jogadores). Arquivos sob `cache/` nunca são servidos diretamente.
+const cacheDir = path.join(__dirname, 'cache');
 if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
 const matchCacheDir = path.join(cacheDir, 'matches');
 if (!fs.existsSync(matchCacheDir)) fs.mkdirSync(matchCacheDir, { recursive: true });
@@ -111,6 +159,8 @@ app.get('/api/player/:playerName', async (req, res) => {
     const { season, platform = 'steam' } = req.query;
     if (!season) return res.status(400).json({ error: 'Season parameter is required' });
     if (!VALID_PLATFORMS.has(platform)) return res.status(400).json({ error: 'Invalid platform' });
+    if (!PLAYER_NAME_RE.test(playerName)) return res.status(400).json({ error: 'Invalid player name' });
+    if (!SEASON_ID_RE.test(season)) return res.status(400).json({ error: 'Invalid season id' });
 
     const cacheFile = path.join(cacheDir, `player_${platform}_${safeName(playerName)}_${safeName(season)}.json`);
     const seasonsMeta = readCache(path.join(cacheDir, `seasons_${platform}.json`), SEASONS_TTL) || [];
@@ -143,6 +193,9 @@ app.get('/api/player/:playerName', async (req, res) => {
 
 const matchInflight = new Map();
 async function getMatch(platform, matchId) {
+    // matchId vem de fontes externas (API e cache); rejeita qualquer coisa que
+    // não seja UUID antes de virar nome de arquivo.
+    if (!VALID_PLATFORMS.has(platform) || !MATCH_ID_RE.test(matchId)) return null;
     const cacheFile = path.join(matchCacheDir, `${platform}_${matchId}.json`);
     const cached = readCache(cacheFile, MATCH_TTL);
     if (cached) return cached;
@@ -246,6 +299,7 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
     const { playerName } = req.params;
     const { platform = 'steam' } = req.query;
     if (!VALID_PLATFORMS.has(platform)) return res.status(400).json({ error: 'Invalid platform' });
+    if (!PLAYER_NAME_RE.test(playerName)) return res.status(400).json({ error: 'Invalid player name' });
 
     const listCacheFile = path.join(cacheDir, `matches_list_${platform}_${safeName(playerName)}.json`);
     let matchIds = readCache(listCacheFile, MATCHES_LIST_TTL);
@@ -356,6 +410,7 @@ app.get('/api/player/:playerName/career', async (req, res) => {
     const { platform = 'steam' } = req.query;
     const limit = Math.max(2, Math.min(20, parseInt(req.query.limit, 10) || 8));
     if (!VALID_PLATFORMS.has(platform)) return res.status(400).json({ error: 'Invalid platform' });
+    if (!PLAYER_NAME_RE.test(playerName)) return res.status(400).json({ error: 'Invalid player name' });
 
     try {
         // Seasons (cached)
@@ -394,6 +449,8 @@ app.get('/api/telemetry/:matchId', async (req, res) => {
     const { matchId } = req.params;
     const { platform = 'steam' } = req.query;
     if (!VALID_PLATFORMS.has(platform)) return res.status(400).json({ error: 'Invalid platform' });
+    // Sem regex, matchId tipo "../../../etc/passwd" entraria no path do cache.
+    if (!MATCH_ID_RE.test(matchId)) return res.status(400).json({ error: 'Invalid match id' });
 
     const telemetryCacheFile = path.join(matchCacheDir, `telemetry_${matchId}.json`);
     if (fs.existsSync(telemetryCacheFile)) {
