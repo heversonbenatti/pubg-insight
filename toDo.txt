@@ -1,7 +1,5 @@
 Possíveis próximos passos:
 - Ícones específicos por plataforma (hoje todos usam o ícone Steam)
-- Estatísticas ranked (currentTier, survivalTitle) — endpoint /seasons/{id}/ranked
-- Mover gráfico de seasons pra outra página e talvez colocar mais detalhes (mais espaço)
 - Sincronizar drawer aberto na URL (?m=)
 - Adicionar na esquerda da página de estatísticas porcentagem de vitória por mapa, e logo acima os mapas lado a lado mostrando os mais jogados.
 - Adicionar página de estatísticas gerais como armas mais usadas, armas que mais vencem combate, etc.

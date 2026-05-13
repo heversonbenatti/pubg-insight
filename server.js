@@ -26,6 +26,14 @@ const MATCH_ID_RE = /^[a-f0-9-]{36}$/i;          // UUID
 const SEASON_ID_RE = /^[a-z0-9._-]{1,80}$/i;     // ex: division.bro.official.pc-2018-41
 const PLAYER_NAME_RE = /^[a-zA-Z0-9_-]{1,32}$/;  // PUBG name (max 16 na prática, margem)
 
+// Leaderboard usa platform-region (não platform), e modos ranked permitidos.
+const VALID_LEADERBOARD_SHARDS = new Set([
+    'pc-as', 'pc-eu', 'pc-jp', 'pc-krjp', 'pc-kakao', 'pc-na', 'pc-oc', 'pc-ru', 'pc-sa', 'pc-sea',
+    'psn-as', 'psn-eu', 'psn-na', 'psn-oc',
+    'xbox-as', 'xbox-eu', 'xbox-na', 'xbox-oc', 'xbox-sa',
+]);
+const VALID_RANKED_MODES = new Set(['solo', 'duo', 'squad', 'solo-fpp', 'duo-fpp', 'squad-fpp']);
+
 function shardUrl(platform) {
     const p = VALID_PLATFORMS.has(platform) ? platform : 'steam';
     return `https://api.pubg.com/shards/${p}`;
@@ -121,6 +129,7 @@ const PLAYERID_TTL     = 24 * 60 * 60 * 1000;   // 24h — playerId is stable
 const PLAYER_TTL       = 10 * 60 * 1000;        // 10min (current season only)
 const MATCHES_LIST_TTL = 5  * 60 * 1000;        // 5min
 const MATCH_TTL        = Number.MAX_SAFE_INTEGER;   // forever — matches are immutable and API drops them after 14d
+const LEADERBOARD_TTL  = 2 * 60 * 60 * 1000;    // 2h — API updates leaderboard every 2h
 const FOREVER          = Number.MAX_SAFE_INTEGER; // past seasons are immutable
 
 function safeName(s) { return String(s).replace(/[^a-zA-Z0-9_-]/g, '_'); }
@@ -151,6 +160,39 @@ app.get('/api/seasons', async (req, res) => {
     } catch (error) {
         console.error('Error fetching seasons:', error.message);
         res.status(500).json({ error: 'Failed to fetch seasons from API' });
+    }
+});
+
+// Top 500 jogadores ranked por modo+região. Shard usa platform-region (pc-sa,
+// pc-na, etc), diferente do resto da API. Cache 2h (mesma cadência do upstream).
+app.get('/api/leaderboard', async (req, res) => {
+    const { shard, season, gameMode } = req.query;
+    if (!VALID_LEADERBOARD_SHARDS.has(shard)) return res.status(400).json({ error: 'Invalid shard' });
+    if (!SEASON_ID_RE.test(season || '')) return res.status(400).json({ error: 'Invalid season id' });
+    if (!VALID_RANKED_MODES.has(gameMode)) return res.status(400).json({ error: 'Invalid game mode' });
+
+    const cacheFile = path.join(cacheDir, `leaderboard_${shard}_${safeName(season)}_${gameMode}.json`);
+    const cached = readCache(cacheFile, LEADERBOARD_TTL);
+    if (cached) return res.json(cached);
+
+    try {
+        const r = await pubgGet(`https://api.pubg.com/shards/${shard}/leaderboards/${season}/${gameMode}`);
+        // Reduz payload: front só precisa do essencial pra listagem.
+        const players = (r.data.included || [])
+            .filter(p => p.type === 'player')
+            .map(p => ({
+                accountId: p.id,
+                name: p.attributes?.name,
+                rank: p.attributes?.rank,
+                ...(p.attributes?.stats || {}),
+            }))
+            .sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
+        const result = { shard, season, gameMode, generatedAt: new Date().toISOString(), players };
+        writeCache(cacheFile, result);
+        res.json(result);
+    } catch (error) {
+        console.error('Error fetching leaderboard:', error.message);
+        res.status(500).json({ error: 'Failed to fetch leaderboard' });
     }
 });
 
@@ -188,6 +230,50 @@ app.get('/api/player/:playerName', async (req, res) => {
     } catch (error) {
         console.error('Error fetching player stats:', error.message);
         res.status(500).json({ error: 'Player not found or API error' });
+    }
+});
+
+// Ranked é separado do gameModeStats e disponível só da Season 7 em diante.
+// 404 da API (player não jogou ranked) é silenciado como objeto vazio — o front
+// decide se mostra painel quando há dados, sem ruído pra quem só joga casual.
+app.get('/api/player/:playerName/ranked', async (req, res) => {
+    const { playerName } = req.params;
+    const { season, platform = 'steam' } = req.query;
+    if (!season) return res.status(400).json({ error: 'Season parameter is required' });
+    if (!VALID_PLATFORMS.has(platform)) return res.status(400).json({ error: 'Invalid platform' });
+    if (!PLAYER_NAME_RE.test(playerName)) return res.status(400).json({ error: 'Invalid player name' });
+    if (!SEASON_ID_RE.test(season)) return res.status(400).json({ error: 'Invalid season id' });
+
+    const cacheFile = path.join(cacheDir, `ranked_${platform}_${safeName(playerName)}_${safeName(season)}.json`);
+    const seasonsMeta = readCache(path.join(cacheDir, `seasons_${platform}.json`), SEASONS_TTL) || [];
+    const isCurrent = seasonsMeta.find(s => s.id === season)?.attributes?.isCurrentSeason ?? true;
+    const cached = readCache(cacheFile, isCurrent ? PLAYER_TTL : FOREVER);
+    if (cached) return res.json(cached);
+
+    try {
+        const playerId = await getPlayerId(platform, playerName);
+        if (!playerId) return res.json({ error: 'Player not found' });
+
+        let rankedStats = {};
+        try {
+            const r = await pubgGet(`${shardUrl(platform)}/players/${playerId}/seasons/${season}/ranked`);
+            rankedStats = r.data.data.attributes.rankedGameModeStats || {};
+        } catch (e) {
+            // 404 = player nunca jogou ranked nessa season; devolve vazio sem 500
+            if (e.response?.status !== 404) throw e;
+        }
+        const result = {
+            player: { name: playerName, id: playerId, platform },
+            ranked: {
+                fpp: { solo: rankedStats['solo-fpp'] || null, duo: rankedStats['duo-fpp'] || null, squad: rankedStats['squad-fpp'] || null },
+                tpp: { solo: rankedStats['solo']     || null, duo: rankedStats['duo']     || null, squad: rankedStats['squad']     || null }
+            }
+        };
+        writeCache(cacheFile, result);
+        res.json(result);
+    } catch (error) {
+        console.error('Error fetching ranked stats:', error.message);
+        res.status(500).json({ error: 'Failed to fetch ranked stats' });
     }
 });
 

@@ -86,6 +86,7 @@ try {
   if (p) currentPlatform = p;
 } catch(e) {}
 let fppStats = {}, tppStats = {};
+let rankedFppStats = {}, rankedTppStats = {};
 let mapFilter = new Set();
 let perspectiveFilter = 'all';   // 'all' | 'fpp' | 'tpp' | 'ranked' | 'normal'
 
@@ -179,6 +180,9 @@ function renderHeader(query = '', season = '') {
     </div>
     <div class="pi-header-actions">
       <div class="pi-popover-host">
+        <button id="btn-leaderboard" class="pi-btn subtle" type="button">${Icon.target(14)} Leaderboard</button>
+      </div>
+      <div class="pi-popover-host">
         <button id="btn-weapons" class="pi-btn subtle" type="button">${Icon.target(14)} Weapons</button>
       </div>
       <div class="pi-popover-host">
@@ -195,6 +199,10 @@ function renderHeader(query = '', season = '') {
   document.getElementById('btn-weapons')?.addEventListener('click', e => {
     e.preventDefault();
     showWeaponStatsPage();
+  });
+  document.getElementById('btn-leaderboard')?.addEventListener('click', e => {
+    e.preventDefault();
+    showLeaderboardPage();
   });
   document.getElementById('btn-history').addEventListener('click', e => {
     e.stopPropagation();
@@ -261,6 +269,7 @@ function showLanding() {
   document.getElementById('player-page').style.display = 'none';
   document.getElementById('weapon-stats-page').style.display = 'none';
   document.getElementById('career-page').style.display = 'none';
+  document.getElementById('leaderboard-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'none';
   renderLanding();
   closeDrawer();
@@ -358,6 +367,7 @@ function showLoading() {
   document.getElementById('player-page').style.display = 'none';
   document.getElementById('weapon-stats-page').style.display = 'none';
   document.getElementById('career-page').style.display = 'none';
+  document.getElementById('leaderboard-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'flex';
   document.getElementById('loading-state').innerHTML = `
     <div style="max-width:1080px;margin:0 auto;padding:28px 32px">
@@ -387,9 +397,11 @@ function showPlayerPage(playerName, seasonId) {
   document.getElementById('player-page').style.display = 'block';
   document.getElementById('weapon-stats-page').style.display = 'none';
   document.getElementById('career-page').style.display = 'none';
+  document.getElementById('leaderboard-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'flex';
   renderPlayerHeader(playerName, seasonId);
   renderModeTabs();
+  renderRankedPanel();
   renderStatsGrid();
   renderMatchList();
 }
@@ -400,6 +412,7 @@ function showWeaponStatsPage() {
   document.getElementById('player-page').style.display = 'none';
   document.getElementById('weapon-stats-page').style.display = 'block';
   document.getElementById('career-page').style.display = 'none';
+  document.getElementById('leaderboard-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'flex';
   renderHeader(getQuery(), getCurrentSeason());
   closeDrawer();
@@ -412,6 +425,185 @@ function showWeaponStatsPage() {
   renderWeaponStatsPage(document.getElementById('weapon-stats-page'));
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Leaderboard page
+// ─────────────────────────────────────────────────────────────────────────────
+const LEADERBOARD_REGIONS = [
+  { value: 'pc-sa',    label: 'PC · South America' },
+  { value: 'pc-na',    label: 'PC · North America' },
+  { value: 'pc-eu',    label: 'PC · Europe'        },
+  { value: 'pc-as',    label: 'PC · Asia'          },
+  { value: 'pc-sea',   label: 'PC · SE Asia'       },
+  { value: 'pc-oc',    label: 'PC · Oceania'       },
+  { value: 'pc-jp',    label: 'PC · Japan'         },
+  { value: 'pc-krjp',  label: 'PC · Korea/Japan'   },
+  { value: 'pc-kakao', label: 'PC · Kakao'         },
+  { value: 'pc-ru',    label: 'PC · Russia'        },
+  { value: 'psn-na',   label: 'PSN · North America'},
+  { value: 'psn-eu',   label: 'PSN · Europe'       },
+  { value: 'psn-as',   label: 'PSN · Asia'         },
+  { value: 'psn-oc',   label: 'PSN · Oceania'      },
+  { value: 'xbox-na',  label: 'Xbox · North America'},
+  { value: 'xbox-eu',  label: 'Xbox · Europe'      },
+  { value: 'xbox-as',  label: 'Xbox · Asia'        },
+  { value: 'xbox-oc',  label: 'Xbox · Oceania'     },
+  { value: 'xbox-sa',  label: 'Xbox · South America'},
+];
+const LEADERBOARD_MODES = [
+  { value: 'squad-fpp', label: 'Squad FPP' },
+  { value: 'squad',     label: 'Squad TPP' },
+  { value: 'duo-fpp',   label: 'Duo FPP'   },
+  { value: 'duo',       label: 'Duo TPP'   },
+  { value: 'solo-fpp',  label: 'Solo FPP'  },
+  { value: 'solo',      label: 'Solo TPP'  },
+];
+let leaderboardShard = 'pc-sa';
+let leaderboardMode  = 'squad-fpp';
+let leaderboardLimit = 100;
+try {
+  const sv = localStorage.getItem('pi_lb_shard'); if (sv && LEADERBOARD_REGIONS.some(r => r.value === sv)) leaderboardShard = sv;
+  const mv = localStorage.getItem('pi_lb_mode');  if (mv && LEADERBOARD_MODES.some(m => m.value === mv))   leaderboardMode  = mv;
+} catch (_) {}
+
+function showLeaderboardPage() {
+  document.getElementById('landing-wrap').style.display = 'none';
+  document.getElementById('loading-state').style.display = 'none';
+  document.getElementById('player-page').style.display = 'none';
+  document.getElementById('weapon-stats-page').style.display = 'none';
+  document.getElementById('career-page').style.display = 'none';
+  document.getElementById('leaderboard-page').style.display = 'block';
+  document.getElementById('pi-header').style.display = 'flex';
+  renderHeader(getQuery(), getCurrentSeason());
+  closeDrawer();
+  closeAllPopovers();
+
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('view', 'leaderboard');
+  url.searchParams.set('shard', leaderboardShard);
+  url.searchParams.set('mode', leaderboardMode);
+  window.history.replaceState({}, '', url.toString());
+
+  renderLeaderboardShell();
+  loadLeaderboard();
+}
+
+function renderLeaderboardShell() {
+  const page = document.getElementById('leaderboard-page');
+  const regionOpts = LEADERBOARD_REGIONS.map(r =>
+    `<option value="${r.value}"${r.value === leaderboardShard ? ' selected' : ''}>${r.label}</option>`).join('');
+  const modeOpts = LEADERBOARD_MODES.map(m =>
+    `<option value="${m.value}"${m.value === leaderboardMode ? ' selected' : ''}>${m.label}</option>`).join('');
+
+  page.innerHTML = `
+    <div class="leaderboard-content">
+      <div class="leaderboard-header">
+        <h1 class="leaderboard-title">Leaderboard</h1>
+        <div class="leaderboard-subtitle">Top 500 ranked players · current season · updated every 2h</div>
+      </div>
+      <div class="leaderboard-controls">
+        <label class="lb-control">
+          <span class="lb-label">Region</span>
+          <div class="pi-season-wrap">
+            <select id="lb-shard-select" class="pi-season-select">${regionOpts}</select>
+            <span class="pi-season-chevron">${Icon.chevronD(14)}</span>
+          </div>
+        </label>
+        <label class="lb-control">
+          <span class="lb-label">Mode</span>
+          <div class="pi-season-wrap">
+            <select id="lb-mode-select" class="pi-season-select">${modeOpts}</select>
+            <span class="pi-season-chevron">${Icon.chevronD(14)}</span>
+          </div>
+        </label>
+      </div>
+      <div id="leaderboard-list-area"></div>
+    </div>`;
+
+  document.getElementById('lb-shard-select').addEventListener('change', e => {
+    leaderboardShard = e.target.value;
+    leaderboardLimit = 100;
+    try { localStorage.setItem('pi_lb_shard', leaderboardShard); } catch(_){}
+    showLeaderboardPage(); // re-render to update URL + re-fetch
+  });
+  document.getElementById('lb-mode-select').addEventListener('change', e => {
+    leaderboardMode = e.target.value;
+    leaderboardLimit = 100;
+    try { localStorage.setItem('pi_lb_mode', leaderboardMode); } catch(_){}
+    showLeaderboardPage();
+  });
+}
+
+async function loadLeaderboard() {
+  const area = document.getElementById('leaderboard-list-area');
+  area.innerHTML = `<div class="leaderboard-loading">Loading top players...</div>`;
+  const seasonId = getCurrentSeason();
+  if (!seasonId) { area.innerHTML = `<div class="leaderboard-empty">No current season available.</div>`; return; }
+  try {
+    const r = await fetch(`/api/leaderboard?shard=${encodeURIComponent(leaderboardShard)}&season=${encodeURIComponent(seasonId)}&gameMode=${encodeURIComponent(leaderboardMode)}`);
+    const data = await r.json();
+    if (data.error || !Array.isArray(data.players) || !data.players.length) {
+      area.innerHTML = `<div class="leaderboard-empty">No leaderboard data for this region & mode.</div>`;
+      return;
+    }
+    renderLeaderboardList(data.players);
+  } catch (err) {
+    console.error(err);
+    area.innerHTML = `<div class="leaderboard-empty">Failed to load leaderboard.</div>`;
+  }
+}
+
+function renderLeaderboardList(players) {
+  const area = document.getElementById('leaderboard-list-area');
+  const shown = players.slice(0, leaderboardLimit);
+
+  // Plataforma usada quando abrir o player page (shard pc-sa → platform steam).
+  const platformFromShard = leaderboardShard.startsWith('pc-') ? 'steam'
+                          : leaderboardShard.startsWith('psn-') ? 'psn'
+                          : leaderboardShard.startsWith('xbox-') ? 'xbox' : 'steam';
+
+  const rows = shown.map(p => {
+    // Leaderboard API devolve kda/killDeathRatio sempre 0 (deprecated); usa
+    // averageKill (kills/game) que vem populado.
+    const tierTxt = tierLabel(p.tier, p.subTier);
+    return `
+      <div class="lb-row" data-name="${escapeAttr(p.name)}" data-platform="${platformFromShard}">
+        <div class="lb-rank">${p.rank}</div>
+        <img class="lb-tier-img" src="${tierIconPath(p.tier, p.subTier)}" alt="" onerror="this.src='/pubg-api-assets/Assets/Icons/Insignias/Unranked.png'">
+        <div class="lb-name-cell">
+          <div class="lb-name">${p.name}</div>
+          <div class="lb-tier">${tierTxt} · ${(p.rankPoints||0).toLocaleString()} RP</div>
+        </div>
+        <div class="lb-stat"><div class="lb-stat-label">AVG DMG</div><div class="lb-stat-value">${Math.round(p.averageDamage||0)}</div></div>
+        <div class="lb-stat"><div class="lb-stat-label">AVG KILLS</div><div class="lb-stat-value">${(p.averageKill||0).toFixed(2)}</div></div>
+        <div class="lb-stat"><div class="lb-stat-label">WIN %</div><div class="lb-stat-value">${(((p.winRatio||0))*100).toFixed(1)}%</div></div>
+        <div class="lb-stat"><div class="lb-stat-label">WINS</div><div class="lb-stat-value">${p.wins||0}</div></div>
+        <div class="lb-stat"><div class="lb-stat-label">GAMES</div><div class="lb-stat-value">${p.games||0}</div></div>
+      </div>`;
+  }).join('');
+
+  const more = players.length > leaderboardLimit
+    ? `<button id="lb-load-more" class="pi-btn ghost" type="button">Show next 100 (${leaderboardLimit + 1}–${Math.min(leaderboardLimit+100, players.length)})</button>`
+    : '';
+
+  area.innerHTML = `<div class="lb-list">${rows}</div><div class="lb-footer">${more}</div>`;
+
+  document.querySelectorAll('.lb-row').forEach(row => {
+    row.addEventListener('click', async () => {
+      const name = row.dataset.name;
+      const platform = row.dataset.platform;
+      // changePlatform recarrega seasons; precisa esperar pra doSearch ter season válida
+      if (platform && platform !== currentPlatform) await changePlatform(platform);
+      doSearch({ name, seasonId: getCurrentSeason() });
+    });
+  });
+  document.getElementById('lb-load-more')?.addEventListener('click', () => {
+    leaderboardLimit += 100;
+    renderLeaderboardList(players);
+  });
+}
+
 function showCareerPage(playerName) {
   const name = playerName || currentPlayerName;
   if (!name) { showLanding(); return; }
@@ -422,6 +614,7 @@ function showCareerPage(playerName) {
   document.getElementById('player-page').style.display = 'none';
   document.getElementById('weapon-stats-page').style.display = 'none';
   document.getElementById('career-page').style.display = 'block';
+  document.getElementById('leaderboard-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'flex';
   renderHeader(name, getCurrentSeason());
   closeDrawer();
@@ -492,12 +685,15 @@ function renderPlayerHeader(name, seasonId) {
 function renderModeTabs() {
   const tabs = MODES.map(m => {
     const s = (m.perspKey === 'fpp' ? fppStats : tppStats)?.[m.statKey];
+    const r = (m.perspKey === 'fpp' ? rankedFppStats : rankedTppStats)?.[m.statKey];
     const isEmpty = !s?.roundsPlayed;
+    const hasRanked = !!r?.roundsPlayed;
     const isActive = m.key === activeMode;
     return `<button class="mode-tab${isActive ? ' active' : ''}${isEmpty ? ' empty' : ''}" data-mode="${m.key}">
       <span>${m.label}</span>
       <span class="mode-tab-persp">${m.persp}</span>
-      ${isEmpty ? '<span class="mode-tab-dot"></span>' : ''}
+      ${hasRanked ? '<span class="mode-tab-ranked" title="Ranked data available">R</span>' : ''}
+      ${isEmpty && !hasRanked ? '<span class="mode-tab-dot"></span>' : ''}
     </button>`;
   }).join('');
   document.getElementById('mode-tabs-area').innerHTML = `<div class="mode-tabs">${tabs}</div>`;
@@ -505,6 +701,7 @@ function renderModeTabs() {
     btn.addEventListener('click', () => {
       activeMode = btn.dataset.mode;
       renderModeTabs();
+      renderRankedPanel();
       renderStatsGrid();
     });
   });
@@ -515,6 +712,98 @@ function getActiveModeData() {
   if (!m) return null;
   const stats = m.perspKey === 'fpp' ? fppStats : tppStats;
   return stats?.[m.statKey] || null;
+}
+
+function getActiveModeRanked() {
+  const m = MODES.find(m => m.key === activeMode);
+  if (!m) return null;
+  const ranked = m.perspKey === 'fpp' ? rankedFppStats : rankedTppStats;
+  return ranked?.[m.statKey] || null;
+}
+
+// Algarismos romanos pros subtiers (PUBG manda como "1"-"5", convenção visual é I-V).
+const SUBTIER_ROMAN = { '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V' };
+
+// Ícones que existem em pubg-api-assets/Assets/Icons/Insignias/.
+// Tiers novos (Crystal/Survivor adicionados pós-extração) fazem fallback pro mais próximo.
+const TIER_ICON_FALLBACK = { Crystal: 'Master', Survivor: 'Master', 'Grand Master': 'Master' };
+const TIERS_WITHOUT_SUBTIER = new Set(['Master', 'Survivor', 'Grand Master']);
+
+function tierIconPath(tier, subTier) {
+  if (!tier || tier === 'Unranked') return '/pubg-api-assets/Assets/Icons/Insignias/Unranked.png';
+  const iconTier = TIER_ICON_FALLBACK[tier] || tier;
+  if (TIERS_WITHOUT_SUBTIER.has(iconTier)) return `/pubg-api-assets/Assets/Icons/Insignias/${iconTier}.png`;
+  return `/pubg-api-assets/Assets/Icons/Insignias/${iconTier}-${subTier || 1}.png`;
+}
+
+function tierLabel(tier, subTier) {
+  if (!tier || tier === 'Unranked') return 'Unranked';
+  if (tier === 'Master' || tier === 'Grand Master') return tier;
+  return `${tier} ${SUBTIER_ROMAN[String(subTier)] || subTier || ''}`.trim();
+}
+
+function renderRankedPanel() {
+  const container = document.getElementById('ranked-panel-area');
+  if (!container) return;
+  const r = getActiveModeRanked();
+  // Sem dados, ou modo onde o player nunca jogou ranked → some o painel inteiro.
+  if (!r || !r.roundsPlayed) { container.innerHTML = ''; return; }
+
+  const cur = r.currentTier || {};
+  const best = r.bestTier || {};
+  const currentRP = r.currentRankPoint || 0;
+  const bestRP    = r.bestRankPoint || 0;
+
+  // Algumas das melhores métricas pra ranked: KDA é o oficial da Krafton (kills+assists)/deaths.
+  // Top10 ratio dá noção de consistência (chega na zona final?). Avg rank = colocação média.
+  // API às vezes devolve kda=0 mesmo com partidas jogadas; calcula manual quando isso acontece.
+  const rounds = r.roundsPlayed || 1;
+  const deaths = Math.max(1, r.deaths || 0);
+  const kills = r.kills || 0;
+  const assists = r.assists || 0;
+  const kda = (r.kda > 0 ? r.kda : (kills + assists) / deaths).toFixed(2);
+  const winPct = ((r.winRatio || 0) * 100).toFixed(1);
+  const top10Pct = ((r.top10Ratio || 0) * 100).toFixed(1);
+  const avgRank = (r.avgRank || 0).toFixed(1);
+  // API tem typo histórico (`damageDalt`); usa o canônico mas mantém fallback.
+  const avgDmg = Math.round((r.damageDealt ?? r.damageDalt ?? 0) / rounds);
+
+  const cards = [
+    { label: 'KDA',         value: kda,             accent: true },
+    { label: 'WIN %',       value: `${winPct}%`,    accent: true },
+    { label: 'TOP 10 %',    value: `${top10Pct}%`                },
+    { label: 'AVG. RANK',   value: `#${avgRank}`                 },
+    { label: 'AVG. DAMAGE', value: avgDmg                        },
+    { label: 'KILLS',       value: kills                         },
+    { label: 'WINS',        value: r.wins || 0                   },
+    { label: 'GAMES',       value: rounds                        },
+  ];
+
+  const sameTier = cur.tier === best.tier && cur.subTier === best.subTier;
+  const rpDelta = currentRP - bestRP; // sempre ≤ 0 (best é o ápice da season)
+
+  container.innerHTML = `
+    <div class="ranked-panel">
+      <div class="ranked-header">
+        <div class="ranked-tier-badge">
+          <img src="${tierIconPath(cur.tier, cur.subTier)}" alt="${tierLabel(cur.tier, cur.subTier)}" class="ranked-tier-img">
+          <div class="ranked-tier-info">
+            <div class="ranked-tier-label">RANKED · ${tierLabel(cur.tier, cur.subTier).toUpperCase()}</div>
+            <div class="ranked-tier-rp">${currentRP.toLocaleString()} <span class="ranked-tier-rp-unit">RP</span></div>
+            <div class="ranked-tier-best">
+              ${sameTier
+                ? `Peak this season`
+                : `Peak: ${tierLabel(best.tier, best.subTier)} · ${bestRP.toLocaleString()} RP <span class="ranked-tier-rp-delta">(${rpDelta} from peak)</span>`}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ranked-stats-grid">${cards.map(c => `
+        <div class="stat-card-new">
+          <div class="stat-label">${c.label}</div>
+          <div class="stat-value${c.accent ? ' accent' : ''}">${c.value}</div>
+        </div>`).join('')}</div>
+    </div>`;
 }
 
 function renderStatsGrid() {
@@ -1143,18 +1432,22 @@ async function doSearch(opts = {}) {
   renderHeader(name, seasonId);
 
   try {
-    const [statsRes, matchesRes] = await Promise.all([
+    const [statsRes, matchesRes, rankedRes] = await Promise.all([
       fetch(`/api/player/${encodeURIComponent(name)}?season=${encodeURIComponent(seasonId)}&platform=${currentPlatform}`),
       fetch(`/api/player/${encodeURIComponent(name)}/matches?platform=${currentPlatform}`),
+      fetch(`/api/player/${encodeURIComponent(name)}/ranked?season=${encodeURIComponent(seasonId)}&platform=${currentPlatform}`),
     ]);
 
     const statsData = await statsRes.json();
     const matchesData = await matchesRes.json();
+    const rankedData = await rankedRes.json().catch(() => ({}));
 
     if (!statsData.stats) { alert('No stats available for this player'); showLanding(); return; }
 
     fppStats = statsData.stats.fpp || {};
     tppStats = statsData.stats.tpp || {};
+    rankedFppStats = rankedData?.ranked?.fpp || {};
+    rankedTppStats = rankedData?.ranked?.tpp || {};
     window.fppStats = fppStats;
     window.tppStats = tppStats;
     allMatches = matchesData.matches || [];
@@ -1352,12 +1645,14 @@ function buildAppShell() {
       <div class="player-content">
         <div id="player-header-area"></div>
         <div id="mode-tabs-area"></div>
+        <div id="ranked-panel-area"></div>
         <div id="stats-grid-area"></div>
         <div id="match-list-area"></div>
       </div>
     </div>
     <div id="weapon-stats-page" style="display:none"></div>
     <div id="career-page" style="display:none"></div>
+    <div id="leaderboard-page" style="display:none"></div>
     <div id="drawer-backdrop"></div>
     <aside id="match-drawer"></aside>`;
 
@@ -1382,6 +1677,14 @@ async function init() {
 
     if (params.get('view') === 'weapons') {
       showWeaponStatsPage();
+      return;
+    }
+    if (params.get('view') === 'leaderboard') {
+      const sv = params.get('shard');
+      const mv = params.get('mode');
+      if (sv && LEADERBOARD_REGIONS.some(r => r.value === sv)) leaderboardShard = sv;
+      if (mv && LEADERBOARD_MODES.some(m => m.value === mv)) leaderboardMode = mv;
+      showLeaderboardPage();
       return;
     }
 
