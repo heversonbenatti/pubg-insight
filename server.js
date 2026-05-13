@@ -325,12 +325,20 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
 
         // Merge API matchIds + matches cacheados localmente (já dropparam do server PUBG mas
         // continuam no disco). Dedup + preserva ordem da API no topo.
+        //
+        // Match-only-local sem telemetria cacheada não aparece: a PUBG dropa match
+        // E telemetry juntos (~14d), e o JSON do match cacheado só contém uma URL
+        // de telemetry que já caiu. Sem telemetry_*.json local, o replay não tem
+        // como carregar — então melhor nem mostrar o card.
+        const apiIds = new Set(matchIds);
         const localIds = localMatchIdsFor(platform, playerId);
+        const hasTelemetry = id => fs.existsSync(path.join(matchCacheDir, `telemetry_${id}.json`));
         const seen = new Set();
         const mergedIds = [];
         for (const id of [...matchIds, ...localIds]) {
             if (!id || seen.has(id)) continue;
             seen.add(id);
+            if (!apiIds.has(id) && !hasTelemetry(id)) continue;
             mergedIds.push(id);
         }
 
