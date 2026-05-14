@@ -87,6 +87,7 @@ try {
 } catch(e) {}
 let fppStats = {}, tppStats = {};
 let rankedFppStats = {}, rankedTppStats = {};
+let activeStatsView = 'normal';
 let mapFilter = new Set();
 let perspectiveFilter = 'all';   // 'all' | 'fpp' | 'tpp' | 'ranked' | 'normal'
 
@@ -223,6 +224,10 @@ function renderHeader(query = '', season = '') {
 
 function escapeAttr(s) {
   return String(s).replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+function escapeText(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 }
 
 function populateSeasonSelect(id, selectedId = '') {
@@ -401,8 +406,7 @@ function showPlayerPage(playerName, seasonId) {
   document.getElementById('pi-header').style.display = 'flex';
   renderPlayerHeader(playerName, seasonId);
   renderModeTabs();
-  renderRankedPanel();
-  renderStatsGrid();
+  renderStatsView();
   renderMatchList();
 }
 
@@ -458,14 +462,17 @@ const LEADERBOARD_MODES = [
   { value: 'solo',      label: 'Solo TPP'  },
 ];
 let leaderboardShard = 'pc-sa';
-let leaderboardMode  = 'squad-fpp';
+let leaderboardMode  = 'squad';
 let leaderboardLimit = 100;
+let leaderboardAvailableModes = LEADERBOARD_MODES;
+let leaderboardViewSeq = 0;
 try {
   const sv = localStorage.getItem('pi_lb_shard'); if (sv && LEADERBOARD_REGIONS.some(r => r.value === sv)) leaderboardShard = sv;
   const mv = localStorage.getItem('pi_lb_mode');  if (mv && LEADERBOARD_MODES.some(m => m.value === mv))   leaderboardMode  = mv;
 } catch (_) {}
 
-function showLeaderboardPage() {
+async function showLeaderboardPage() {
+  const seq = ++leaderboardViewSeq;
   document.getElementById('landing-wrap').style.display = 'none';
   document.getElementById('loading-state').style.display = 'none';
   document.getElementById('player-page').style.display = 'none';
@@ -477,6 +484,16 @@ function showLeaderboardPage() {
   closeDrawer();
   closeAllPopovers();
 
+  updateLeaderboardUrl();
+  renderLeaderboardShell({ modesLoading: true });
+  await loadLeaderboardModes(seq);
+  if (seq !== leaderboardViewSeq) return;
+  renderLeaderboardShell();
+  updateLeaderboardUrl();
+  loadLeaderboard(seq);
+}
+
+function updateLeaderboardUrl() {
   const url = new URL(window.location.href);
   url.search = '';
   url.hash = '';
@@ -484,17 +501,43 @@ function showLeaderboardPage() {
   url.searchParams.set('shard', leaderboardShard);
   url.searchParams.set('mode', leaderboardMode);
   window.history.replaceState({}, '', url.toString());
-
-  renderLeaderboardShell();
-  loadLeaderboard();
 }
 
-function renderLeaderboardShell() {
+async function loadLeaderboardModes(seq) {
+  const seasonId = getCurrentSeason();
+  if (!seasonId) {
+    leaderboardAvailableModes = [];
+    return;
+  }
+
+  try {
+    const r = await fetch(`/api/leaderboard/modes?shard=${encodeURIComponent(leaderboardShard)}&season=${encodeURIComponent(seasonId)}`);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Failed to load leaderboard modes');
+    if (seq !== leaderboardViewSeq) return;
+
+    const validModeValues = new Set(LEADERBOARD_MODES.map(m => m.value));
+    const modes = Array.isArray(data.modes)
+      ? data.modes.filter(m => m && validModeValues.has(m.value))
+      : [];
+    leaderboardAvailableModes = modes.length ? modes : [];
+  } catch (err) {
+    if (seq !== leaderboardViewSeq) return;
+    console.error(err);
+    leaderboardAvailableModes = LEADERBOARD_MODES;
+  }
+
+  if (leaderboardAvailableModes.length && !leaderboardAvailableModes.some(m => m.value === leaderboardMode)) {
+    leaderboardMode = leaderboardAvailableModes[0].value;
+    try { localStorage.setItem('pi_lb_mode', leaderboardMode); } catch(_){}
+  }
+}
+
+function renderLeaderboardShell({ modesLoading = false } = {}) {
   const page = document.getElementById('leaderboard-page');
   const regionOpts = LEADERBOARD_REGIONS.map(r =>
-    `<option value="${r.value}"${r.value === leaderboardShard ? ' selected' : ''}>${r.label}</option>`).join('');
-  const modeOpts = LEADERBOARD_MODES.map(m =>
-    `<option value="${m.value}"${m.value === leaderboardMode ? ' selected' : ''}>${m.label}</option>`).join('');
+    `<option value="${r.value}"${r.value === leaderboardShard ? ' selected' : ''}>${escapeText(r.label)}</option>`).join('');
+  const modeControl = renderLeaderboardModeControl(modesLoading);
 
   page.innerHTML = `
     <div class="leaderboard-content">
@@ -510,13 +553,7 @@ function renderLeaderboardShell() {
             <span class="pi-season-chevron">${Icon.chevronD(14)}</span>
           </div>
         </label>
-        <label class="lb-control">
-          <span class="lb-label">Mode</span>
-          <div class="pi-season-wrap">
-            <select id="lb-mode-select" class="pi-season-select">${modeOpts}</select>
-            <span class="pi-season-chevron">${Icon.chevronD(14)}</span>
-          </div>
-        </label>
+        ${modeControl}
       </div>
       <div id="leaderboard-list-area"></div>
     </div>`;
@@ -527,7 +564,7 @@ function renderLeaderboardShell() {
     try { localStorage.setItem('pi_lb_shard', leaderboardShard); } catch(_){}
     showLeaderboardPage(); // re-render to update URL + re-fetch
   });
-  document.getElementById('lb-mode-select').addEventListener('change', e => {
+  document.getElementById('lb-mode-select')?.addEventListener('change', e => {
     leaderboardMode = e.target.value;
     leaderboardLimit = 100;
     try { localStorage.setItem('pi_lb_mode', leaderboardMode); } catch(_){}
@@ -535,20 +572,69 @@ function renderLeaderboardShell() {
   });
 }
 
-async function loadLeaderboard() {
+function renderLeaderboardModeControl(modesLoading) {
+  if (modesLoading) {
+    return `
+        <label class="lb-control">
+          <span class="lb-label">Mode</span>
+          <div class="pi-season-wrap">
+            <select class="pi-season-select" disabled><option>Checking modes...</option></select>
+            <span class="pi-season-chevron">${Icon.chevronD(14)}</span>
+          </div>
+        </label>`;
+  }
+
+  if (!leaderboardAvailableModes.length) {
+    return `
+        <label class="lb-control">
+          <span class="lb-label">Mode</span>
+          <div class="lb-static-value">No ranked modes</div>
+        </label>`;
+  }
+
+  if (leaderboardAvailableModes.length === 1) {
+    return `
+        <label class="lb-control">
+          <span class="lb-label">Mode</span>
+          <div class="lb-static-value">${escapeText(leaderboardAvailableModes[0].label)}</div>
+        </label>`;
+  }
+
+  const modeOpts = leaderboardAvailableModes.map(m =>
+    `<option value="${escapeAttr(m.value)}"${m.value === leaderboardMode ? ' selected' : ''}>${escapeText(m.label)}</option>`).join('');
+  return `
+        <label class="lb-control">
+          <span class="lb-label">Mode</span>
+          <div class="pi-season-wrap">
+            <select id="lb-mode-select" class="pi-season-select">${modeOpts}</select>
+            <span class="pi-season-chevron">${Icon.chevronD(14)}</span>
+          </div>
+        </label>`;
+}
+
+async function loadLeaderboard(seq = leaderboardViewSeq) {
   const area = document.getElementById('leaderboard-list-area');
+  if (!area) return;
   area.innerHTML = `<div class="leaderboard-loading">Loading top players...</div>`;
   const seasonId = getCurrentSeason();
   if (!seasonId) { area.innerHTML = `<div class="leaderboard-empty">No current season available.</div>`; return; }
+  if (!leaderboardMode || !leaderboardAvailableModes.length) {
+    area.innerHTML = `<div class="leaderboard-empty">No leaderboard data for this region & mode.</div>`;
+    return;
+  }
+  const requestShard = leaderboardShard;
+  const requestMode = leaderboardMode;
   try {
-    const r = await fetch(`/api/leaderboard?shard=${encodeURIComponent(leaderboardShard)}&season=${encodeURIComponent(seasonId)}&gameMode=${encodeURIComponent(leaderboardMode)}`);
+    const r = await fetch(`/api/leaderboard?shard=${encodeURIComponent(requestShard)}&season=${encodeURIComponent(seasonId)}&gameMode=${encodeURIComponent(requestMode)}`);
     const data = await r.json();
+    if (seq !== leaderboardViewSeq || requestShard !== leaderboardShard || requestMode !== leaderboardMode) return;
     if (data.error || !Array.isArray(data.players) || !data.players.length) {
       area.innerHTML = `<div class="leaderboard-empty">No leaderboard data for this region & mode.</div>`;
       return;
     }
     renderLeaderboardList(data.players);
   } catch (err) {
+    if (seq !== leaderboardViewSeq) return;
     console.error(err);
     area.innerHTML = `<div class="leaderboard-empty">Failed to load leaderboard.</div>`;
   }
@@ -686,8 +772,9 @@ function renderModeTabs() {
   const tabs = MODES.map(m => {
     const s = (m.perspKey === 'fpp' ? fppStats : tppStats)?.[m.statKey];
     const r = (m.perspKey === 'fpp' ? rankedFppStats : rankedTppStats)?.[m.statKey];
-    const isEmpty = !s?.roundsPlayed;
+    const hasNormal = !!s?.roundsPlayed;
     const hasRanked = !!r?.roundsPlayed;
+    const isEmpty = !hasNormal && !hasRanked;
     const isActive = m.key === activeMode;
     return `<button class="mode-tab${isActive ? ' active' : ''}${isEmpty ? ' empty' : ''}" data-mode="${m.key}">
       <span>${m.label}</span>
@@ -701,8 +788,7 @@ function renderModeTabs() {
     btn.addEventListener('click', () => {
       activeMode = btn.dataset.mode;
       renderModeTabs();
-      renderRankedPanel();
-      renderStatsGrid();
+      renderStatsView();
     });
   });
 }
@@ -719,6 +805,56 @@ function getActiveModeRanked() {
   if (!m) return null;
   const ranked = m.perspKey === 'fpp' ? rankedFppStats : rankedTppStats;
   return ranked?.[m.statKey] || null;
+}
+
+function getActiveStatsAvailability() {
+  const normal = getActiveModeData();
+  const ranked = getActiveModeRanked();
+  return {
+    hasNormal: !!normal?.roundsPlayed,
+    hasRanked: !!ranked?.roundsPlayed,
+  };
+}
+
+function normalizeActiveStatsView() {
+  const availability = getActiveStatsAvailability();
+  if (activeStatsView === 'ranked' && !availability.hasRanked) activeStatsView = 'normal';
+  if (activeStatsView === 'normal' && !availability.hasNormal && availability.hasRanked) activeStatsView = 'ranked';
+  return availability;
+}
+
+function renderStatsView() {
+  const availability = normalizeActiveStatsView();
+  renderStatsViewToggle(availability);
+
+  const rankedArea = document.getElementById('ranked-panel-area');
+  const statsArea = document.getElementById('stats-grid-area');
+  if (activeStatsView === 'ranked') {
+    if (statsArea) statsArea.innerHTML = '';
+    renderRankedPanel();
+    return;
+  }
+
+  if (rankedArea) rankedArea.innerHTML = '';
+  renderStatsGrid();
+}
+
+function renderStatsViewToggle({ hasNormal, hasRanked }) {
+  const container = document.getElementById('stats-view-toggle-area');
+  if (!container) return;
+  if (!hasNormal || !hasRanked) { container.innerHTML = ''; return; }
+
+  container.innerHTML = `
+    <div class="stats-view-toggle" role="group" aria-label="Stats view">
+      <button class="stats-view-option${activeStatsView === 'normal' ? ' active' : ''}" type="button" data-stats-view="normal">Normal</button>
+      <button class="stats-view-option${activeStatsView === 'ranked' ? ' active' : ''}" type="button" data-stats-view="ranked">Ranked</button>
+    </div>`;
+  container.querySelectorAll('.stats-view-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeStatsView = btn.dataset.statsView;
+      renderStatsView();
+    });
+  });
 }
 
 // Algarismos romanos pros subtiers (PUBG manda como "1"-"5", convenção visual é I-V).
@@ -1245,12 +1381,13 @@ function buildMatchRow(match) {
   const totalRosters = match.data.relationships.rosters.data.length;
   const translatedMap = translateMapName(attr.mapName);
   const gameMode = attr.gameMode.toUpperCase().replace(/-/g, ' ');
-  const matchCategory = attr.matchType === 'competitive' ? 'RANKED' : 'NORMAL';
+  const isRankedMatch = attr.matchType === 'competitive';
+  const matchCategory = isRankedMatch ? 'RANKED' : 'NORMAL';
   const isWin = winPlace === 1;
   const ago = timeAgo(attr.createdAt);
   const mapImg = translatedMap.toLowerCase();
 
-  return `<button class="match-row-new${isWin ? ' winner' : ''}" data-match-id="${match.data.id}">
+  return `<button class="match-row-new${isWin ? ' winner' : ''}${isRankedMatch ? ' ranked' : ''}" data-match-id="${match.data.id}">
     ${rankChip(winPlace, totalRosters, 'sm')}
     <div class="match-map-cell">
       <div class="match-thumb stripe-placeholder">
@@ -1259,7 +1396,7 @@ function buildMatchRow(match) {
           onerror="this.style.display='none'">
       </div>
       <div>
-        <div class="match-map-name">${translatedMap}</div>
+        <div class="match-map-name">${translatedMap}${isRankedMatch ? '<span class="match-ranked-badge">Ranked</span>' : ''}</div>
         <div class="match-mode-line">${gameMode} · ${matchCategory}</div>
       </div>
     </div>
@@ -1316,7 +1453,8 @@ function renderDrawer(matchData) {
   const totalRosters = matchData.data.relationships.rosters.data.length;
   const translatedMap = translateMapName(attr.mapName);
   const gameMode = attr.gameMode.toUpperCase().replace(/-/g, ' ');
-  const matchCategory = attr.matchType === 'competitive' ? 'RANKED' : 'NORMAL';
+  const isRankedMatch = attr.matchType === 'competitive';
+  const matchCategory = isRankedMatch ? 'RANKED' : 'NORMAL';
   const isWin = winPlace === 1;
   const ago = timeAgo(attr.createdAt);
 
@@ -1346,7 +1484,7 @@ function renderDrawer(matchData) {
           <span class="micro" style="color:${statusColor}">${statusLabel}</span>
           <span class="mono" style="font-size:10px;color:var(--text-faint)">· ${ago}</span>
         </div>
-        <div class="drawer-map-name">${translatedMap}</div>
+        <div class="drawer-map-name">${translatedMap}${isRankedMatch ? '<span class="match-ranked-badge">Ranked</span>' : ''}</div>
         <div class="drawer-mode-line">${gameMode} · ${matchCategory}</div>
       </div>
       <button class="drawer-close" id="drawer-close-btn">${Icon.x(14)}</button>
@@ -1453,6 +1591,7 @@ async function doSearch(opts = {}) {
     allMatches = matchesData.matches || [];
     currentIndex = 0;
     activeMode = getBestMode(fppStats, tppStats);
+    activeStatsView = 'normal';
 
     showPlayerPage(name, seasonId);
 
@@ -1645,6 +1784,7 @@ function buildAppShell() {
       <div class="player-content">
         <div id="player-header-area"></div>
         <div id="mode-tabs-area"></div>
+        <div id="stats-view-toggle-area"></div>
         <div id="ranked-panel-area"></div>
         <div id="stats-grid-area"></div>
         <div id="match-list-area"></div>
