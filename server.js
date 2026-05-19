@@ -2,6 +2,7 @@ import express from 'express';
 import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
@@ -32,7 +33,18 @@ const VALID_LEADERBOARD_SHARDS = new Set([
     'psn-as', 'psn-eu', 'psn-na', 'psn-oc',
     'xbox-as', 'xbox-eu', 'xbox-na', 'xbox-oc', 'xbox-sa',
 ]);
-const VALID_RANKED_MODES = new Set(['solo', 'duo', 'squad', 'solo-fpp', 'duo-fpp', 'squad-fpp']);
+const LEADERBOARD_MODE_OPTIONS = [
+    { value: 'squad-fpp', label: 'Squad FPP' },
+    { value: 'squad',     label: 'Squad TPP' },
+    { value: 'duo-fpp',   label: 'Duo FPP'   },
+    { value: 'duo',       label: 'Duo TPP'   },
+    { value: 'solo-fpp',  label: 'Solo FPP'  },
+    { value: 'solo',      label: 'Solo TPP'  },
+];
+const VALID_RANKED_MODES = new Set(LEADERBOARD_MODE_OPTIONS.map(m => m.value));
+// If the API returns the same ranked board for multiple mode URLs, keep one
+// canonical request and hide the duplicate mode choices in the UI.
+const LEADERBOARD_DUPLICATE_MODE_PRIORITY = ['squad', 'squad-fpp', 'duo', 'duo-fpp', 'solo', 'solo-fpp'];
 
 function shardUrl(platform) {
     const p = VALID_PLATFORMS.has(platform) ? platform : 'steam';
@@ -131,6 +143,8 @@ const MATCHES_LIST_TTL = 5  * 60 * 1000;        // 5min
 const MATCH_TTL        = Number.MAX_SAFE_INTEGER;   // forever — matches are immutable and API drops them after 14d
 const LEADERBOARD_TTL  = 2 * 60 * 60 * 1000;    // 2h — API updates leaderboard every 2h
 const FOREVER          = Number.MAX_SAFE_INTEGER; // past seasons are immutable
+const LEADERBOARD_CACHE_VERSION = 2;
+const LEADERBOARD_MODES_CACHE_VERSION = 1;
 
 function safeName(s) { return String(s).replace(/[^a-zA-Z0-9_-]/g, '_'); }
 
@@ -143,6 +157,146 @@ function readCache(file, ttl) {
 function writeCache(file, data) {
     try { fs.writeFileSync(file, JSON.stringify(data), 'utf8'); }
     catch (e) { console.error('Cache write failed:', e.message); }
+}
+
+function leaderboardCacheFile(shard, season, gameMode) {
+    return path.join(cacheDir, `leaderboard_${shard}_${safeName(season)}_${gameMode}.json`);
+}
+
+function leaderboardModesCacheFile(shard, season) {
+    return path.join(cacheDir, `leaderboard_modes_${shard}_${safeName(season)}.json`);
+}
+
+function parseLeaderboardPlayers(data) {
+    return (data.included || [])
+        .filter(p => p.type === 'player')
+        .map(p => ({
+            accountId: p.id,
+            name: p.attributes?.name,
+            rank: p.attributes?.rank,
+            ...(p.attributes?.stats || {}),
+        }))
+        .sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
+}
+
+function leaderboardSignature(players) {
+    const source = players.map(p => [
+        p.rank,
+        p.accountId,
+        p.name,
+        p.rankPoints,
+        p.averageDamage,
+        p.averageKill,
+        p.winRatio,
+        p.wins,
+        p.games,
+    ].join(':')).join('|');
+    return crypto.createHash('sha1').update(source).digest('hex');
+}
+
+function leaderboardModePriority(mode) {
+    const idx = LEADERBOARD_DUPLICATE_MODE_PRIORITY.indexOf(mode);
+    return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
+}
+
+function readLeaderboardCache(cacheFile, shard, season, gameMode) {
+    const cached = readCache(cacheFile, LEADERBOARD_TTL);
+    if (!cached) return null;
+    if (cached.cacheVersion !== LEADERBOARD_CACHE_VERSION) return null;
+    if (cached.shard !== shard || cached.season !== season || cached.gameMode !== gameMode) return null;
+    if (!Array.isArray(cached.players)) return null;
+    return cached;
+}
+
+async function fetchLeaderboard(shard, season, gameMode) {
+    const cacheFile = leaderboardCacheFile(shard, season, gameMode);
+    const cached = readLeaderboardCache(cacheFile, shard, season, gameMode);
+    if (cached) return cached;
+
+    const r = await pubgGet(`https://api.pubg.com/shards/${shard}/leaderboards/${season}/${gameMode}`);
+    const result = {
+        cacheVersion: LEADERBOARD_CACHE_VERSION,
+        shard,
+        season,
+        gameMode,
+        generatedAt: new Date().toISOString(),
+        players: parseLeaderboardPlayers(r.data),
+    };
+    writeCache(cacheFile, result);
+    return result;
+}
+
+function readLeaderboardModesCache(cacheFile, shard, season) {
+    const cached = readCache(cacheFile, LEADERBOARD_TTL);
+    if (!cached) return null;
+    if (cached.cacheVersion !== LEADERBOARD_MODES_CACHE_VERSION) return null;
+    if (cached.shard !== shard || cached.season !== season) return null;
+    if (!Array.isArray(cached.modes)) return null;
+    return cached;
+}
+
+async function fetchAvailableLeaderboardModes(shard, season) {
+    const cacheFile = leaderboardModesCacheFile(shard, season);
+    const cached = readLeaderboardModesCache(cacheFile, shard, season);
+    if (cached) return cached;
+
+    const groups = new Map();
+    const unavailable = [];
+    const failures = [];
+
+    for (const mode of LEADERBOARD_MODE_OPTIONS) {
+        try {
+            const leaderboard = await fetchLeaderboard(shard, season, mode.value);
+            if (!leaderboard.players.length) {
+                unavailable.push(mode.value);
+                continue;
+            }
+
+            const signature = leaderboardSignature(leaderboard.players);
+            const group = groups.get(signature) || { signature, modes: [], players: leaderboard.players.length };
+            group.modes.push({ ...mode, players: leaderboard.players.length });
+            groups.set(signature, group);
+        } catch (error) {
+            const code = error.response?.status;
+            if (code === 404 || code === 422) {
+                unavailable.push(mode.value);
+            } else {
+                failures.push({ mode: mode.value, status: code || 'ERR' });
+                console.error(`Leaderboard mode discovery failed for ${shard}/${season}/${mode.value}:`, error.message);
+            }
+        }
+    }
+
+    if (!groups.size && failures.length) {
+        const e = new Error('Failed to discover leaderboard modes');
+        e.failures = failures;
+        throw e;
+    }
+
+    const allModesDuplicate = groups.size === 1 && [...groups.values()][0].modes.length > 1;
+    const modes = [...groups.values()].map(group => {
+        const representative = group.modes
+            .slice()
+            .sort((a, b) => leaderboardModePriority(a.value) - leaderboardModePriority(b.value))[0];
+        return {
+            value: representative.value,
+            label: allModesDuplicate ? 'Ranked' : representative.label,
+            players: group.players,
+            duplicateModes: group.modes.map(m => m.value).filter(value => value !== representative.value),
+        };
+    }).sort((a, b) => leaderboardModePriority(a.value) - leaderboardModePriority(b.value));
+
+    const result = {
+        cacheVersion: LEADERBOARD_MODES_CACHE_VERSION,
+        shard,
+        season,
+        generatedAt: new Date().toISOString(),
+        modes,
+        unavailable,
+        failures,
+    };
+    writeCache(cacheFile, result);
+    return result;
 }
 
 app.get('/api/seasons', async (req, res) => {
@@ -165,32 +319,32 @@ app.get('/api/seasons', async (req, res) => {
 
 // Top 500 jogadores ranked por modo+região. Shard usa platform-region (pc-sa,
 // pc-na, etc), diferente do resto da API. Cache 2h (mesma cadência do upstream).
+app.get('/api/leaderboard/modes', async (req, res) => {
+    const { shard, season } = req.query;
+    if (!VALID_LEADERBOARD_SHARDS.has(shard)) return res.status(400).json({ error: 'Invalid shard' });
+    if (!SEASON_ID_RE.test(season || '')) return res.status(400).json({ error: 'Invalid season id' });
+
+    try {
+        res.json(await fetchAvailableLeaderboardModes(shard, season));
+    } catch (error) {
+        console.error('Error discovering leaderboard modes:', error.message);
+        res.status(500).json({ error: 'Failed to discover leaderboard modes' });
+    }
+});
+
 app.get('/api/leaderboard', async (req, res) => {
     const { shard, season, gameMode } = req.query;
     if (!VALID_LEADERBOARD_SHARDS.has(shard)) return res.status(400).json({ error: 'Invalid shard' });
     if (!SEASON_ID_RE.test(season || '')) return res.status(400).json({ error: 'Invalid season id' });
     if (!VALID_RANKED_MODES.has(gameMode)) return res.status(400).json({ error: 'Invalid game mode' });
 
-    const cacheFile = path.join(cacheDir, `leaderboard_${shard}_${safeName(season)}_${gameMode}.json`);
-    const cached = readCache(cacheFile, LEADERBOARD_TTL);
-    if (cached) return res.json(cached);
-
     try {
-        const r = await pubgGet(`https://api.pubg.com/shards/${shard}/leaderboards/${season}/${gameMode}`);
-        // Reduz payload: front só precisa do essencial pra listagem.
-        const players = (r.data.included || [])
-            .filter(p => p.type === 'player')
-            .map(p => ({
-                accountId: p.id,
-                name: p.attributes?.name,
-                rank: p.attributes?.rank,
-                ...(p.attributes?.stats || {}),
-            }))
-            .sort((a, b) => (a.rank || 9999) - (b.rank || 9999));
-        const result = { shard, season, gameMode, generatedAt: new Date().toISOString(), players };
-        writeCache(cacheFile, result);
-        res.json(result);
+        res.json(await fetchLeaderboard(shard, season, gameMode));
     } catch (error) {
+        const code = error.response?.status;
+        if (code === 404 || code === 422) {
+            return res.status(404).json({ error: 'No leaderboard data for this region & mode' });
+        }
         console.error('Error fetching leaderboard:', error.message);
         res.status(500).json({ error: 'Failed to fetch leaderboard' });
     }
@@ -312,25 +466,31 @@ function matchesIndexFile(platform) {
     return path.join(cacheDir, `matches_index_${platform}.json`);
 }
 
-const matchesIndexCache = new Map();
+const matchesIndexCache = new Map();   // platform → { mtimeMs, data }
 function loadMatchesIndex(platform) {
-    if (matchesIndexCache.has(platform)) return matchesIndexCache.get(platform);
     const file = matchesIndexFile(platform);
+    const mtimeMs = fs.existsSync(file) ? fs.statSync(file).mtimeMs : 0;
+    const cached = matchesIndexCache.get(platform);
+    if (cached && cached.mtimeMs === mtimeMs) return cached.data;
+    // Mtime mudou (provável: scripts/crawl-players.js gravou novas entradas) — recarrega.
     let data = { version: 1, players: {} };
-    if (fs.existsSync(file)) {
+    if (mtimeMs > 0) {
         try { data = JSON.parse(fs.readFileSync(file, 'utf8')); }
         catch { /* keep empty */ }
     }
     if (!data.players) data.players = {};
-    matchesIndexCache.set(platform, data);
+    matchesIndexCache.set(platform, { mtimeMs, data });
     return data;
 }
 
 function saveMatchesIndex(platform) {
-    const data = matchesIndexCache.get(platform);
-    if (!data) return;
-    try { fs.writeFileSync(matchesIndexFile(platform), JSON.stringify(data), 'utf8'); }
-    catch (e) { console.error('matches index write failed:', e.message); }
+    const entry = matchesIndexCache.get(platform);
+    if (!entry) return;
+    const file = matchesIndexFile(platform);
+    try {
+        fs.writeFileSync(file, JSON.stringify(entry.data), 'utf8');
+        entry.mtimeMs = fs.statSync(file).mtimeMs;
+    } catch (e) { console.error('matches index write failed:', e.message); }
 }
 
 // Extrai todos os participants do match data (formato JSON:API da PUBG).

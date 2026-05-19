@@ -9,6 +9,7 @@
     "tiles": "node scripts/generate-tiles.js",
     "telemetries": "node scripts/fetch-telemetries.js",
     "matches:index": "node scripts/build-matches-index.js",
+    "crawler": "node scripts/crawl-players.js",
     "weapons:build": "node scripts/build-weapon-stats.js",
     "weapons:extract": "node --max-old-space-size=8192 scripts/extract-damage-samples.js",
     "weapons:validate": "node --max-old-space-size=8192 scripts/validate-damage-formula.js",
