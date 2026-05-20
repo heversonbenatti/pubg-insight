@@ -14,7 +14,8 @@
     "weapons:extract": "node --max-old-space-size=8192 scripts/extract-damage-samples.js",
     "weapons:validate": "node --max-old-space-size=8192 scripts/validate-damage-formula.js",
     "weapons:refresh": "node scripts/refresh-weapon-data.js",
-    "insights:build": "node --max-old-space-size=8192 scripts/build-insights.js"
+    "insights:build": "node --max-old-space-size=8192 scripts/build-insights.js",
+    "crawl:matches": "node scripts/crawl-matches.js"
   },
   "keywords": [],
   "author": "",
