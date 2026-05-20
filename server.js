@@ -1355,9 +1355,18 @@ async function ensureTelemetry(platform, matchId) {
         setImmediate(enforceCacheLimit);
         return 'downloaded';
     } catch (err) {
+        // 404 = telemetria já caiu do CDN (some ~14d, às vezes antes) → 'gone'
+        // (definitivo). Outros erros (timeout/5xx/rede) → 'error' (transiente, tenta depois).
+        if (err.response?.status === 404) return 'gone';
         console.error('Telemetry fetch error:', err.message);
         return 'error';
     }
+}
+
+// Apaga o match file (usado quando a telemetria é confirmada indisponível).
+function deleteMatchFile(platform, matchId) {
+    try { fs.unlinkSync(path.join(matchCacheDir, `${platform}_${matchId}.json`)); return true; }
+    catch { return false; }
 }
 
 // Lista de matchIds candidatos a ter telemetria baixada pro jogador: união da
@@ -1388,7 +1397,8 @@ async function downloadMissingTelemetries(platform, matchIds, { cap = Infinity, 
         await getMatch(platform, id);                 // garante o match file (URL da telemetria)
         const st = await ensureTelemetry(platform, id);
         if (st === 'downloaded') { dl++; if (onProgress) onProgress(dl); }
-        // 'no-url' = match >14d (URL morta), pula
+        else if (st === 'gone' || st === 'no-url') deleteMatchFile(platform, id); // telemetria indisponível → apaga
+        // 'error' = transiente → mantém pra tentar de novo depois
     }
     return dl;
 }
@@ -1419,19 +1429,20 @@ async function backgroundTelemetryFill(platform, accountId, matchIds) {
 }
 
 // ── Manutenção global de telemetria ───────────────────────────────────────────
-// Política (por match file cacheado): NUNCA apaga match files. Só baixa o que dá.
-//   <14d sem telemetria  → baixa a telemetria (enquanto a URL é válida)
-//   >14d sem telemetria  → mantém o match file (vira "replay não disponível"; a URL
-//                          morreu, não dá pra baixar)
-//   qualquer um c/ telemetria → mantém
-// Roda no boot e a cada 3h. Download em batch (CDN, sem rate limit).
+// Política (por match file cacheado):
+//   com telemetria (qualquer idade) → mantém
+//   <14d sem telemetria  → baixa; se vier 404 (telemetria já caiu) → apaga o match
+//   >14d sem telemetria  → apaga direto (URL morta, telemetria indisponível)
+//   idade desconhecida sem telemetria → mantém (não dá pra confirmar)
+// Apagar no 404/>14d também elimina o retry infinito de 404. Roda no boot e a
+// cada 3h. Download em batch (CDN, sem rate limit).
 const TELEMETRY_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 let _maintainInflight = false;
 async function maintainTelemetryCache(platform = 'steam') {
     if (_maintainInflight) return;
     _maintainInflight = true;
     const now = Date.now();
-    let kept = 0, downloaded = 0;
+    let kept = 0, deletedOld = 0, deletedGone = 0, downloaded = 0;
     const toDownload = [];
     try {
         const re = new RegExp(`^${platform}_[a-f0-9-]{36}\\.json$`, 'i');
@@ -1439,20 +1450,22 @@ async function maintainTelemetryCache(platform = 'steam') {
         for (const f of files) {
             const id = f.slice(platform.length + 1, -5);
             if (telemetryExists(id)) { kept++; continue; }
-            // sem telemetria → só baixa se <14d (URL ainda viva). Nunca apaga.
             let createdAt = null;
             try {
                 const d = JSON.parse(fs.readFileSync(path.join(matchCacheDir, f), 'utf8'));
                 createdAt = d?.data?.attributes?.createdAt;
             } catch {}
             const ts = createdAt ? new Date(createdAt).getTime() : NaN;
-            if (Number.isFinite(ts) && now - ts <= TELEMETRY_MAX_AGE_MS) toDownload.push(id);
-            else kept++; // >14d sem telemetria ou idade desconhecida → mantém, não baixa
+            if (!Number.isFinite(ts)) { kept++; continue; }   // idade desconhecida → mantém (seguro)
+            if (now - ts > TELEMETRY_MAX_AGE_MS) {
+                if (deleteMatchFile(platform, id)) deletedOld++; // >14d s/ tel → apaga
+            } else {
+                toDownload.push(id);                            // <14d s/ tel → tenta baixar
+            }
         }
-        console.log(`[maintain] ${files.length} matches | mantidos: ${kept} | a baixar <14d s/ tel: ${toDownload.length}`);
+        console.log(`[maintain] ${files.length} matches | c/ tel: ${kept} | apagados >14d: ${deletedOld} | a baixar <14d: ${toDownload.length}`);
 
-        // Download em batch: CDN sem rate limit, então N downloads em paralelo
-        // cortam o tempo (~3h sequencial → ~20min). Workers consomem uma fila.
+        // Download em batch: CDN sem rate limit, N downloads em paralelo.
         const CONCURRENCY = 8;
         let cursor = 0;
         async function worker() {
@@ -1465,12 +1478,15 @@ async function maintainTelemetryCache(platform = 'steam') {
                         markGlobalInsightsDirty();
                         console.log(`[maintain] ${downloaded}/${toDownload.length} telemetrias baixadas…`);
                     }
+                } else if (st === 'gone' || st === 'no-url') {
+                    if (deleteMatchFile(platform, id)) deletedGone++; // 404/sem URL → telemetria indisponível, apaga
                 }
+                // 'error' = transiente → mantém pra tentar de novo no próximo ciclo
             }
         }
         await Promise.all(Array.from({ length: CONCURRENCY }, worker));
-        if (downloaded) markGlobalInsightsDirty();
-        console.log(`[maintain] concluído: +${downloaded} telemetrias`);
+        if (downloaded || deletedOld || deletedGone) markGlobalInsightsDirty();
+        console.log(`[maintain] concluído: +${downloaded} telemetrias | apagados ${deletedOld + deletedGone} (s/ telemetria)`);
     } catch (e) {
         console.error('[maintain] erro:', e.message);
     } finally {
@@ -1504,7 +1520,16 @@ app.get('/api/telemetry/:matchId', async (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     setImmediate(() => enforceCacheLimit(true)); // checa limite de cache no boot
-    // Manutenção de telemetria: baixa as <14d que faltam (nunca apaga match files).
+    // Manutenção de telemetria: baixa as <14d que faltam, apaga sem-telemetria (404/>14d).
     setTimeout(() => maintainTelemetryCache('steam'), 8000);          // 8s após boot
     setInterval(() => maintainTelemetryCache('steam'), 3 * 60 * 60 * 1000); // a cada 3h
+
+    // Auto-regen do insights global: quando estiver dirty E o server estiver
+    // "ocioso" (sem download de telemetria rolando e sem regen em andamento),
+    // regenera sozinho — não precisa abrir a página de insights pra atualizar.
+    setInterval(() => {
+        if (_globalDirty && !_regenInflight && !_maintainInflight && _bgTelemetry.size === 0) {
+            maybeRegenerateGlobalInBackground();
+        }
+    }, 60 * 1000);
 });
