@@ -161,18 +161,24 @@ process.on('SIGINT', () => {
   stopped = true;
 });
 
-// Processa um matchId: fetch /matches → playable? → telemetria → salva + coleta players.
+// Enfileira um matchId só uma vez (dedup global: seenMatches = enfileirado OU processado).
+function enqueueMatch(id) {
+  if (id && MATCH_ID_RE.test(id) && !seenMatches.has(id)) { seenMatches.add(id); matchQueue.push(id); }
+}
+
+// Processa um matchId: usa o cache se já tem → senão fetch /matches → playable? →
+// telemetria → salva + coleta players. (dedup garantido por enqueueMatch)
 async function processMatch(matchId) {
-  if (!MATCH_ID_RE.test(matchId) || seenMatches.has(matchId)) return;
-  seenMatches.add(matchId);
+  if (!MATCH_ID_RE.test(matchId)) return;
   if (hasSkip(matchId)) return;                 // não-playable conhecido
 
   let matchData;
   const cf = matchFile(matchId);
-  if (fs.existsSync(cf) && hasTelemetry(matchId)) {
-    // já temos tudo — só usa os participantes pra expandir
-    try { matchData = JSON.parse(fs.readFileSync(cf, 'utf8')); } catch { return; }
-  } else {
+  if (fs.existsSync(cf)) {
+    // já temos o match file — lê do disco (não re-busca /matches à toa)
+    try { matchData = JSON.parse(fs.readFileSync(cf, 'utf8')); } catch {}
+  }
+  if (!matchData) {
     try {
       const r = await authedGet(`${SHARD}/matches/${matchId}`); // /matches não é rate limited
       matchData = r.data;
@@ -216,9 +222,7 @@ async function expandPlayers(accountIds) {
   try {
     const r = await authedGet(`${SHARD}/players?filter[playerIds]=${ids.join(',')}`, { rateLimited: true });
     for (const pl of (r.data?.data || [])) {
-      for (const m of (pl.relationships?.matches?.data || [])) {
-        if (m.id && !seenMatches.has(m.id)) matchQueue.push(m.id);
-      }
+      for (const m of (pl.relationships?.matches?.data || [])) enqueueMatch(m.id);
     }
   } catch (e) {
     console.error('\n[expand] erro:', e.response?.status || e.message);
@@ -242,12 +246,12 @@ async function main() {
 
   // Seeds
   if (args.seedMatch) {
-    matchQueue.push(args.seedMatch);
+    enqueueMatch(args.seedMatch);
   } else if (args.seedPlayer) {
     try {
       const r = await authedGet(`${SHARD}/players?filter[playerNames]=${encodeURIComponent(args.seedPlayer)}`, { rateLimited: true });
       const pl = r.data?.data?.[0];
-      if (pl) for (const m of (pl.relationships?.matches?.data || [])) matchQueue.push(m.id);
+      if (pl) for (const m of (pl.relationships?.matches?.data || [])) enqueueMatch(m.id);
     } catch (e) { console.error('seed player erro:', e.message); }
   } else {
     // usa todos os jogadores conhecidos do índice como frontier inicial
