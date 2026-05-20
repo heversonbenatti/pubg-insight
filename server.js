@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
+import { spawn } from 'node:child_process';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -107,11 +108,19 @@ app.use(helmet({
             frameAncestors: ["'none'"],
             objectSrc: ["'none'"],
             baseUri: ["'self'"],
+            // Removido: default do helmet inclui isso e força http→https no browser,
+            // quebrando assets quando o server roda em HTTP puro (port forward direto).
+            'upgrade-insecure-requests': null,
         },
     },
     // Permite que <canvas> faça toDataURL em imagens do mesmo origin (replay 2D).
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: { policy: 'same-origin' },
+    // Desligado porque o server roda em HTTP (port forward direto, sem reverse
+    // proxy TLS). HSTS forçaria o browser a tentar HTTPS e todos os assets
+    // morrem com ERR_SSL_PROTOCOL_ERROR. Habilitar APENAS quando tiver TLS real
+    // (Cloudflare, nginx com cert, etc).
+    strictTransportSecurity: false,
 }));
 
 // ── Rate limit ──────────────────────────────────────────────────────────────
@@ -157,6 +166,70 @@ function readCache(file, ttl) {
 function writeCache(file, data) {
     try { fs.writeFileSync(file, JSON.stringify(data), 'utf8'); }
     catch (e) { console.error('Cache write failed:', e.message); }
+}
+
+// ── Refresh cooldown (server-side, fonte da verdade) ──────────────────────────
+// Um único cooldown por jogador, materializado num arquivo-marcador cujo mtime =
+// hora do último refresh. O endpoint atômico /api/player/:name/refresh é o ÚNICO
+// que re-busca da API; os demais endpoints são cache-first puros. Isso evita o
+// abuso da chave (martelar ?refresh=1) e a divergência entre front e servidor —
+// o front lê `refreshAvailableInMs` da resposta e mostra o estado real.
+const REFRESH_COOLDOWN_MS = 30 * 60 * 1000;
+function refreshMarkerFile(platform, name) {
+    return path.join(cacheDir, `refresh_${platform}_${safeName(String(name).toLowerCase())}.json`);
+}
+function refreshRemainingMs(platform, name) {
+    const f = refreshMarkerFile(platform, name);
+    if (!fs.existsSync(f)) return 0;
+    return Math.max(0, REFRESH_COOLDOWN_MS - (Date.now() - fs.statSync(f).mtimeMs));
+}
+function touchRefreshMarker(platform, name) {
+    try { fs.writeFileSync(refreshMarkerFile(platform, name), String(Date.now()), 'utf8'); }
+    catch (e) { console.error('refresh marker write failed:', e.message); }
+}
+
+// ── Cache eviction (10 GB) ────────────────────────────────────────────────────
+// Todas as telemetrias são salvas. Quando cache/matches passa de 10 GB, apaga as
+// telemetrias mais antigas POR DATA DE SALVAMENTO (mtime), não pela data da
+// partida, até voltar abaixo do limite. Match files (≈25KB) nunca são apagados —
+// são minúsculos e necessários pro índice/insights.
+const CACHE_LIMIT_BYTES = 10 * 1024 * 1024 * 1024; // 10 GB
+let _cacheEvictInflight = false;
+function enforceCacheLimit() {
+    if (_cacheEvictInflight) return;
+    _cacheEvictInflight = true;
+    try {
+        let total = 0;
+        const telemetries = [];
+        for (const f of fs.readdirSync(matchCacheDir)) {
+            const fp = path.join(matchCacheDir, f);
+            let st;
+            try { st = fs.statSync(fp); } catch { continue; }
+            if (!st.isFile()) continue;
+            total += st.size;
+            if (/^telemetry_.+\.json$/.test(f)) {
+                telemetries.push({ fp, size: st.size, mtime: st.mtimeMs });
+            }
+        }
+        if (total <= CACHE_LIMIT_BYTES) return;
+
+        telemetries.sort((a, b) => a.mtime - b.mtime); // mais antigas (save) primeiro
+        let removed = 0, freed = 0;
+        for (const t of telemetries) {
+            if (total <= CACHE_LIMIT_BYTES) break;
+            try {
+                fs.unlinkSync(t.fp);
+                total -= t.size; freed += t.size; removed++;
+            } catch { /* ignora */ }
+        }
+        if (removed) {
+            console.log(`[cache] evicted ${removed} telemetrias (${(freed / 1e9).toFixed(2)} GB) — cache agora ${(total / 1e9).toFixed(2)} GB`);
+        }
+    } catch (e) {
+        console.error('[cache] eviction failed:', e.message);
+    } finally {
+        _cacheEvictInflight = false;
+    }
 }
 
 function leaderboardCacheFile(shard, season, gameMode) {
@@ -358,11 +431,14 @@ app.get('/api/player/:playerName', async (req, res) => {
     if (!PLAYER_NAME_RE.test(playerName)) return res.status(400).json({ error: 'Invalid player name' });
     if (!SEASON_ID_RE.test(season)) return res.status(400).json({ error: 'Invalid season id' });
 
+    // refreshAvailableInMs (mtime do marcador) sempre fresco — é por ele que o
+    // front decide o estado do botão Atualizar. Anexado à resposta sem entrar no cache.
+    const withCooldown = obj => ({ ...obj, refreshAvailableInMs: refreshRemainingMs(platform, playerName) });
+
     const cacheFile = path.join(cacheDir, `player_${platform}_${safeName(playerName)}_${safeName(season)}.json`);
-    const seasonsMeta = readCache(path.join(cacheDir, `seasons_${platform}.json`), SEASONS_TTL) || [];
-    const isCurrent = seasonsMeta.find(s => s.id === season)?.attributes?.isCurrentSeason ?? true;
-    const cached = readCache(cacheFile, isCurrent ? PLAYER_TTL : FOREVER);
-    if (cached) return res.json(cached);
+    // Cache-first puro: o refresh real só acontece via /api/player/:name/refresh.
+    const cached = readCache(cacheFile, FOREVER);
+    if (cached) return res.json(withCooldown(cached));
 
     try {
         const playerId = await getPlayerId(platform, playerName);
@@ -380,7 +456,9 @@ app.get('/api/player/:playerName', async (req, res) => {
             }
         };
         writeCache(cacheFile, result);
-        res.json(result);
+        // Primeira carga conta como "fresco" → inicia o cooldown.
+        if (refreshRemainingMs(platform, playerName) <= 0) touchRefreshMarker(platform, playerName);
+        res.json(withCooldown(result));
     } catch (error) {
         console.error('Error fetching player stats:', error.message);
         res.status(500).json({ error: 'Player not found or API error' });
@@ -399,9 +477,7 @@ app.get('/api/player/:playerName/ranked', async (req, res) => {
     if (!SEASON_ID_RE.test(season)) return res.status(400).json({ error: 'Invalid season id' });
 
     const cacheFile = path.join(cacheDir, `ranked_${platform}_${safeName(playerName)}_${safeName(season)}.json`);
-    const seasonsMeta = readCache(path.join(cacheDir, `seasons_${platform}.json`), SEASONS_TTL) || [];
-    const isCurrent = seasonsMeta.find(s => s.id === season)?.attributes?.isCurrentSeason ?? true;
-    const cached = readCache(cacheFile, isCurrent ? PLAYER_TTL : FOREVER);
+    const cached = readCache(cacheFile, FOREVER);  // cache-first puro (refresh via /refresh)
     if (cached) return res.json(cached);
 
     try {
@@ -431,6 +507,93 @@ app.get('/api/player/:playerName/ranked', async (req, res) => {
     }
 });
 
+// ── Refresh atômico ───────────────────────────────────────────────────────────
+// Único ponto que re-busca da API. Gate por marcador (1 cooldown por jogador).
+// Atualiza stats + ranked + matchIds e invalida o cache de insights — o front
+// chama isso ao clicar em Atualizar OU em Insights (quando disponível) e depois
+// recarrega os dados (cache-first, agora frescos). As novas partidas em si são
+// baixadas pelo /matches no reload (getMatch on-demand).
+app.get('/api/player/:playerName/refresh', async (req, res) => {
+    const { playerName } = req.params;
+    const { season, platform = 'steam' } = req.query;
+    if (!VALID_PLATFORMS.has(platform)) return res.status(400).json({ error: 'Invalid platform' });
+    if (!PLAYER_NAME_RE.test(playerName)) return res.status(400).json({ error: 'Invalid player name' });
+    if (season && !SEASON_ID_RE.test(season)) return res.status(400).json({ error: 'Invalid season id' });
+
+    const remaining = refreshRemainingMs(platform, playerName);
+    if (remaining > 0) {
+        return res.json({ refreshed: false, availableInMs: remaining });
+    }
+    // Marca já pra fechar a janela de double-click enquanto busca.
+    touchRefreshMarker(platform, playerName);
+
+    try {
+        // 1) Re-busca player + matchIds (força reescrita de matches_list + playerid)
+        const playerId = await getPlayerId(platform, playerName, true);
+        if (!playerId) return res.status(404).json({ error: 'Player not found' });
+
+        if (season) {
+            // 2) Stats da season
+            try {
+                const sr = await pubgGet(`${shardUrl(platform)}/players/${playerId}/seasons/${season}`);
+                const s = sr.data.data.attributes.gameModeStats;
+                writeCache(path.join(cacheDir, `player_${platform}_${safeName(playerName)}_${safeName(season)}.json`), {
+                    player: { name: playerName, id: playerId, platform },
+                    stats: {
+                        fpp: { solo: s['solo-fpp'] || {}, duo: s['duo-fpp'] || {}, squad: s['squad-fpp'] || {} },
+                        tpp: { solo: s['solo'] || {}, duo: s['duo'] || {}, squad: s['squad'] || {} },
+                    },
+                });
+            } catch (e) { console.error('refresh stats failed:', e.message); }
+
+            // 3) Ranked (404 = nunca jogou ranked → vazio)
+            try {
+                let rankedStats = {};
+                try {
+                    const rr = await pubgGet(`${shardUrl(platform)}/players/${playerId}/seasons/${season}/ranked`);
+                    rankedStats = rr.data.data.attributes.rankedGameModeStats || {};
+                } catch (e) { if (e.response?.status !== 404) throw e; }
+                writeCache(path.join(cacheDir, `ranked_${platform}_${safeName(playerName)}_${safeName(season)}.json`), {
+                    player: { name: playerName, id: playerId, platform },
+                    ranked: {
+                        fpp: { solo: rankedStats['solo-fpp'] || null, duo: rankedStats['duo-fpp'] || null, squad: rankedStats['squad-fpp'] || null },
+                        tpp: { solo: rankedStats['solo'] || null, duo: rankedStats['duo'] || null, squad: rankedStats['squad'] || null },
+                    },
+                });
+            } catch (e) { console.error('refresh ranked failed:', e.message); }
+        }
+
+        // 4) Completa telemetrias do jogador (CDN, sem rate limit) pra que a seção
+        //    de armas dos insights fique correta. Baixa o match file (pra ter a URL
+        //    de telemetria) + a telemetria, pras N partidas mais recentes que ainda
+        //    não têm telemetria cacheada. Matches >14d já perderam a URL (no-url).
+        // Cap por contagem E por tempo (deadline ~75s) — fica abaixo do limite de
+        // 100s de proxies (Cloudflare). O resto baixa no próximo refresh.
+        const TELEMETRY_REFRESH_CAP = 25;
+        const deadline = Date.now() + 75 * 1000;
+        const matchIds = readCache(path.join(cacheDir, `matches_list_${platform}_${safeName(playerName)}.json`)) || [];
+        let dl = 0;
+        for (const id of matchIds) {
+            if (dl >= TELEMETRY_REFRESH_CAP || Date.now() > deadline) break;
+            if (!MATCH_ID_RE.test(id)) continue;
+            if (fs.existsSync(path.join(matchCacheDir, `telemetry_${id}.json`))) continue;
+            await getMatch(platform, id);           // baixa o match file (necessário pra URL)
+            const st = await ensureTelemetry(platform, id);
+            if (st === 'downloaded') dl++;
+            // 'no-url' = match antigo (>14d), pula
+        }
+
+        // 5) Invalida insights individual → recomputa na próxima visita (com partidas + telemetrias novas)
+        try { fs.unlinkSync(playerInsightsCacheFile(platform, playerId)); } catch {}
+
+        touchRefreshMarker(platform, playerName); // re-marca ao terminar
+        res.json({ refreshed: true, availableInMs: REFRESH_COOLDOWN_MS, telemetriesDownloaded: dl });
+    } catch (error) {
+        console.error('refresh failed:', error.message);
+        res.status(500).json({ error: 'Failed to refresh' });
+    }
+});
+
 const matchInflight = new Map();
 async function getMatch(platform, matchId) {
     // matchId vem de fontes externas (API e cache); rejeita qualquer coisa que
@@ -448,6 +611,8 @@ async function getMatch(platform, matchId) {
             const r = await pubgGet(`${shardUrl(platform)}/matches/${matchId}`);
             writeCache(cacheFile, r.data);
             indexMatch(platform, r.data);
+            // Match novo → invalida cache do global insights (lazy regen no próximo request)
+            markGlobalInsightsDirty();
             return r.data;
         } catch { return null; }
         finally { matchInflight.delete(inflightKey); }
@@ -548,24 +713,23 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
     if (!PLAYER_NAME_RE.test(playerName)) return res.status(400).json({ error: 'Invalid player name' });
 
     const listCacheFile = path.join(cacheDir, `matches_list_${platform}_${safeName(playerName)}.json`);
-    let matchIds = readCache(listCacheFile, MATCHES_LIST_TTL);
+    // Cache-first puro: a lista só é re-buscada via /api/player/:name/refresh.
+    let matchIds = readCache(listCacheFile, FOREVER);
     let playerId = null;
 
     try {
         if (!matchIds) {
-            // Share the inflight/cache with /career to avoid a duplicate /players call.
-            // getPlayerId() writes matchIds to listCacheFile as a side effect when it fetches.
+            // getPlayerId() escreve matchIds em listCacheFile como efeito colateral.
             playerId = await getPlayerId(platform, playerName);
             if (!playerId) return res.status(404).json({ error: 'Player not found' });
-            matchIds = readCache(listCacheFile, MATCHES_LIST_TTL);
+            matchIds = readCache(listCacheFile, FOREVER);
             if (!matchIds) {
-                // playerid was cached (24h) but matchIds TTL (5min) expired — fetch separately
                 const r = await pubgGet(`${shardUrl(platform)}/players/${playerId}`);
                 matchIds = r.data.data.relationships.matches.data.map(m => m.id);
                 writeCache(listCacheFile, matchIds);
             }
         } else {
-            // matchIds está em cache mas precisamos do playerId pro índice local
+            // matchIds em cache mas precisamos do playerId pro índice local
             playerId = await getPlayerId(platform, playerName);
         }
 
@@ -600,13 +764,15 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
     }
 });
 
-// ── Career: stats across the last N seasons ──────────────────────────────────
-// Reuses the per-season cache file used by /api/player/:name (PLAYER_TTL).
+// Resolve accountId. `force` re-busca da API mesmo com cache (usado pelo
+// refresh manual), atualizando os matchIds cacheados como efeito colateral.
 const playerIdInflight = new Map();
-async function getPlayerId(platform, playerName) {
+async function getPlayerId(platform, playerName, force = false) {
     const cacheFile = path.join(cacheDir, `playerid_${platform}_${safeName(playerName)}.json`);
-    const cached = readCache(cacheFile, PLAYERID_TTL);
-    if (cached) return cached;
+    if (!force) {
+        const cached = readCache(cacheFile, PLAYERID_TTL);
+        if (cached) return cached;
+    }
 
     const key = `${platform}_${playerName}`;
     if (playerIdInflight.has(key)) return playerIdInflight.get(key);
@@ -697,43 +863,501 @@ app.get('/api/player/:playerName/career', async (req, res) => {
     }
 });
 
+// ── Insights ────────────────────────────────────────────────────────────────
+// Arquitetura (decisão: 2026-05-19):
+//
+//  1. GLOBAL (byMap, byWeapon/duels, globalAverages.distributions):
+//     pré-computado em `scripts/output/insights_global.json` por
+//     `scripts/build-insights.js`. Carregado lazy + mtime-cached em RAM (~60KB).
+//     Marcado dirty toda vez que getMatch() salva um match novo no cache.
+//     Próximo request que precisar de dado global dispara regen em BACKGROUND
+//     (spawn de node, throttled). Responde com o cache atual sem bloquear.
+//
+//  2. INDIVIDUAL (stats do jogador X + percentis vs global):
+//     calculado ON-DEMAND quando o usuário pede /api/insights/player/:name.
+//     Varre os match files do jogador (matches_index_<platform>.json), agrega
+//     stats do participante batendo com accountId, filtra mapas non-playable,
+//     cruza com telemetrias cacheadas pra by-weapon/distância. Cache em disco
+//     com TTL curto (`cache/insights_player_*`).
+//
+// Mapas non-playable (minigames/treino/removidos sem assets) são filtrados em
+// AMBAS as fases via PLAYABLE_MAPS — espelho de public/utils.js.
 
-const PORT = process.env.PORT || 8080;
-app.get('/api/telemetry/:matchId', async (req, res) => {
-    const { matchId } = req.params;
-    const { platform = 'steam' } = req.query;
-    if (!VALID_PLATFORMS.has(platform)) return res.status(400).json({ error: 'Invalid platform' });
-    // Sem regex, matchId tipo "../../../etc/passwd" entraria no path do cache.
-    if (!MATCH_ID_RE.test(matchId)) return res.status(400).json({ error: 'Invalid match id' });
+const PLAYABLE_MAPS = new Set([
+    'Baltic_Main', 'Erangel_Main',
+    'Desert_Main', 'Savage_Main', 'DihorOtok_Main',
+    'Summerland_Main', 'Tiger_Main', 'Kiki_Main', 'Neon_Main',
+]);
+const PLAYABLE_MATCH_TYPES = new Set(['official', 'competitive']);
+function isPlayableMatchAttrs(a) {
+    return !!a && PLAYABLE_MAPS.has(a.mapName) && PLAYABLE_MATCH_TYPES.has(a.matchType);
+}
 
-    const telemetryCacheFile = path.join(matchCacheDir, `telemetry_${matchId}.json`);
-    if (fs.existsSync(telemetryCacheFile)) {
-        const raw = fs.readFileSync(telemetryCacheFile, 'utf8');
-        res.setHeader('Content-Type', 'application/json');
-        return res.send(raw);
+const INSIGHTS_GLOBAL_FILE = path.join(__dirname, 'scripts', 'output', 'insights_global.json');
+let _globalCache = null;             // { mtimeMs, data }
+// Começa false: no boot o insights_global.json já reflete o cache atual.
+// Só vira true quando getMatch() baixa um match realmente novo.
+let _globalDirty = false;
+let _regenInflight = null;            // Promise da regen em background atual
+let _lastRegenMs = 0;
+const REGEN_THROTTLE_MS = 60 * 1000;  // mínimo 1min entre regens
+
+// loadGlobalInsights só usa mtime pra invalidar cache em memória. NÃO depende
+// de _globalDirty — esse flag é só pra disparar regen, não pra reload do JSON.
+function loadGlobalInsights() {
+    if (!fs.existsSync(INSIGHTS_GLOBAL_FILE)) return null;
+    const mtimeMs = fs.statSync(INSIGHTS_GLOBAL_FILE).mtimeMs;
+    if (_globalCache && _globalCache.mtimeMs === mtimeMs) {
+        return _globalCache.data;
+    }
+    try {
+        const data = JSON.parse(fs.readFileSync(INSIGHTS_GLOBAL_FILE, 'utf8'));
+        _globalCache = { mtimeMs, data };
+        return data;
+    } catch (e) {
+        console.error('insights global load failed:', e.message);
+        return null;
+    }
+}
+
+// Marca dirty (chamado quando match novo cacheado). Não regenera sincronamente.
+function markGlobalInsightsDirty() {
+    _globalDirty = true;
+}
+
+// Spawna `node scripts/build-insights.js` em background. Idempotente:
+// - só roda se _globalDirty=true (do contrário, não tem nada novo pra processar)
+// - throttle 60s entre starts pra evitar thrash em rajadas de matches
+// - mutex via _regenInflight (1 regen por vez)
+//
+// IMPORTANTE: limpa _globalDirty no INÍCIO. Se um match novo entrar durante a
+// regen, getMatch() vai marcar dirty de novo e a próxima call dispara nova
+// regen. Se falhar, restaura dirty pra tentar de novo.
+function maybeRegenerateGlobalInBackground() {
+    if (_regenInflight) return _regenInflight;
+    if (!_globalDirty) return null;
+    const sinceLast = Date.now() - _lastRegenMs;
+    if (sinceLast < REGEN_THROTTLE_MS) return null;
+    _lastRegenMs = Date.now();
+    _globalDirty = false; // limpa antes — match novo durante regen re-marca
+
+    let child;
+    try {
+        child = spawn(process.execPath, ['--max-old-space-size=8192', path.join('scripts', 'build-insights.js')], {
+            cwd: __dirname,
+            stdio: ['ignore', 'pipe', 'pipe'],
+            detached: false,
+        });
+    } catch (e) {
+        console.error('[insights] spawn failed:', e.message);
+        _globalDirty = true; // restaura — não conseguimos rodar
+        return null;
     }
 
-    // Get telemetry URL from match cache
+    console.log('[insights] background regen started');
+    _regenInflight = new Promise(resolve => {
+        let out = '';
+        child.stdout?.on('data', d => { out += d.toString(); });
+        child.stderr?.on('data', d => { out += d.toString(); });
+        child.on('exit', code => {
+            console.log(`[insights] background regen exited code=${code} (out tail: ${out.split('\n').slice(-2).join(' | ').slice(0, 200)})`);
+            _regenInflight = null;
+            if (code !== 0) _globalDirty = true; // falhou → tentar de novo
+            // sucesso: dirty fica como estava (false, ou true se match novo entrou durante)
+            // mtime mudou no disco → loadGlobalInsights recarrega naturalmente
+        });
+        child.on('error', err => {
+            console.error('[insights] background regen error:', err.message);
+            _regenInflight = null;
+            _globalDirty = true; // restaura
+        });
+        resolve(null);
+    });
+    return _regenInflight;
+}
+
+// Percentile (interpolação linear nos quartis pré-calculados)
+function approxPercentile(value, dist) {
+    if (!dist || !Number.isFinite(value)) return null;
+    const points = [
+        [dist.min, 0], [dist.p25, 0.25], [dist.median, 0.5],
+        [dist.p75, 0.75], [dist.p90, 0.9], [dist.p99, 0.99], [dist.max, 1],
+    ].filter(([v]) => Number.isFinite(v)).sort((a, b) => a[0] - b[0]);
+    if (!points.length) return null;
+    if (value <= points[0][0]) return 0;
+    if (value >= points[points.length - 1][0]) return 1;
+    for (let i = 1; i < points.length; i++) {
+        const [v1, p1] = points[i - 1], [v2, p2] = points[i];
+        if (value <= v2) {
+            const span = v2 - v1;
+            const t = span > 0 ? (value - v1) / span : 0;
+            return Math.max(0, Math.min(1, p1 + (p2 - p1) * t));
+        }
+    }
+    return 1;
+}
+
+// ── Insights individuais on-demand ─────────────────────────────────────────
+// Varre match files do jogador + telemetrias dele que estiverem cacheadas.
+// Resultado cacheado em disco com TTL curto (PLAYER_INSIGHTS_TTL).
+const PLAYER_INSIGHTS_TTL = 10 * 60 * 1000;
+const PLAYER_INSIGHTS_CACHE_VERSION = 1;
+
+function playerInsightsCacheFile(platform, accountId) {
+    return path.join(cacheDir, `insights_player_${platform}_${safeName(accountId)}.json`);
+}
+
+function normalizeWeaponId(raw) {
+    if (!raw || typeof raw !== 'string') return '';
+    let s = raw.replace(/_\d+$/, '');
+    if (s.startsWith('Item_Weapon_')) s = 'Weap' + s.slice('Item_Weapon_'.length);
+    return s;
+}
+
+const DIST_BUCKETS = [
+    { key: 'close',    max: 25 },
+    { key: 'short',    max: 50 },
+    { key: 'med',      max: 100 },
+    { key: 'long',     max: 200 },
+    { key: 'verylong', max: Infinity },
+];
+function distanceBucket(m) {
+    if (!Number.isFinite(m)) return 'unknown';
+    for (const b of DIST_BUCKETS) if (m <= b.max) return b.key;
+    return 'verylong';
+}
+
+function emptyPlayerStats(name, accountId) {
+    return {
+        name, accountId,
+        matches: 0, kills: 0, knocks: 0, deaths: 0, assists: 0,
+        damageDealt: 0, damageTaken: 0,
+        headshotKills: 0, longestKillMeters: 0,
+        timeSurvived: 0, wins: 0, top10: 0,
+        revives: 0, heals: 0, boosts: 0,
+        roadKills: 0, vehicleDestroys: 0, teamKills: 0,
+        walkDistance: 0, rideDistance: 0,
+        killsByWeapon: {}, knocksByWeapon: {},
+        killsByDistance: { close: 0, short: 0, med: 0, long: 0, verylong: 0, unknown: 0 },
+        killsByMap: {}, matchesByMap: {}, winsByMap: {},
+        sumKillDistance: 0, countKillDistance: 0,
+        // Trackers só preenchidos quando temos telemetria do match
+        shotsFired: 0, telemetryMatchesUsed: 0,
+    };
+}
+
+// Agrega stats do match file (formato JSON:API da PUBG) pro participante
+// com accountId que bate. Filtra mapas non-playable.
+function aggregateMatchFileForPlayer(matchData, accountId, stats) {
+    const a = matchData?.data?.attributes;
+    if (!isPlayableMatchAttrs(a)) return false;
+    const part = (matchData.included || [])
+        .filter(it => it.type === 'participant')
+        .find(p => p.attributes?.stats?.playerId === accountId);
+    if (!part) return false;
+    const s = part.attributes.stats;
+    const mapName = a.mapName;
+
+    stats.matches += 1;
+    stats.matchesByMap[mapName] = (stats.matchesByMap[mapName] || 0) + 1;
+    stats.kills += s.kills || 0;
+    stats.knocks += s.DBNOs || 0;
+    stats.damageDealt += s.damageDealt || 0;
+    stats.headshotKills += s.headshotKills || 0;
+    stats.assists += s.assists || 0;
+    stats.revives += s.revives || 0;
+    stats.heals += s.heals || 0;
+    stats.boosts += s.boosts || 0;
+    stats.roadKills += s.roadKills || 0;
+    stats.vehicleDestroys += s.vehicleDestroys || 0;
+    stats.teamKills += s.teamKills || 0;
+    stats.walkDistance += s.walkDistance || 0;
+    stats.rideDistance += s.rideDistance || 0;
+    stats.timeSurvived += s.timeSurvived || 0;
+    if ((s.longestKill || 0) > stats.longestKillMeters) stats.longestKillMeters = s.longestKill;
+    if (s.winPlace === 1) {
+        stats.wins += 1;
+        stats.winsByMap[mapName] = (stats.winsByMap[mapName] || 0) + 1;
+    }
+    if (s.winPlace > 0 && s.winPlace <= 10) stats.top10 += 1;
+    if (s.deathType && s.deathType !== 'alive' && s.deathType !== 'logout') {
+        stats.deaths += 1;
+    }
+    stats.killsByMap[mapName] = (stats.killsByMap[mapName] || 0) + (s.kills || 0);
+
+    if (s.name && !stats.name) stats.name = s.name;
+    return true;
+}
+
+// Cruza telemetria cacheada (se existir) com o player pra adicionar
+// kills por arma, por distância, e shots fired. Não baixa, só usa o que tem.
+function enrichStatsWithTelemetry(matchId, accountId, stats) {
+    const telFile = path.join(matchCacheDir, `telemetry_${matchId}.json`);
+    if (!fs.existsSync(telFile)) return false;
+    let events;
+    try { events = JSON.parse(fs.readFileSync(telFile, 'utf8')); } catch { return false; }
+    let shotsFired = 0;
+    for (const ev of events) {
+        if (!ev || !ev._T) continue;
+        if (ev._T === 'LogPlayerKillV2') {
+            if (ev.killer?.accountId !== accountId) continue;
+            if (ev.isSuicide || ev.victim?.accountId === accountId) continue;
+            const dmg = ev.killerDamageInfo || ev.finishDamageInfo || {};
+            const causer = normalizeWeaponId(dmg.damageCauserName);
+            if (causer) stats.killsByWeapon[causer] = (stats.killsByWeapon[causer] || 0) + 1;
+            const distM = Number.isFinite(dmg.distance) ? dmg.distance / 100 : null;
+            if (distM != null) {
+                stats.sumKillDistance += distM;
+                stats.countKillDistance += 1;
+            }
+            stats.killsByDistance[distanceBucket(distM)] = (stats.killsByDistance[distanceBucket(distM)] || 0) + 1;
+            continue;
+        }
+        if (ev._T === 'LogPlayerMakeGroggy' && ev.attacker?.accountId === accountId) {
+            const causer = normalizeWeaponId(ev.damageCauserName);
+            if (causer) stats.knocksByWeapon[causer] = (stats.knocksByWeapon[causer] || 0) + 1;
+            continue;
+        }
+        if (ev._T === 'LogPlayerTakeDamage') {
+            if (ev.victim?.accountId === accountId) {
+                const dmg = Math.min(Number(ev.damage || 0), Number(ev.victim?.health || 0));
+                if (dmg > 0) stats.damageTaken += dmg;
+            }
+            continue;
+        }
+        if (ev._T === 'LogPlayerAttack' && ev.attacker?.accountId === accountId) {
+            shotsFired += 1;
+        }
+    }
+    stats.shotsFired += shotsFired;
+    stats.telemetryMatchesUsed += 1;
+    return true;
+}
+
+function finalizePlayerStats(stats) {
+    const m = Math.max(1, stats.matches);
+    stats.killsPerMatch = round(stats.kills / m, 4);
+    stats.knocksPerMatch = round(stats.knocks / m, 4);
+    stats.damagePerMatch = round(stats.damageDealt / m, 2);
+    stats.avgSurvivalSeconds = round(stats.timeSurvived / m, 2);
+    const effDeaths = Math.max(1, stats.deaths || (stats.matches - stats.wins) || 1);
+    stats.kdr = round(stats.kills / effDeaths, 3);
+    stats.headshotRate = stats.kills > 0 ? round(stats.headshotKills / stats.kills, 3) : 0;
+    stats.winRate = round(stats.wins / m, 4);
+    stats.top10Rate = round(stats.top10 / m, 4);
+    stats.aggression = round((stats.kills * 100 + stats.damageDealt) / m, 2);
+    stats.shotsPerKill = stats.kills > 0 && stats.shotsFired > 0 ? round(stats.shotsFired / stats.kills, 2) : null;
+    stats.avgKillDistance = stats.countKillDistance > 0 ? round(stats.sumKillDistance / stats.countKillDistance, 2) : null;
+}
+
+function computePlayerPercentiles(stats, distributions) {
+    const fields = [
+        'killsPerMatch', 'knocksPerMatch', 'damagePerMatch',
+        'avgSurvivalSeconds', 'longestKillMeters',
+        'headshotRate', 'kdr', 'winRate', 'top10Rate', 'aggression',
+    ];
+    const out = {};
+    for (const f of fields) {
+        const d = distributions?.[f];
+        const v = stats[f];
+        if (d && v != null) out[f] = approxPercentile(v, d);
+    }
+    return out;
+}
+
+function round(v, d = 2) {
+    if (!Number.isFinite(v)) return null;
+    const s = 10 ** d;
+    return Math.round(v * s) / s;
+}
+
+async function buildPlayerInsights(platform, playerName, forceRecompute = false) {
+    const accountId = await getPlayerId(platform, playerName);
+    if (!accountId) return { error: 'Player not found' };
+
+    // Cache-first: serve o cache existente independente de idade, a menos que
+    // forceRecompute (refresh permitido pelo cooldown). Recomputar é caro
+    // (lê centenas de telemetrias), então só acontece sob refresh válido.
+    const cacheFile = playerInsightsCacheFile(platform, accountId);
+    if (!forceRecompute) {
+        const cached = readCache(cacheFile, FOREVER);
+        if (cached?.cacheVersion === PLAYER_INSIGHTS_CACHE_VERSION) return cached;
+    }
+
+    // matches_index_<platform>.json tem matchIds do player
+    const index = loadMatchesIndex(platform);
+    const entry = index.players[accountId];
+    const matchIds = entry?.matches?.map(m => m.id) || [];
+
+    const stats = emptyPlayerStats(entry?.name || playerName, accountId);
+    let matchFilesRead = 0, matchFilesMissing = 0, telemetriesUsed = 0;
+    for (const matchId of matchIds) {
+        const mf = path.join(matchCacheDir, `${platform}_${matchId}.json`);
+        if (!fs.existsSync(mf)) { matchFilesMissing += 1; continue; }
+        try {
+            const md = JSON.parse(fs.readFileSync(mf, 'utf8'));
+            const accepted = aggregateMatchFileForPlayer(md, accountId, stats);
+            if (accepted) {
+                matchFilesRead += 1;
+                if (enrichStatsWithTelemetry(matchId, accountId, stats)) telemetriesUsed += 1;
+            }
+        } catch {
+            // ignora arquivos corrompidos
+        }
+    }
+    finalizePlayerStats(stats);
+
+    const result = {
+        cacheVersion: PLAYER_INSIGHTS_CACHE_VERSION,
+        generatedAt: new Date().toISOString(),
+        player: { name: stats.name, accountId, platform },
+        stats,
+        meta: {
+            matchFilesRead,
+            matchFilesMissing,
+            telemetriesUsed,
+            playable: stats.matches,
+        },
+    };
+    writeCache(cacheFile, result);
+    return result;
+}
+
+app.get('/api/insights/player/:playerName', async (req, res) => {
+    const { playerName } = req.params;
+    const { platform = 'steam' } = req.query;
+    if (!VALID_PLATFORMS.has(platform)) return res.status(400).json({ error: 'Invalid platform' });
+    if (!PLAYER_NAME_RE.test(playerName)) return res.status(400).json({ error: 'Invalid player name' });
+
+    // Dispara regen do global em background se dirty (não bloqueia)
+    if (_globalDirty) maybeRegenerateGlobalInBackground();
+
+    const global = loadGlobalInsights();
+    const distributions = global?.globalAverages?.distributions || {};
+
+    try {
+        // Cache-first puro: recomputa só se não houver cache (ou se /refresh apagou
+        // o cache desse player). O refresh real é orquestrado por /api/player/:name/refresh.
+        const result = await buildPlayerInsights(platform, playerName);
+        if (result.error) return res.status(404).json(result);
+
+        const percentiles = computePlayerPercentiles(result.stats, distributions);
+        const inDataset = result.stats.matches > 0;
+
+        res.json({
+            player: { ...result.player, inDataset },
+            stats: inDataset ? result.stats : null,
+            percentiles: inDataset ? percentiles : {},
+            globalAverages: global?.globalAverages || null,
+            meta: {
+                generatedAt: result.generatedAt,
+                ...result.meta,
+                globalGeneratedAt: global?.generatedAt,
+                globalRegenerating: !!_regenInflight,
+                globalDirty: _globalDirty,
+                matchesProcessed: global?.matchesProcessed,
+                totalPlayers: global?.totalPlayers,
+                eligiblePlayers: global?.eligiblePlayers,
+            },
+        });
+    } catch (err) {
+        console.error('insights player error:', err.message);
+        res.status(500).json({ error: 'Failed to build insights' });
+    }
+});
+
+app.get('/api/insights/weapons', (_req, res) => {
+    if (_globalDirty) maybeRegenerateGlobalInBackground();
+    const global = loadGlobalInsights();
+    if (!global) return res.status(503).json({ error: 'Insights not yet generated. Run: npm run insights:build' });
+    const weapons = Object.entries(global.byWeapon)
+        .map(([id, s]) => ({ id, ...s }))
+        .filter(w => w.kills >= 5)
+        .sort((a, b) => b.kills - a.kills);
+    res.json({
+        weapons,
+        meta: {
+            generatedAt: global.generatedAt,
+            matchesProcessed: global.matchesProcessed,
+            telemetriesProcessed: global.telemetriesProcessed,
+            regenerating: !!_regenInflight,
+            dirty: _globalDirty,
+        },
+    });
+});
+
+app.get('/api/insights/summary', (_req, res) => {
+    if (_globalDirty) maybeRegenerateGlobalInBackground();
+    const global = loadGlobalInsights();
+    if (!global) return res.status(503).json({ error: 'Insights not yet generated. Run: npm run insights:build' });
+
+    res.json({
+        byMap: global.byMap,
+        globalAverages: global.globalAverages,
+        meta: {
+            generatedAt: global.generatedAt,
+            matchesProcessed: global.matchesProcessed,
+            telemetriesProcessed: global.telemetriesProcessed,
+            totalPlayers: global.totalPlayers,
+            eligiblePlayers: global.eligiblePlayers,
+            regenerating: !!_regenInflight,
+            dirty: _globalDirty,
+        },
+    });
+});
+
+
+const PORT = process.env.PORT || 8080;
+
+// Baixa e cacheia a telemetria de um match (CDN público, não consome rate limit).
+// Retorna 'cached' | 'downloaded' | 'no-url' | 'error'. Usado pelo endpoint de
+// telemetria e pelo /refresh (pra completar a telemetria do jogador → armas certas).
+async function ensureTelemetry(platform, matchId) {
+    if (!VALID_PLATFORMS.has(platform) || !MATCH_ID_RE.test(matchId)) return 'error';
+    const telemetryCacheFile = path.join(matchCacheDir, `telemetry_${matchId}.json`);
+    if (fs.existsSync(telemetryCacheFile)) return 'cached';
+
     const matchCacheFile = path.join(matchCacheDir, `${platform}_${matchId}.json`);
     let telemetryUrl;
     if (fs.existsSync(matchCacheFile)) {
-        const match = JSON.parse(fs.readFileSync(matchCacheFile, 'utf8'));
-        telemetryUrl = match.included?.find(i => i.type === 'asset')?.attributes?.URL;
+        try {
+            const match = JSON.parse(fs.readFileSync(matchCacheFile, 'utf8'));
+            telemetryUrl = match.included?.find(i => i.type === 'asset')?.attributes?.URL;
+        } catch { /* match file corrompido */ }
     }
-    if (!telemetryUrl) return res.status(404).json({ error: 'Match not cached — load match history first' });
+    if (!telemetryUrl) return 'no-url';
 
     try {
         _logApi('PUBLIC', telemetryUrl);
         const r = await axios.get(telemetryUrl);
         console.log(`       \x1b[32m→ ${r.status}\x1b[0m`);
         fs.writeFileSync(telemetryCacheFile, JSON.stringify(r.data), 'utf8');
-        res.json(r.data);
+        setImmediate(enforceCacheLimit);
+        return 'downloaded';
     } catch (err) {
         console.error('Telemetry fetch error:', err.message);
-        res.status(500).json({ error: err.message });
+        return 'error';
     }
+}
+
+app.get('/api/telemetry/:matchId', async (req, res) => {
+    const { matchId } = req.params;
+    const { platform = 'steam' } = req.query;
+    if (!VALID_PLATFORMS.has(platform)) return res.status(400).json({ error: 'Invalid platform' });
+    if (!MATCH_ID_RE.test(matchId)) return res.status(400).json({ error: 'Invalid match id' });
+
+    const telemetryCacheFile = path.join(matchCacheDir, `telemetry_${matchId}.json`);
+    const status = await ensureTelemetry(platform, matchId);
+    if (status === 'cached' || status === 'downloaded') {
+        const raw = fs.readFileSync(telemetryCacheFile, 'utf8');
+        res.setHeader('Content-Type', 'application/json');
+        return res.send(raw);
+    }
+    if (status === 'no-url') return res.status(404).json({ error: 'Match not cached — load match history first' });
+    return res.status(500).json({ error: 'Telemetry fetch failed' });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
+    setImmediate(enforceCacheLimit); // checa limite de cache no boot
 });

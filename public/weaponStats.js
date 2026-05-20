@@ -123,6 +123,8 @@ const AMMO_ORDER = ['5.56mm', '7.62mm', '9mm', '.45 ACP', '12 Gauge', '.300 Mag'
 const COMPARE_PART_KEYS = ['head', 'chest', 'pelvis'];
 
 let cache = null;
+let duelsCache = null;        // { weapons: [{id, kills, duels, ...}], byId: Map }
+let duelsFetchPromise = null;
 let state = {
   weaponId: '',
   compareWeaponId: '',
@@ -153,6 +155,31 @@ async function loadData() {
   state.weaponId = '';
   state.compareWeaponId = '';
   return cache;
+}
+
+// telemetry-derived duels (insights.json). Carregamento opcional — se falhar,
+// a seção de duelos some silenciosamente.
+async function loadDuels() {
+  if (duelsCache) return duelsCache;
+  if (duelsFetchPromise) return duelsFetchPromise;
+  duelsFetchPromise = (async () => {
+    try {
+      const r = await fetch('/api/insights/weapons');
+      if (!r.ok) return null;
+      const data = await r.json();
+      const byId = new Map();
+      for (const w of (data.weapons || [])) {
+        // Insights id: "WeapHK416_C". Weapon-stats id: "Item_Weapon_HK416_C". Normaliza.
+        const normalizedId = String(w.id || '').replace(/^Weap/, 'Item_Weapon_');
+        byId.set(normalizedId, w);
+        // Mantém também a chave original pra lookup direto
+        byId.set(w.id, w);
+      }
+      duelsCache = { weapons: data.weapons || [], byId };
+      return duelsCache;
+    } catch { return null; }
+  })();
+  return duelsFetchPromise;
 }
 
 function escapeHTML(value) {
@@ -533,13 +560,8 @@ function buildCompareStats(data, weapon) {
 const COMPARE_STAT_ROWS = [
   { key: 'base',     label: 'Base dmg' },
   { key: 'rpm',      label: 'RPM' },
-  { key: 'speed',    label: 'Speed (m/s)' },
   { key: 'chestDmg', label: 'Chest dmg' },
   { key: 'headDmg',  label: 'Head dmg' },
-  { key: 'ttkChest', label: 'TTK chest' },
-  { key: 'ttkHead',  label: 'TTK head' },
-  { key: 'btkChest', label: 'BTK chest' },
-  { key: 'btkHead',  label: 'BTK head' },
 ];
 
 function renderEmptyCompareCard(slot) {
@@ -582,13 +604,15 @@ function renderCompareCard(data, weapon, otherWeapon, slot) {
   </div>`;
 }
 
-function renderComparator(data, weapon, compareWeapon) {
+function renderComparator(data, weapon, compareWeapon, duels) {
   const canSwap = !!(weapon && compareWeapon);
+  const duelHtml = (weapon && compareWeapon)
+    ? renderComparatorDuel(duels, weapon, compareWeapon)
+    : '';
   return `<section class="damage-comparator">
     <div class="damage-comparator-header">
       <div class="micro">COMPARATOR</div>
       <div class="damage-comparator-actions">
-        <span class="damage-comparator-hint">drag a weapon · click to set A</span>
         <button class="damage-comparator-swap" type="button" data-compare-swap title="Swap A and B" ${canSwap ? '' : 'disabled'}>↔</button>
       </div>
     </div>
@@ -596,10 +620,45 @@ function renderComparator(data, weapon, compareWeapon) {
       ${renderCompareCard(data, weapon, compareWeapon, 'A')}
       ${renderCompareCard(data, compareWeapon, weapon, 'B')}
     </div>
+    ${duelHtml}
   </section>`;
 }
 
-function renderHTML(data) {
+// Confronto direto A vs B a partir das telemetrias (quantas vezes cada uma
+// matou alguém segurando a outra). Retorna null se não houver dados do par.
+function getDuelHeadToHead(duels, weaponA, weaponB) {
+  if (!duels || !weaponA || !weaponB) return null;
+  // weapon-stats id = "Item_Weapon_HK416_C"; insights usa "WeapHK416_C".
+  const aWeapKey = weaponA.id.replace(/^Item_Weapon_/, 'Weap');
+  const bWeapKey = weaponB.id.replace(/^Item_Weapon_/, 'Weap');
+  const aEntry = duels.byId.get(weaponA.id);
+  const bEntry = duels.byId.get(weaponB.id);
+  const aWins = aEntry?.duels?.[bWeapKey] || 0;
+  const bWins = bEntry?.duels?.[aWeapKey] || 0;
+  if (aWins === 0 && bWins === 0) return null;
+  return { aWins, bWins, total: aWins + bWins };
+}
+
+function renderComparatorDuel(duels, weaponA, weaponB) {
+  const h2h = getDuelHeadToHead(duels, weaponA, weaponB);
+  if (!h2h) return '';
+  const { aWins, bWins, total } = h2h;
+  const aPct = total > 0 ? (aWins / total) * 100 : 50;
+  const bPct = 100 - aPct;
+  return `<div class="compare-duel">
+    <div class="compare-duel-title">Head-to-head <span>${total.toLocaleString()} trocas em telemetria</span></div>
+    <div class="compare-duel-bar">
+      <div class="compare-duel-fill-a" style="width:${aPct}%"></div>
+      <div class="compare-duel-fill-b" style="width:${bPct}%"></div>
+    </div>
+    <div class="compare-duel-legend">
+      <span class="compare-duel-a">${escapeHTML(weaponA.name)} <strong>${aWins.toLocaleString()}</strong> (${aPct.toFixed(0)}%)</span>
+      <span class="compare-duel-b"><strong>${bWins.toLocaleString()}</strong> ${escapeHTML(weaponB.name)} (${bPct.toFixed(0)}%)</span>
+    </div>
+  </div>`;
+}
+
+function renderHTML(data, duels) {
   const weapon = data.weapons.find(w => w.id === state.weaponId) || null;
   const compareWeapon = data.weapons.find(w => w.id === state.compareWeaponId) || null;
   const equipment = selectedEquipment(data);
@@ -613,7 +672,6 @@ function renderHTML(data) {
 
   return `<div class="damage-page">
     <div class="damage-workbench">
-      <div class="damage-sticky-shelf" aria-hidden="true"></div>
       <aside class="damage-target-column">
         <section class="damage-target-panel">
           ${weapon ? renderTarget(data, weapon) : renderEmptyTarget()}
@@ -635,30 +693,32 @@ function renderHTML(data) {
         </section>
       </aside>
 
-      <section class="damage-controls-stack">
-        <div class="damage-controls-distance">
-          <div class="micro">DISTANCE</div>
-          <strong data-distance-value>${state.distance}m</strong>
-          <input id="damage-distance" type="range" min="0" max="1000" step="5" value="${state.distance}">
-        </div>
-
-        <div class="damage-controls-group">
-          <div class="micro">HELMET</div>
-          <div class="damage-equipment-list">
-            ${data.equipment.helmets.map(item => optionButton(item, 'helmet')).join('')}
+      <div class="damage-middle-column">
+        <section class="damage-controls-stack">
+          <div class="damage-controls-distance">
+            <div class="micro">DISTANCE</div>
+            <strong data-distance-value>${state.distance}m</strong>
+            <input id="damage-distance" type="range" min="0" max="1000" step="5" value="${state.distance}">
           </div>
-        </div>
 
-        <div class="damage-controls-group">
-          <div class="micro">VEST</div>
-          <div class="damage-equipment-list">
-            ${data.equipment.vests.map(item => optionButton(item, 'vest')).join('')}
+          <div class="damage-controls-group">
+            <div class="micro">HELMET</div>
+            <div class="damage-equipment-list">
+              ${data.equipment.helmets.map(item => optionButton(item, 'helmet')).join('')}
+            </div>
           </div>
-          ${brokenToggle('vest')}
-        </div>
-      </section>
 
-      ${renderComparator(data, weapon, compareWeapon)}
+          <div class="damage-controls-group">
+            <div class="micro">VEST</div>
+            <div class="damage-equipment-list">
+              ${data.equipment.vests.map(item => optionButton(item, 'vest')).join('')}
+            </div>
+            ${brokenToggle('vest')}
+          </div>
+        </section>
+
+        ${renderComparator(data, weapon, compareWeapon, duels)}
+      </div>
 
       <section class="damage-weapons-section">
         <div class="damage-weapons-toolbar">
@@ -683,32 +743,34 @@ function renderHTML(data) {
   </div>`;
 }
 
-function bind(container, data) {
+function bind(container, data, duels) {
+  // Helper local pra evitar passar `duels` em todas as 12+ chamadas.
+  const rerender = () => renderLoaded(container, data, duels);
   container.querySelector('#damage-distance')?.addEventListener('input', e => {
     state.distance = Number(e.target.value);
     updateDistanceDamage(container, data);
   });
   container.querySelector('#damage-distance')?.addEventListener('change', e => {
     state.distance = Number(e.target.value);
-    renderLoaded(container, data);
+    rerender();
   });
   container.querySelectorAll('[data-helmet]').forEach(btn => {
     btn.addEventListener('click', () => {
       state.helmetLevel = Number(btn.dataset.helmet);
-      renderLoaded(container, data);
+      rerender();
     });
   });
   container.querySelectorAll('[data-vest]').forEach(btn => {
     btn.addEventListener('click', () => {
       state.vestLevel = Number(btn.dataset.vest);
       if (state.vestLevel === 0) state.vestBroken = false;
-      renderLoaded(container, data);
+      rerender();
     });
   });
   container.querySelectorAll('[data-broken]').forEach(input => {
     input.addEventListener('change', () => {
       if (input.dataset.broken === 'vest') state.vestBroken = input.checked;
-      renderLoaded(container, data);
+      rerender();
     });
   });
   container.querySelectorAll('[data-target-metric]').forEach(btn => {
@@ -729,13 +791,13 @@ function bind(container, data) {
   container.querySelectorAll('.damage-weapon-card[data-weapon-id]').forEach(card => {
     card.addEventListener('click', () => {
       state.weaponId = card.dataset.weaponId;
-      renderLoaded(container, data);
+      rerender();
     });
     card.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         state.weaponId = card.dataset.weaponId;
-        renderLoaded(container, data);
+        rerender();
       }
     });
     card.addEventListener('dragstart', e => {
@@ -763,7 +825,7 @@ function bind(container, data) {
       // Se a arma já está no outro slot, faz swap
       if (state[otherKey] === weaponId) state[otherKey] = state[targetKey];
       state[targetKey] = weaponId;
-      renderLoaded(container, data);
+      rerender();
     });
   });
   container.querySelectorAll('[data-compare-clear]').forEach(btn => {
@@ -772,7 +834,7 @@ function bind(container, data) {
       const slot = btn.dataset.compareClear;
       if (slot === 'A') state.weaponId = '';
       else state.compareWeaponId = '';
-      renderLoaded(container, data);
+      rerender();
     });
   });
   container.querySelector('[data-compare-swap]')?.addEventListener('click', () => {
@@ -780,38 +842,39 @@ function bind(container, data) {
     const tmp = state.weaponId;
     state.weaponId = state.compareWeaponId;
     state.compareWeaponId = tmp;
-    renderLoaded(container, data);
+    rerender();
   });
   container.querySelectorAll('[data-category]').forEach(btn => {
     btn.addEventListener('click', () => {
       state.category = btn.dataset.category;
-      renderLoaded(container, data);
+      rerender();
     });
   });
   container.querySelector('#damage-sort')?.addEventListener('change', e => {
     state.sortBy = e.target.value;
-    renderLoaded(container, data);
+    rerender();
   });
   container.querySelector('#damage-weapon-search')?.addEventListener('input', e => {
     state.query = e.target.value;
-    renderLoaded(container, data);
+    rerender();
     const input = container.querySelector('#damage-weapon-search');
     input?.focus();
     input?.setSelectionRange(state.query.length, state.query.length);
   });
 }
 
-function renderLoaded(container, data) {
-  container.innerHTML = renderHTML(data);
-  bind(container, data);
+function renderLoaded(container, data, duels) {
+  container.innerHTML = renderHTML(data, duels);
+  bind(container, data, duels);
 }
 
 export async function renderWeaponStatsPage(container) {
   if (!container) return;
   container.innerHTML = `<div class="damage-page"><div class="career-skeleton skel"></div></div>`;
   try {
-    const data = await loadData();
-    renderLoaded(container, data);
+    // Insights são opcionais — se falhar, a seção de duelos só não aparece.
+    const [data, duels] = await Promise.all([loadData(), loadDuels()]);
+    renderLoaded(container, data, duels);
   } catch (err) {
     console.error(err);
     container.innerHTML = `<div class="damage-page"><div class="career-empty"><div class="career-empty-label">DATA ERROR</div><div class="career-empty-message">Could not load weapon stats.</div></div></div>`;

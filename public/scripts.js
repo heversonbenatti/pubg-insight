@@ -1,6 +1,7 @@
 import { showModal } from './modal.js';
-import { translateMapName } from './utils.js';
+import { translateMapName, isPlayableMatch } from './utils.js';
 import { renderWeaponStatsPage } from './weaponStats.js';
+import { renderInsightsPage } from './insights.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SVG Icons (inline, 24×24 viewBox)
@@ -28,6 +29,7 @@ const Icon = {
   filter:   (s=16) => svg('M4 6h16M7 12h10M10 18h4', {size:s}),
   share:    (s=16) => svg('M15 8a3 3 0 1 1 3 -3M9 12a3 3 0 1 1 -3 3M15 16a3 3 0 1 1 3 3M8.7 13.3l6.6 3.4M15.3 7.3l-6.6 3.4', {size:s}),
   steam:    (s=16) => svg('M12 3a9 9 0 1 1 0 18a9 9 0 0 1 0 -18M8 16a2.5 2.5 0 1 0 0 -5a2.5 2.5 0 0 0 0 5zM16 6a3 3 0 1 1 0 6a3 3 0 0 1 0 -6M13 11l-5 3', {size:s}),
+  refresh:  (s=16) => svg('M20 11a8 8 0 1 0 -2.3 5.7M20 5v6h-6', {size:s}),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -273,8 +275,8 @@ function showLanding() {
   document.getElementById('loading-state').style.display = 'none';
   document.getElementById('player-page').style.display = 'none';
   document.getElementById('weapon-stats-page').style.display = 'none';
-  document.getElementById('career-page').style.display = 'none';
   document.getElementById('leaderboard-page').style.display = 'none';
+  document.getElementById('insights-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'none';
   renderLanding();
   closeDrawer();
@@ -315,38 +317,41 @@ function renderLanding() {
       </form>
     </div>
 
+    <div class="landing-nav">
+      <button id="landing-nav-leaderboard" class="pi-btn ghost" type="button">${Icon.target(14)} Leaderboard</button>
+      <button id="landing-nav-weapons" class="pi-btn ghost" type="button">${Icon.target(14)} Weapons</button>
+      <div class="pi-popover-host">
+        <button id="landing-nav-history" class="pi-btn ghost" type="button">${Icon.clock(14)} History</button>
+      </div>
+      <div class="pi-popover-host">
+        <button id="landing-nav-saved" class="pi-btn ghost" type="button">${Icon.star(14)} Saved</button>
+      </div>
+    </div>
+
     <div class="landing-recents">
       <span class="micro" style="color:var(--text-faint)">RECENT</span>
       ${recentHTML || '<span style="color:var(--text-faint);font-size:12px">No recent searches</span>'}
-    </div>
-
-    <div class="landing-features">
-      <div class="feature-card">
-        <div class="feature-icon">${Icon.target(16)}</div>
-        <div class="feature-title">Season stats</div>
-        <div class="feature-body">K/D, win rate, avg damage for SOLO / DUO / SQUAD across FPP and TPP.</div>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">${Icon.clock(16)}</div>
-        <div class="feature-title">Match history</div>
-        <div class="feature-body">Last 20+ matches with placement, kills, damage and time survived.</div>
-      </div>
-      <div class="feature-card">
-        <div class="feature-icon">${Icon.play(14)}</div>
-        <div class="feature-title">2D replay</div>
-        <div class="feature-body">Rewatch every match with a top-down telemetry timeline and team panel.</div>
-      </div>
-      <button id="landing-weapons-btn" class="feature-card feature-card-button" type="button">
-        <div class="feature-icon">${Icon.target(16)}</div>
-        <div class="feature-title">Weapon damage</div>
-        <div class="feature-body">Compare base damage, armor reductions and distance falloff on a target dummy.</div>
-      </button>
     </div>`;
 
   populateSeasonSelect('landing-season-select');
   document.getElementById('landing-form').addEventListener('submit', e => { e.preventDefault(); doSearch(); });
   document.getElementById('landing-platform-select')?.addEventListener('change', e => changePlatform(e.target.value));
-  document.getElementById('landing-weapons-btn')?.addEventListener('click', showWeaponStatsPage);
+  document.getElementById('landing-nav-leaderboard')?.addEventListener('click', () => showLeaderboardPage());
+  document.getElementById('landing-nav-weapons')?.addEventListener('click', () => showWeaponStatsPage());
+  document.getElementById('landing-nav-history')?.addEventListener('click', e => {
+    e.stopPropagation();
+    togglePlayerListPopover('landing-nav-history', 'History', recentSearches, name => {
+      recentSearches = recentSearches.filter(x => x !== name);
+      try { localStorage.setItem('pi_recents', JSON.stringify(recentSearches)); } catch(_) {}
+    });
+  });
+  document.getElementById('landing-nav-saved')?.addEventListener('click', e => {
+    e.stopPropagation();
+    togglePlayerListPopover('landing-nav-saved', 'Saved', savedPlayers, name => {
+      savedPlayers = savedPlayers.filter(x => x !== name);
+      try { localStorage.setItem('pi_saved', JSON.stringify(savedPlayers)); } catch(_) {}
+    });
+  });
   document.querySelectorAll('.recent-chip').forEach(btn => {
     btn.addEventListener('click', e => {
       if (e.target.closest('.recent-chip-x')) {
@@ -371,8 +376,8 @@ function showLoading() {
   document.getElementById('loading-state').style.display = 'block';
   document.getElementById('player-page').style.display = 'none';
   document.getElementById('weapon-stats-page').style.display = 'none';
-  document.getElementById('career-page').style.display = 'none';
   document.getElementById('leaderboard-page').style.display = 'none';
+  document.getElementById('insights-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'flex';
   document.getElementById('loading-state').innerHTML = `
     <div style="max-width:1080px;margin:0 auto;padding:28px 32px">
@@ -401,8 +406,8 @@ function showPlayerPage(playerName, seasonId) {
   document.getElementById('loading-state').style.display = 'none';
   document.getElementById('player-page').style.display = 'block';
   document.getElementById('weapon-stats-page').style.display = 'none';
-  document.getElementById('career-page').style.display = 'none';
   document.getElementById('leaderboard-page').style.display = 'none';
+  document.getElementById('insights-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'flex';
   renderPlayerHeader(playerName, seasonId);
   renderModeTabs();
@@ -415,8 +420,8 @@ function showWeaponStatsPage() {
   document.getElementById('loading-state').style.display = 'none';
   document.getElementById('player-page').style.display = 'none';
   document.getElementById('weapon-stats-page').style.display = 'block';
-  document.getElementById('career-page').style.display = 'none';
   document.getElementById('leaderboard-page').style.display = 'none';
+  document.getElementById('insights-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'flex';
   renderHeader(getQuery(), getCurrentSeason());
   closeDrawer();
@@ -427,6 +432,45 @@ function showWeaponStatsPage() {
   url.searchParams.set('view', 'weapons');
   window.history.replaceState({}, '', url.toString());
   renderWeaponStatsPage(document.getElementById('weapon-stats-page'));
+}
+
+function showInsightsPage(playerName) {
+  if (!playerName) { toast('Procure um jogador primeiro'); return; }
+  document.getElementById('landing-wrap').style.display = 'none';
+  document.getElementById('loading-state').style.display = 'none';
+  document.getElementById('player-page').style.display = 'none';
+  document.getElementById('weapon-stats-page').style.display = 'none';
+  document.getElementById('leaderboard-page').style.display = 'none';
+  document.getElementById('insights-page').style.display = 'none';
+  document.getElementById('insights-page').style.display = 'block';
+  document.getElementById('pi-header').style.display = 'flex';
+  renderHeader(playerName, getCurrentSeason());
+  closeDrawer();
+  closeAllPopovers();
+  const url = new URL(window.location.href);
+  url.search = '';
+  url.hash = '';
+  url.searchParams.set('view', 'insights');
+  url.searchParams.set('p', playerName);
+  url.searchParams.set('platform', currentPlatform);
+  window.history.replaceState({}, '', url.toString());
+  // View puro: cache-first. O refresh (e a invalidação do cache de insights) é
+  // feito antes por refreshAll() quando você clica em Insights com cooldown livre.
+  renderInsightsPage(document.getElementById('insights-page'), {
+    playerName,
+    platform: currentPlatform,
+    onBack: () => {
+      // Se já temos os dados do player carregados, só troca de página; senão refaz a busca.
+      if (currentPlayerName === playerName && allMatches.length) {
+        showPlayerPage(playerName, getCurrentSeason());
+        const url = new URL(window.location.href);
+        url.searchParams.delete('view');
+        window.history.replaceState({}, '', url.toString());
+      } else {
+        doSearch({ name: playerName, seasonId: getCurrentSeason() });
+      }
+    },
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -477,7 +521,6 @@ async function showLeaderboardPage() {
   document.getElementById('loading-state').style.display = 'none';
   document.getElementById('player-page').style.display = 'none';
   document.getElementById('weapon-stats-page').style.display = 'none';
-  document.getElementById('career-page').style.display = 'none';
   document.getElementById('leaderboard-page').style.display = 'block';
   document.getElementById('pi-header').style.display = 'flex';
   renderHeader(getQuery(), getCurrentSeason());
@@ -690,55 +733,6 @@ function renderLeaderboardList(players) {
   });
 }
 
-function showCareerPage(playerName) {
-  const name = playerName || currentPlayerName;
-  if (!name) { showLanding(); return; }
-  currentPlayerName = name;
-
-  document.getElementById('landing-wrap').style.display = 'none';
-  document.getElementById('loading-state').style.display = 'none';
-  document.getElementById('player-page').style.display = 'none';
-  document.getElementById('weapon-stats-page').style.display = 'none';
-  document.getElementById('career-page').style.display = 'block';
-  document.getElementById('leaderboard-page').style.display = 'none';
-  document.getElementById('pi-header').style.display = 'flex';
-  renderHeader(name, getCurrentSeason());
-  closeDrawer();
-  closeAllPopovers();
-
-  const seasonId = getCurrentSeason();
-  const url = new URL(window.location.href);
-  url.search = '';
-  url.hash = '';
-  url.searchParams.set('view', 'career');
-  url.searchParams.set('p', name);
-  if (seasonId) url.searchParams.set('s', seasonId);
-  if (currentPlatform) url.searchParams.set('platform', currentPlatform);
-  window.history.replaceState({}, '', url.toString());
-
-  renderCareerPageShell(name);
-  loadCareerData(name);
-}
-
-function renderCareerPageShell(name) {
-  const page = document.getElementById('career-page');
-  page.innerHTML = `
-    <div class="player-content">
-      <div class="career-page-header">
-        <button id="career-back-btn" class="pi-btn ghost" type="button">← Back to ${name}</button>
-        <div class="career-page-title">
-          <h1 class="player-name">Career trends</h1>
-          <div class="player-meta"><span>${name}</span><span>·</span><span>${platformLabel()} account</span></div>
-        </div>
-      </div>
-      <div id="career-chart-area"></div>
-    </div>`;
-  document.getElementById('career-back-btn').addEventListener('click', () => {
-    const seasonId = getCurrentSeason();
-    doSearch({ name, seasonId });
-  });
-}
-
 function renderPlayerHeader(name, seasonId) {
   const n = parseInt((seasonId || '').split('-').pop(), 10);
   const seasonLabel = n ? `Season ${n}` : 'Season';
@@ -758,14 +752,89 @@ function renderPlayerHeader(name, seasonId) {
           <span>${platformLabel()} account</span>
         </div>
       </div>
-      <button id="btn-career-player" class="pi-btn ghost" type="button">${Icon.target(14)} Career</button>
+      <button id="btn-refresh-player" class="pi-btn refresh" type="button">${Icon.refresh(14)} Atualizar</button>
+      <button id="btn-insights-player" class="pi-btn ghost" type="button">${Icon.filter(14)} Insights</button>
       <button id="btn-save-player" class="pi-btn ghost" type="button">${Icon.star(14)} Save</button>
       <button id="btn-share-player" class="pi-btn ghost" type="button">${Icon.share(14)} Share</button>
     </div>`;
-  document.getElementById('btn-career-player').addEventListener('click', () => showCareerPage(currentPlayerName));
+  document.getElementById('btn-refresh-player').addEventListener('click', () => refreshAll(currentPlayerName, { gotoInsights: false }));
+  document.getElementById('btn-insights-player').addEventListener('click', () => refreshAll(currentPlayerName, { gotoInsights: true }));
   document.getElementById('btn-save-player').addEventListener('click', () => toggleSavePlayer(currentPlayerName));
   document.getElementById('btn-share-player').addEventListener('click', () => copyToClipboard(buildPlayerShareUrl()));
   updateSaveButtonState();
+  updateRefreshButtonState();
+}
+
+// ── Refresh unificado (cooldown server-side é a fonte da verdade) ──────────────
+// `refreshReadyAt` = timestamp absoluto em que o próximo refresh fica liberado,
+// derivado do `refreshAvailableInMs` que o backend manda. O botão só reflete isso.
+let refreshReadyAt = 0;
+let _refreshTimer = null;
+let _refreshing = false;
+
+function setRefreshCooldownFromServer(availableInMs) {
+  refreshReadyAt = Date.now() + (Number(availableInMs) || 0);
+  updateRefreshButtonState();
+}
+
+function updateRefreshButtonState() {
+  const btn = document.getElementById('btn-refresh-player');
+  if (!btn) { if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; } return; }
+  const remaining = Math.max(0, refreshReadyAt - Date.now());
+  if (_refreshing) {
+    btn.disabled = true;
+    btn.classList.remove('refresh');
+    btn.classList.add('refresh-cooldown');
+    btn.innerHTML = `${Icon.clock(14)} Atualizando…`;
+    return;
+  }
+  if (remaining > 0) {
+    const mm = Math.floor(remaining / 60000);
+    const ss = Math.floor((remaining % 60000) / 1000);
+    btn.disabled = true;
+    btn.classList.remove('refresh');
+    btn.classList.add('refresh-cooldown');
+    btn.innerHTML = `${Icon.clock(14)} ${mm}:${ss < 10 ? '0' : ''}${ss}`;
+    if (!_refreshTimer) _refreshTimer = setInterval(updateRefreshButtonState, 1000);
+  } else {
+    btn.disabled = false;
+    btn.classList.add('refresh');
+    btn.classList.remove('refresh-cooldown');
+    btn.innerHTML = `${Icon.refresh(14)} Atualizar`;
+    if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
+  }
+}
+
+// Clicar em Atualizar OU em Insights chama isto. Pede o refresh atômico ao servidor
+// (que decide pelo cooldown), depois recarrega tudo cache-first (já fresco) e mostra
+// a página apropriada. O servidor é quem manda — o front só exibe o resultado.
+async function refreshAll(name, { gotoInsights = false } = {}) {
+  if (!name) return;
+  if (_refreshing) return;
+  _refreshing = true;
+  updateRefreshButtonState();
+  const season = getCurrentSeason();
+  let resp = null;
+  try {
+    const r = await fetch(`/api/player/${encodeURIComponent(name)}/refresh?platform=${currentPlatform}&season=${encodeURIComponent(season)}`);
+    resp = await r.json();
+  } catch (_) {
+    toast('Falha ao atualizar');
+  }
+  _refreshing = false;
+
+  if (resp?.refreshed) {
+    toast('Atualizado agora');
+  } else if (resp && typeof resp.availableInMs === 'number') {
+    const m = Math.max(1, Math.ceil(resp.availableInMs / 60000));
+    toast(`Já estava atualizado · libera em ${m} min`);
+  }
+  if (resp && typeof resp.availableInMs === 'number') setRefreshCooldownFromServer(resp.availableInMs);
+
+  // Recarrega os dados (cache-first, agora frescos). doSearch baixa as partidas
+  // novas via /matches; depois, se for o caso, abre os insights (recomputados).
+  await doSearch({ name, seasonId: season });
+  if (gotoInsights) showInsightsPage(name);
 }
 
 function renderModeTabs() {
@@ -980,266 +1049,6 @@ function renderStatsGrid() {
       <div class="stat-label">${c.label}</div>
       <div class="stat-value${c.accent ? ' accent' : ''}">${c.value}</div>
     </div>`).join('')}</div>`;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Career chart (across seasons)
-// ─────────────────────────────────────────────────────────────────────────────
-let careerData = null;
-let careerLoading = false;
-let careerVisible = { kd: true, avgKills: true, avgDamage: true, winRate: true, headshotRate: true };
-
-const CAREER_METRICS = [
-  { key: 'kd',           label: 'K/D',       color: '#ffd866', fmt: v => v.toFixed(2)            },
-  { key: 'avgKills',     label: 'Avg Kills', color: '#7dd3fc', fmt: v => v.toFixed(2)            },
-  { key: 'avgDamage',    label: 'Avg DMG',   color: '#86efac', fmt: v => Math.round(v).toString() },
-  { key: 'winRate',      label: 'Win %',     color: '#c084fc', fmt: v => v.toFixed(1) + '%'      },
-  { key: 'headshotRate', label: 'HS %',      color: '#f87171', fmt: v => v.toFixed(1) + '%'      },
-];
-
-function aggregateSeasonStats(stats) {
-  const buckets = [];
-  for (const persp of ['fpp', 'tpp']) {
-    for (const mode of ['solo', 'duo', 'squad']) {
-      buckets.push(stats?.[persp]?.[mode] || {});
-    }
-  }
-  const sum = (k) => buckets.reduce((acc, s) => acc + (s[k] || 0), 0);
-  const rounds = sum('roundsPlayed');
-  const kills = sum('kills') - sum('teamKills');
-  const losses = sum('losses');
-  const wins = sum('wins');
-  const damageDealt = sum('damageDealt');
-  const headshotKills = sum('headshotKills');
-  return {
-    rounds,
-    kd: losses ? kills / losses : 0,
-    avgKills: rounds ? kills / rounds : 0,
-    avgDamage: rounds ? damageDealt / rounds : 0,
-    winRate: rounds ? (wins / rounds) * 100 : 0,
-    headshotRate: kills ? (headshotKills / kills) * 100 : 0,
-  };
-}
-
-const CAREER_MIN_MATCHES = 20;
-const CAREER_SCAN_LIMIT  = 7;
-const CAREER_TARGET      = 5;
-
-async function loadCareerData(playerName) {
-  careerData = null;
-  careerLoading = true;
-  renderCareerChart();
-  try {
-    const r = await fetch(`/api/player/${encodeURIComponent(playerName)}/career?platform=${currentPlatform}&limit=${CAREER_SCAN_LIMIT}`);
-    const data = await r.json();
-    careerLoading = false;
-
-    const aggregated = (data.seasons || []).map(s => ({
-      seasonId: s.seasonId,
-      n: parseInt(s.seasonId.split('-').pop(), 10),
-      isCurrent: s.isCurrent,
-      agg: aggregateSeasonStats(s.stats),
-    }));
-
-    // Take the up-to-CAREER_TARGET most recent seasons that meet the minimum,
-    // then re-sort oldest → newest so the chart plots left-to-right.
-    const newestFirst = [...aggregated].sort((a, b) => b.n - a.n);
-    const qualifying = newestFirst
-      .filter(s => s.agg.rounds >= CAREER_MIN_MATCHES)
-      .slice(0, CAREER_TARGET)
-      .sort((a, b) => a.n - b.n);
-
-    careerData = {
-      seasons: qualifying,
-      scanned: aggregated.length,
-      minMatches: CAREER_MIN_MATCHES,
-    };
-    renderCareerChart();
-  } catch (e) {
-    console.error('career fetch failed', e);
-    careerLoading = false;
-    careerData = { seasons: [], scanned: 0, minMatches: CAREER_MIN_MATCHES };
-    renderCareerChart();
-  }
-}
-
-function renderCareerChart() {
-  const c = document.getElementById('career-chart-area');
-  if (!c) return;
-  if (careerLoading) {
-    c.innerHTML = `
-      <div class="career-section">
-        <div class="career-header">
-          <h2 class="match-section-title">Across seasons <span class="match-section-count">loading…</span></h2>
-        </div>
-        <div class="career-skeleton skel"></div>
-      </div>`;
-    return;
-  }
-  if (!careerData) { c.innerHTML = ''; return; }
-
-  // Zero qualifying seasons → big message
-  if (careerData.seasons.length === 0) {
-    c.innerHTML = `
-      <div class="career-section">
-        <div class="career-empty">
-          <div class="career-empty-label">NOT ENOUGH DATA</div>
-          <div class="career-empty-message">
-            Career trends need at least <strong>${careerData.minMatches} matches</strong> in a season.
-            ${careerData.scanned > 0
-              ? `Scanned the last ${careerData.scanned} seasons — none reached that.`
-              : 'No season data found for this player.'}
-          </div>
-        </div>
-      </div>`;
-    return;
-  }
-
-  c.innerHTML = renderCareerHTML();
-  bindCareerLegend();
-}
-
-function renderCareerHTML() {
-  const seasons = careerData.seasons;
-  const W = 800, H = 280;
-  const padL = 16, padR = 16, padT = 24, padB = 56;
-  const innerW = W - padL - padR;
-  const innerH = H - padT - padB;
-
-  const xAt = i => seasons.length === 1
-    ? padL + innerW / 2
-    : padL + (i / (seasons.length - 1)) * innerW;
-
-  // Per-stat min/max for normalization (each line uses its own scale)
-  const ranges = {};
-  CAREER_METRICS.forEach(m => {
-    const vals = seasons.map(s => s.agg[m.key]);
-    const min = Math.min(...vals);
-    const max = Math.max(...vals);
-    ranges[m.key] = { min, max, span: Math.max(0.0001, max - min) };
-  });
-
-  const yAt = (val, range) => {
-    const norm = (val - range.min) / range.span;  // 0..1
-    return padT + innerH - norm * innerH;          // 0 at top
-  };
-
-  // Background grid
-  const gridLines = [0.25, 0.5, 0.75].map(p => {
-    const y = padT + innerH * p;
-    return `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--divider)" stroke-width="0.5" stroke-dasharray="2 4" />`;
-  }).join('');
-
-  // Per-metric polyline + dots
-  const lines = CAREER_METRICS.map(m => {
-    if (!careerVisible[m.key]) return '';
-    const r = ranges[m.key];
-    const pts = seasons.map((s, i) => `${xAt(i)},${yAt(s.agg[m.key], r)}`).join(' ');
-    const dots = seasons.map((s, i) =>
-      `<circle data-key="${m.key}" data-idx="${i}" cx="${xAt(i)}" cy="${yAt(s.agg[m.key], r)}" r="3.5" fill="${m.color}" stroke="var(--bg)" stroke-width="1.5" />`
-    ).join('');
-    return `
-      <polyline points="${pts}" fill="none" stroke="${m.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity="0.9" />
-      ${dots}`;
-  }).join('');
-
-  // X-axis labels
-  const xLabels = seasons.map((s, i) =>
-    `<text x="${xAt(i)}" y="${H - 32}" text-anchor="middle" fill="var(--text-muted)" font-family="JetBrains Mono, monospace" font-size="10.5">S${s.n}</text>` +
-    (s.isCurrent ? `<text x="${xAt(i)}" y="${H - 18}" text-anchor="middle" fill="var(--accent)" font-family="JetBrains Mono, monospace" font-size="9" letter-spacing="0.06em">CURRENT</text>` : '')
-  ).join('');
-
-  // Cursor line + per-season hover hit areas
-  const cursor = `<line id="career-cursor" x1="0" y1="${padT}" x2="0" y2="${padT + innerH}" stroke="var(--text-muted)" stroke-width="1" stroke-dasharray="3 3" opacity="0" pointer-events="none" />`;
-  const hoverRects = seasons.map((s, i) => {
-    const x0 = i === 0 ? padL : (xAt(i - 1) + xAt(i)) / 2;
-    const x1 = i === seasons.length - 1 ? W - padR : (xAt(i) + xAt(i + 1)) / 2;
-    return `<rect class="career-hover-rect" data-idx="${i}" x="${x0}" y="${padT}" width="${x1 - x0}" height="${innerH + 12}" fill="transparent" />`;
-  }).join('');
-
-  // Legend
-  const cur = seasons[seasons.length - 1];
-  const legend = CAREER_METRICS.map(m => {
-    const visible = careerVisible[m.key];
-    return `
-      <button class="career-legend-chip${visible ? '' : ' off'}" data-key="${m.key}" type="button" title="Toggle ${m.label}">
-        <span class="legend-dot" style="background:${m.color}"></span>
-        <span class="legend-label">${m.label}</span>
-        <span class="legend-value">${m.fmt(cur.agg[m.key])}</span>
-      </button>`;
-  }).join('');
-
-  return `
-    <div class="career-section">
-      <div class="career-header">
-        <div>
-          <h2 class="match-section-title">
-            Across seasons
-            <span class="match-section-count">${seasons.length} season${seasons.length === 1 ? '' : 's'}</span>
-            <span class="career-min-note" title="Seasons under ${careerData.minMatches} matches are skipped to keep averages meaningful">· min ${careerData.minMatches} matches</span>
-          </h2>
-          <div class="career-section-label" data-default="Latest: Season ${cur.n} · ${cur.agg.rounds} matches">Latest: Season ${cur.n} · ${cur.agg.rounds} matches</div>
-        </div>
-        <div class="career-legend">${legend}</div>
-      </div>
-      <div class="career-chart">
-        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" id="career-svg">
-          ${gridLines}
-          ${lines}
-          ${xLabels}
-          ${cursor}
-          ${hoverRects}
-        </svg>
-      </div>
-    </div>`;
-}
-
-function bindCareerLegend() {
-  document.querySelectorAll('.career-legend-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const key = chip.dataset.key;
-      careerVisible[key] = !careerVisible[key];
-      // Don't allow all-off — re-enable the just-clicked one
-      if (Object.values(careerVisible).every(v => !v)) careerVisible[key] = true;
-      renderCareerChart();
-    });
-  });
-  document.querySelectorAll('#career-svg .career-hover-rect').forEach(r => {
-    r.addEventListener('mouseenter', () => updateCareerHover(parseInt(r.dataset.idx, 10)));
-    r.addEventListener('mouseleave', () => updateCareerHover(null));
-  });
-}
-
-function updateCareerHover(idx) {
-  if (!careerData) return;
-  const seasons = careerData.seasons;
-  const target = idx == null ? seasons[seasons.length - 1] : seasons[idx];
-  if (!target) return;
-
-  document.querySelectorAll('.career-legend-chip').forEach(chip => {
-    const key = chip.dataset.key;
-    const m = CAREER_METRICS.find(mm => mm.key === key);
-    const v = chip.querySelector('.legend-value');
-    if (v) v.textContent = m.fmt(target.agg[key]);
-  });
-
-  const lbl = document.querySelector('.career-section-label');
-  if (lbl) {
-    lbl.textContent = idx == null
-      ? lbl.dataset.default
-      : `Season ${target.n}${target.isCurrent ? ' · current' : ''} · ${target.agg.rounds} matches`;
-  }
-
-  const cursor = document.getElementById('career-cursor');
-  if (cursor) {
-    if (idx == null) { cursor.setAttribute('opacity', '0'); return; }
-    const W = 800, padL = 16, padR = 16;
-    const innerW = W - padL - padR;
-    const x = seasons.length === 1 ? padL + innerW / 2 : padL + (idx / (seasons.length - 1)) * innerW;
-    cursor.setAttribute('x1', x);
-    cursor.setAttribute('x2', x);
-    cursor.setAttribute('opacity', '1');
-  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1570,6 +1379,7 @@ async function doSearch(opts = {}) {
   renderHeader(name, seasonId);
 
   try {
+    // Todos cache-first. O refresh real é só via refreshAll()/endpoint /refresh.
     const [statsRes, matchesRes, rankedRes] = await Promise.all([
       fetch(`/api/player/${encodeURIComponent(name)}?season=${encodeURIComponent(seasonId)}&platform=${currentPlatform}`),
       fetch(`/api/player/${encodeURIComponent(name)}/matches?platform=${currentPlatform}`),
@@ -1582,13 +1392,21 @@ async function doSearch(opts = {}) {
 
     if (!statsData.stats) { alert('No stats available for this player'); showLanding(); return; }
 
+    // Cooldown do botão Atualizar vem do servidor (fonte da verdade).
+    if (typeof statsData.refreshAvailableInMs === 'number') {
+      refreshReadyAt = Date.now() + statsData.refreshAvailableInMs;
+    }
+
     fppStats = statsData.stats.fpp || {};
     tppStats = statsData.stats.tpp || {};
     rankedFppStats = rankedData?.ranked?.fpp || {};
     rankedTppStats = rankedData?.ranked?.tpp || {};
     window.fppStats = fppStats;
     window.tppStats = tppStats;
-    allMatches = matchesData.matches || [];
+    // Filtra non-playable: mapas sem assets (Camp Jackal/SafeHouse/Paramo/Haven) E
+    // modos arcade/event/custom/treino mesmo em mapas válidos (TDM, IBR, Heist,
+    // Air Royale, Binary Spot). Só sobra BR clássico (official + competitive ranked).
+    allMatches = (matchesData.matches || []).filter(isPlayableMatch);
     currentIndex = 0;
     activeMode = getBestMode(fppStats, tppStats);
     activeStatsView = 'normal';
@@ -1791,8 +1609,8 @@ function buildAppShell() {
       </div>
     </div>
     <div id="weapon-stats-page" style="display:none"></div>
-    <div id="career-page" style="display:none"></div>
     <div id="leaderboard-page" style="display:none"></div>
+    <div id="insights-page" style="display:none"></div>
     <div id="drawer-backdrop"></div>
     <aside id="match-drawer"></aside>`;
 
@@ -1819,6 +1637,14 @@ async function init() {
       showWeaponStatsPage();
       return;
     }
+    if (params.get('view') === 'insights') {
+      const pname = params.get('p');
+      if (pname) {
+        currentPlayerName = pname;
+        showInsightsPage(pname);
+        return;
+      }
+    }
     if (params.get('view') === 'leaderboard') {
       const sv = params.get('shard');
       const mv = params.get('mode');
@@ -1832,12 +1658,6 @@ async function init() {
     const linkedPlayer = params.get('p');
     if (linkedPlayer) {
       const linkedSeason = params.get('s') || defaultSeason;
-      if (params.get('view') === 'career') {
-        currentPlayerName = linkedPlayer;
-        renderHeader(linkedPlayer, linkedSeason);
-        showCareerPage(linkedPlayer);
-        return;
-      }
       const linkedMatch = params.get('m') || null;
       doSearch({ name: linkedPlayer, seasonId: linkedSeason, matchId: linkedMatch });
     } else {
