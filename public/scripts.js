@@ -74,6 +74,7 @@ function rankChip(place, total, size = 'md') {
 // ─────────────────────────────────────────────────────────────────────────────
 let allSeasons = [];
 let allMatches = [];
+let matchTelemetry = {};   // matchId → tem telemetria cacheada (replay disponível)
 let currentPlayerName = '';
 let currentIndex = 0;
 const MATCHES_PER_PAGE = 20;
@@ -1364,12 +1365,14 @@ function renderDrawer(matchData) {
     <div class="drawer-footer">
       <button id="btn-share-match" class="pi-btn ghost" type="button">${Icon.share(14)} Share</button>
       <div style="flex:1"></div>
-      <button class="pi-btn primary" id="open-replay-btn" type="button">${Icon.play(12)} Open 2D replay</button>
+      ${matchTelemetry[matchData.data.id]
+        ? `<button class="pi-btn primary" id="open-replay-btn" type="button">${Icon.play(12)} Open 2D replay</button>`
+        : `<button class="pi-btn" type="button" disabled title="Telemetria não cacheada — partida com mais de 14 dias">${Icon.play(12)} Replay não disponível</button>`}
     </div>`;
 
   document.getElementById('drawer-close-btn').addEventListener('click', closeDrawer);
   document.getElementById('btn-share-match').addEventListener('click', () => copyToClipboard(buildMatchShareUrl(matchData.data.id)));
-  document.getElementById('open-replay-btn').addEventListener('click', () => {
+  document.getElementById('open-replay-btn')?.addEventListener('click', () => {
     window.globalMatchData = matchData;
     showModal(matchData, currentPlatform);
   });
@@ -1437,6 +1440,7 @@ async function doSearch(opts = {}) {
     // modos arcade/event/custom/treino mesmo em mapas válidos (TDM, IBR, Heist,
     // Air Royale, Binary Spot). Só sobra BR clássico (official + competitive ranked).
     allMatches = (matchesData.matches || []).filter(isPlayableMatch);
+    matchTelemetry = matchesData.telemetry || {};
     currentIndex = 0;
     activeMode = getBestMode(fppStats, tppStats);
     activeStatsView = 'normal';

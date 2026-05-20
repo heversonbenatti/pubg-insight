@@ -21,9 +21,16 @@
 
 import fs from 'fs';
 import path from 'path';
+import zlib from 'zlib';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Lê telemetria (.json.gz comprimido ou .json legado) e retorna os eventos.
+function readTelemetryFile(file) {
+  const buf = fs.readFileSync(file);
+  return JSON.parse(file.endsWith('.gz') ? zlib.gunzipSync(buf) : buf.toString('utf8'));
+}
 const ROOT = path.resolve(__dirname, '..');
 const MATCH_DIR = path.join(ROOT, 'cache', 'matches');
 const OUT_FILE = path.join(ROOT, 'scripts', 'output', 'insights_global.json');
@@ -284,7 +291,7 @@ function emptyWeaponStats() {
 }
 
 function processTelemetryForWeapons(file, byWeapon) {
-  const events = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const events = readTelemetryFile(file);
   for (const ev of events) {
     if (!ev || !ev._T) continue;
 
@@ -351,7 +358,7 @@ function aggregateTelemetries(telFiles) {
   const t0 = Date.now();
   for (let i = 0; i < telFiles.length; i++) {
     const f = telFiles[i];
-    const matchId = path.basename(f).replace(/^telemetry_/, '').replace(/\.json$/, '');
+    const matchId = path.basename(f).replace(/^telemetry_/, '').replace(/\.json(\.gz)?$/, '');
     const attrs = findMatchAttrsFor(matchId);
     // Se conhecemos o match, só processa se for playable. Se não conhecemos
     // (match file não cacheado), processa por inclusão — não dá pra saber.
@@ -386,10 +393,15 @@ function listMatchFiles(args) {
 }
 
 function listTelemetryFiles(args) {
-  let files = fs.readdirSync(MATCH_DIR)
-    .filter(f => /^telemetry_[a-f0-9-]+\.json$/.test(f))
-    .map(f => path.join(MATCH_DIR, f))
-    .sort();
+  // Aceita .json.gz (novo) e .json (legado). Dedup por matchId, preferindo .gz.
+  const byId = new Map();
+  for (const f of fs.readdirSync(MATCH_DIR)) {
+    const m = f.match(/^telemetry_([a-f0-9-]+)\.json(\.gz)?$/);
+    if (!m) continue;
+    const id = m[1], isGz = !!m[2];
+    if (!byId.has(id) || isGz) byId.set(id, path.join(MATCH_DIR, f));
+  }
+  let files = [...byId.values()].sort();
   if (args.limit > 0) files = files.slice(0, args.limit);
   return files;
 }

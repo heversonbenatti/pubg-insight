@@ -430,10 +430,13 @@ const DUAL_LAYOUT = {
 };
 function dualPositions(partKey) {
   const [x, y] = TARGET_MARKERS[partKey];
+  // A sempre à esquerda, B à direita — mesmo sentido das cartas A|B e da barra
+  // do compare-duel. (Os marcadores originais dos membros ficam à direita, então
+  // o membro do A vai espelhado pra esquerda.)
   switch (DUAL_LAYOUT[partKey]) {
     case 'side':   return { a: [x - 96, y], b: [x + 96, y] };
     case 'center': return { a: [x - 62, y], b: [x + 62, y] };
-    default:       return { a: [x, y], b: [1024 - x, y] }; // mirror em torno do centro (512)
+    default:       return { a: [1024 - x, y], b: [x, y] }; // A espelhado p/ esquerda, B no original (direita)
   }
 }
 

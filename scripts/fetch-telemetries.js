@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import zlib from 'zlib';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
 
@@ -48,8 +49,8 @@ function listPending(platform) {
   const all = fs.readdirSync(MATCHES_DIR);
   const matchPrefix = `${platform}_`;
   const haveTelemetry = new Set(
-    all.filter(f => f.startsWith('telemetry_') && f.endsWith('.json'))
-      .map(f => f.slice('telemetry_'.length, -'.json'.length))
+    all.filter(f => /^telemetry_.+\.json(\.gz)?$/.test(f))
+      .map(f => f.replace(/^telemetry_/, '').replace(/\.json(\.gz)?$/, ''))
   );
 
   const pending = [];
@@ -76,14 +77,14 @@ function fmt(n) { return String(n).padStart(3, ' '); }
 function pad8(s) { return String(s).slice(0, 8); }
 
 async function fetchTelemetry({ matchId, url }, timeoutMs) {
-  const dest = path.join(MATCHES_DIR, `telemetry_${matchId}.json`);
+  const dest = path.join(MATCHES_DIR, `telemetry_${matchId}.json.gz`);
   const res = await axios.get(url, {
     timeout: timeoutMs,
     maxContentLength: Infinity,
     maxBodyLength: Infinity,
     responseType: 'json',
   });
-  fs.writeFileSync(dest, JSON.stringify(res.data), 'utf8');
+  fs.writeFileSync(dest, zlib.gzipSync(JSON.stringify(res.data)));
   const events = Array.isArray(res.data) ? res.data.length : null;
   const bytes = fs.statSync(dest).size;
   return { events, bytes };

@@ -9,11 +9,18 @@
 
 import fs from 'fs';
 import path from 'path';
+import zlib from 'zlib';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 const TELEMETRY_DIR = path.join(ROOT, 'cache', 'matches');
+
+// Lê telemetria (.json.gz comprimido ou .json legado).
+function readTelemetryFile(file) {
+  const buf = fs.readFileSync(file);
+  return JSON.parse(file.endsWith('.gz') ? zlib.gunzipSync(buf) : buf.toString('utf8'));
+}
 const OUT_FILE = path.join(ROOT, 'scripts', 'output', 'damage_samples.json');
 
 const ITEM_DICT_FILE = path.join(ROOT, 'pubg-api-assets', 'dictionaries', 'telemetry', 'item', 'itemId.json');
@@ -72,10 +79,14 @@ function findMatchMetadata(matchId) {
 }
 
 function listTelemetryFiles(args) {
-  let files = fs.readdirSync(TELEMETRY_DIR)
-    .filter(f => /^telemetry_.+\.json$/.test(f))
-    .map(f => path.join(TELEMETRY_DIR, f))
-    .sort();
+  // Aceita .json.gz (novo) e .json (legado). Dedup por matchId, preferindo .gz.
+  const byId = new Map();
+  for (const f of fs.readdirSync(TELEMETRY_DIR)) {
+    const m = f.match(/^telemetry_(.+?)\.json(\.gz)?$/);
+    if (!m) continue;
+    if (!byId.has(m[1]) || m[2]) byId.set(m[1], path.join(TELEMETRY_DIR, f));
+  }
+  let files = [...byId.values()].sort();
   if (args.matchId) files = files.filter(f => path.basename(f).includes(args.matchId));
   if (args.limit > 0) files = files.slice(0, args.limit);
   return files;
@@ -104,13 +115,13 @@ function buildElapsedMapper(events) {
 }
 
 function processTelemetry(file) {
-  const matchId = path.basename(file).replace(/^telemetry_/, '').replace(/\.json$/, '');
+  const matchId = path.basename(file).replace(/^telemetry_/, '').replace(/\.json(\.gz)?$/, '');
   const attr = findMatchMetadata(matchId) || {};
   const mapName = attr.mapName || 'Unknown';
   const gameMode = attr.gameMode || '';
   const createdAt = attr.createdAt || '';
 
-  const events = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const events = readTelemetryFile(file);
   const toElapsed = buildElapsedMapper(events);
 
   // Estado de armadura por accountId:

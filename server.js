@@ -3,6 +3,7 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import zlib from 'zlib';
 import { fileURLToPath } from 'url';
 import { spawn } from 'node:child_process';
 import dotenv from 'dotenv';
@@ -145,6 +146,33 @@ if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
 const matchCacheDir = path.join(cacheDir, 'matches');
 if (!fs.existsSync(matchCacheDir)) fs.mkdirSync(matchCacheDir, { recursive: true });
 
+// ── Telemetria gzip ───────────────────────────────────────────────────────────
+// Telemetrias são salvas comprimidas (telemetry_<id>.json.gz) — ~13x menor,
+// lossless. Leitura é transparente (gunzip), com fallback pro .json legado.
+function telemetryGzPath(matchId)  { return path.join(matchCacheDir, `telemetry_${matchId}.json.gz`); }
+function telemetryRawPath(matchId) { return path.join(matchCacheDir, `telemetry_${matchId}.json`); }
+function telemetryExists(matchId) {
+    return fs.existsSync(telemetryGzPath(matchId)) || fs.existsSync(telemetryRawPath(matchId));
+}
+// Lê e parseia os eventos da telemetria (gz preferido, .json fallback). null se não existe.
+function readTelemetryEvents(matchId) {
+    const gz = telemetryGzPath(matchId);
+    if (fs.existsSync(gz)) {
+        try { return JSON.parse(zlib.gunzipSync(fs.readFileSync(gz))); } catch { return null; }
+    }
+    const raw = telemetryRawPath(matchId);
+    if (fs.existsSync(raw)) {
+        try { return JSON.parse(fs.readFileSync(raw, 'utf8')); } catch { return null; }
+    }
+    return null;
+}
+// Salva eventos como .gz (e remove um eventual .json legado do mesmo match).
+function writeTelemetryEvents(matchId, dataOrString) {
+    const json = typeof dataOrString === 'string' ? dataOrString : JSON.stringify(dataOrString);
+    fs.writeFileSync(telemetryGzPath(matchId), zlib.gzipSync(json));
+    try { if (fs.existsSync(telemetryRawPath(matchId))) fs.unlinkSync(telemetryRawPath(matchId)); } catch {}
+}
+
 const SEASONS_TTL      = 24 * 60 * 60 * 1000;   // 24h
 const PLAYERID_TTL     = 24 * 60 * 60 * 1000;   // 24h — playerId is stable
 const PLAYER_TTL       = 10 * 60 * 1000;        // 10min (current season only)
@@ -193,10 +221,14 @@ function touchRefreshMarker(platform, name) {
 // telemetrias mais antigas POR DATA DE SALVAMENTO (mtime), não pela data da
 // partida, até voltar abaixo do limite. Match files (≈25KB) nunca são apagados —
 // são minúsculos e necessários pro índice/insights.
-const CACHE_LIMIT_BYTES = 10 * 1024 * 1024 * 1024; // 10 GB
+const CACHE_LIMIT_BYTES = 200 * 1024 * 1024 * 1024; // 200 GB (cache no SSD G:\ via junction)
 let _cacheEvictInflight = false;
-function enforceCacheLimit() {
+let _lastEvictMs = 0;
+const EVICT_MIN_INTERVAL_MS = 30 * 1000; // varrer 16k+ arquivos no máx 1×/30s
+function enforceCacheLimit(force = false) {
     if (_cacheEvictInflight) return;
+    if (!force && Date.now() - _lastEvictMs < EVICT_MIN_INTERVAL_MS) return;
+    _lastEvictMs = Date.now();
     _cacheEvictInflight = true;
     try {
         let total = 0;
@@ -207,7 +239,7 @@ function enforceCacheLimit() {
             try { st = fs.statSync(fp); } catch { continue; }
             if (!st.isFile()) continue;
             total += st.size;
-            if (/^telemetry_.+\.json$/.test(f)) {
+            if (/^telemetry_.+\.json(\.gz)?$/.test(f)) {
                 telemetries.push({ fp, size: st.size, mtime: st.mtimeMs });
             }
         }
@@ -223,7 +255,8 @@ function enforceCacheLimit() {
             } catch { /* ignora */ }
         }
         if (removed) {
-            console.log(`[cache] evicted ${removed} telemetrias (${(freed / 1e9).toFixed(2)} GB) — cache agora ${(total / 1e9).toFixed(2)} GB`);
+            const GiB = 1024 ** 3;
+            console.log(`[cache] evicted ${removed} telemetrias (${(freed / GiB).toFixed(2)} GB) — cache agora ${(total / GiB).toFixed(2)} GB`);
         }
     } catch (e) {
         console.error('[cache] eviction failed:', e.message);
@@ -564,27 +597,17 @@ app.get('/api/player/:playerName/refresh', async (req, res) => {
         }
 
         // 4) Completa telemetrias do jogador (CDN, sem rate limit) pra que a seção
-        //    de armas dos insights fique correta. Baixa o match file (pra ter a URL
-        //    de telemetria) + a telemetria, pras N partidas mais recentes que ainda
-        //    não têm telemetria cacheada. Matches >14d já perderam a URL (no-url).
-        // Cap por contagem E por tempo (deadline ~75s) — fica abaixo do limite de
-        // 100s de proxies (Cloudflare). O resto baixa no próximo refresh.
-        const TELEMETRY_REFRESH_CAP = 25;
-        const deadline = Date.now() + 75 * 1000;
-        const matchIds = readCache(path.join(cacheDir, `matches_list_${platform}_${safeName(playerName)}.json`)) || [];
-        let dl = 0;
-        for (const id of matchIds) {
-            if (dl >= TELEMETRY_REFRESH_CAP || Date.now() > deadline) break;
-            if (!MATCH_ID_RE.test(id)) continue;
-            if (fs.existsSync(path.join(matchCacheDir, `telemetry_${id}.json`))) continue;
-            await getMatch(platform, id);           // baixa o match file (necessário pra URL)
-            const st = await ensureTelemetry(platform, id);
-            if (st === 'downloaded') dl++;
-            // 'no-url' = match antigo (>14d), pula
-        }
+        //    de armas dos insights fique correta. Primeiro um lote SÍNCRONO rápido
+        //    (cap 25 / deadline 75s pra ficar abaixo do timeout do Cloudflare); o
+        //    resto continua em BACKGROUND sem bloquear a resposta.
+        const matchIds = telemetryCandidateIds(platform, playerName, playerId);
+        const dl = await downloadMissingTelemetries(platform, matchIds, { cap: 25, deadlineMs: 75 * 1000 });
 
-        // 5) Invalida insights individual → recomputa na próxima visita (com partidas + telemetrias novas)
+        // 5) Invalida insights individual → recomputa na próxima visita
         try { fs.unlinkSync(playerInsightsCacheFile(platform, playerId)); } catch {}
+
+        // 6) Background: baixa o restante das telemetrias do jogador sem bloquear.
+        setImmediate(() => backgroundTelemetryFill(platform, playerId, matchIds));
 
         touchRefreshMarker(platform, playerName); // re-marca ao terminar
         res.json({ refreshed: true, availableInMs: REFRESH_COOLDOWN_MS, telemetriesDownloaded: dl });
@@ -733,22 +756,16 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
             playerId = await getPlayerId(platform, playerName);
         }
 
-        // Merge API matchIds + matches cacheados localmente (já dropparam do server PUBG mas
-        // continuam no disco). Dedup + preserva ordem da API no topo.
-        //
-        // Match-only-local sem telemetria cacheada não aparece: a PUBG dropa match
-        // E telemetry juntos (~14d), e o JSON do match cacheado só contém uma URL
-        // de telemetry que já caiu. Sem telemetry_*.json local, o replay não tem
-        // como carregar — então melhor nem mostrar o card.
-        const apiIds = new Set(matchIds);
+        // Merge API matchIds + matches cacheados localmente (já dropparam do server
+        // PUBG mas continuam no disco). Dedup + preserva ordem da API no topo.
+        // Mostra TODAS as partidas, mesmo sem telemetria — o front marca quais têm
+        // replay disponível via o mapa `telemetry` abaixo.
         const localIds = localMatchIdsFor(platform, playerId);
-        const hasTelemetry = id => fs.existsSync(path.join(matchCacheDir, `telemetry_${id}.json`));
         const seen = new Set();
         const mergedIds = [];
         for (const id of [...matchIds, ...localIds]) {
             if (!id || seen.has(id)) continue;
             seen.add(id);
-            if (!apiIds.has(id) && !hasTelemetry(id)) continue;
             mergedIds.push(id);
         }
 
@@ -757,7 +774,13 @@ app.get('/api/player/:playerName/matches', async (req, res) => {
         if (!validMatches.length) throw new Error('No matches found');
         // Garante ordem por createdAt desc (a API geralmente já vem ordenada, mas locais podem misturar)
         validMatches.sort((a, b) => new Date(b?.data?.attributes?.createdAt || 0) - new Date(a?.data?.attributes?.createdAt || 0));
-        res.json({ matches: validMatches });
+        // Mapa matchId → tem telemetria cacheada (pro front habilitar/desabilitar o replay)
+        const telemetry = {};
+        for (const m of validMatches) {
+            const id = m?.data?.id;
+            if (id) telemetry[id] = telemetryExists(id);
+        }
+        res.json({ matches: validMatches, telemetry });
     } catch (error) {
         console.error('Error fetching matches:', error.message);
         res.status(500).json({ error: 'Error fetching matches' });
@@ -1092,10 +1115,8 @@ function aggregateMatchFileForPlayer(matchData, accountId, stats) {
 // Cruza telemetria cacheada (se existir) com o player pra adicionar
 // kills por arma, por distância, e shots fired. Não baixa, só usa o que tem.
 function enrichStatsWithTelemetry(matchId, accountId, stats) {
-    const telFile = path.join(matchCacheDir, `telemetry_${matchId}.json`);
-    if (!fs.existsSync(telFile)) return false;
-    let events;
-    try { events = JSON.parse(fs.readFileSync(telFile, 'utf8')); } catch { return false; }
+    const events = readTelemetryEvents(matchId);
+    if (!events) return false;
     let shotsFired = 0;
     for (const ev of events) {
         if (!ev || !ev._T) continue;
@@ -1314,8 +1335,7 @@ const PORT = process.env.PORT || 8080;
 // telemetria e pelo /refresh (pra completar a telemetria do jogador → armas certas).
 async function ensureTelemetry(platform, matchId) {
     if (!VALID_PLATFORMS.has(platform) || !MATCH_ID_RE.test(matchId)) return 'error';
-    const telemetryCacheFile = path.join(matchCacheDir, `telemetry_${matchId}.json`);
-    if (fs.existsSync(telemetryCacheFile)) return 'cached';
+    if (telemetryExists(matchId)) return 'cached';
 
     const matchCacheFile = path.join(matchCacheDir, `${platform}_${matchId}.json`);
     let telemetryUrl;
@@ -1331,12 +1351,130 @@ async function ensureTelemetry(platform, matchId) {
         _logApi('PUBLIC', telemetryUrl);
         const r = await axios.get(telemetryUrl);
         console.log(`       \x1b[32m→ ${r.status}\x1b[0m`);
-        fs.writeFileSync(telemetryCacheFile, JSON.stringify(r.data), 'utf8');
+        writeTelemetryEvents(matchId, r.data); // salva comprimido (.json.gz)
         setImmediate(enforceCacheLimit);
         return 'downloaded';
     } catch (err) {
         console.error('Telemetry fetch error:', err.message);
         return 'error';
+    }
+}
+
+// Lista de matchIds candidatos a ter telemetria baixada pro jogador: união da
+// lista recente da API (matches_list) + índice local (matches_index), dedup.
+function telemetryCandidateIds(platform, playerName, accountId) {
+    const seen = new Set();
+    const out = [];
+    const add = id => { if (id && MATCH_ID_RE.test(id) && !seen.has(id)) { seen.add(id); out.push(id); } };
+    const list = readCache(path.join(cacheDir, `matches_list_${platform}_${safeName(playerName)}.json`)) || [];
+    for (const id of list) add(id);
+    if (accountId) {
+        const index = loadMatchesIndex(platform);
+        for (const m of (index.players[accountId]?.matches || [])) add(m.id);
+    }
+    return out;
+}
+
+// Baixa telemetrias faltantes pra uma lista de matchIds. cap/deadline limitam o
+// lote (0 = sem limite). onProgress(n) é chamado a cada download concluído.
+async function downloadMissingTelemetries(platform, matchIds, { cap = Infinity, deadlineMs = 0, onProgress } = {}) {
+    const deadline = deadlineMs ? Date.now() + deadlineMs : 0;
+    let dl = 0;
+    for (const id of matchIds) {
+        if (dl >= cap) break;
+        if (deadline && Date.now() > deadline) break;
+        if (!MATCH_ID_RE.test(id)) continue;
+        if (telemetryExists(id)) continue;
+        await getMatch(platform, id);                 // garante o match file (URL da telemetria)
+        const st = await ensureTelemetry(platform, id);
+        if (st === 'downloaded') { dl++; if (onProgress) onProgress(dl); }
+        // 'no-url' = match >14d (URL morta), pula
+    }
+    return dl;
+}
+
+// Worker em background: completa as telemetrias restantes do jogador sem bloquear
+// a resposta do refresh. Invalida o cache de insights a cada 15 downloads pra que
+// a próxima visita pegue mais dados. 1 job por accountId por vez.
+const _bgTelemetry = new Set();
+async function backgroundTelemetryFill(platform, accountId, matchIds) {
+    if (!accountId || _bgTelemetry.has(accountId)) return;
+    _bgTelemetry.add(accountId);
+    try {
+        const dl = await downloadMissingTelemetries(platform, matchIds, {
+            onProgress: n => {
+                if (n % 15 === 0) { try { fs.unlinkSync(playerInsightsCacheFile(platform, accountId)); } catch {} }
+            },
+        });
+        if (dl) {
+            try { fs.unlinkSync(playerInsightsCacheFile(platform, accountId)); } catch {}
+            markGlobalInsightsDirty();
+            console.log(`[telemetry-bg] ${accountId.slice(0, 20)}… +${dl} telemetrias em background`);
+        }
+    } catch (e) {
+        console.error('[telemetry-bg] erro:', e.message);
+    } finally {
+        _bgTelemetry.delete(accountId);
+    }
+}
+
+// ── Manutenção global de telemetria ───────────────────────────────────────────
+// Política (por match file cacheado): NUNCA apaga match files. Só baixa o que dá.
+//   <14d sem telemetria  → baixa a telemetria (enquanto a URL é válida)
+//   >14d sem telemetria  → mantém o match file (vira "replay não disponível"; a URL
+//                          morreu, não dá pra baixar)
+//   qualquer um c/ telemetria → mantém
+// Roda no boot e a cada 3h. Download em batch (CDN, sem rate limit).
+const TELEMETRY_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+let _maintainInflight = false;
+async function maintainTelemetryCache(platform = 'steam') {
+    if (_maintainInflight) return;
+    _maintainInflight = true;
+    const now = Date.now();
+    let kept = 0, downloaded = 0;
+    const toDownload = [];
+    try {
+        const re = new RegExp(`^${platform}_[a-f0-9-]{36}\\.json$`, 'i');
+        const files = fs.readdirSync(matchCacheDir).filter(f => re.test(f));
+        for (const f of files) {
+            const id = f.slice(platform.length + 1, -5);
+            if (telemetryExists(id)) { kept++; continue; }
+            // sem telemetria → só baixa se <14d (URL ainda viva). Nunca apaga.
+            let createdAt = null;
+            try {
+                const d = JSON.parse(fs.readFileSync(path.join(matchCacheDir, f), 'utf8'));
+                createdAt = d?.data?.attributes?.createdAt;
+            } catch {}
+            const ts = createdAt ? new Date(createdAt).getTime() : NaN;
+            if (Number.isFinite(ts) && now - ts <= TELEMETRY_MAX_AGE_MS) toDownload.push(id);
+            else kept++; // >14d sem telemetria ou idade desconhecida → mantém, não baixa
+        }
+        console.log(`[maintain] ${files.length} matches | mantidos: ${kept} | a baixar <14d s/ tel: ${toDownload.length}`);
+
+        // Download em batch: CDN sem rate limit, então N downloads em paralelo
+        // cortam o tempo (~3h sequencial → ~20min). Workers consomem uma fila.
+        const CONCURRENCY = 8;
+        let cursor = 0;
+        async function worker() {
+            while (cursor < toDownload.length) {
+                const id = toDownload[cursor++];
+                const st = await ensureTelemetry(platform, id);
+                if (st === 'downloaded') {
+                    downloaded++;
+                    if (downloaded % 50 === 0) {
+                        markGlobalInsightsDirty();
+                        console.log(`[maintain] ${downloaded}/${toDownload.length} telemetrias baixadas…`);
+                    }
+                }
+            }
+        }
+        await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+        if (downloaded) markGlobalInsightsDirty();
+        console.log(`[maintain] concluído: +${downloaded} telemetrias`);
+    } catch (e) {
+        console.error('[maintain] erro:', e.message);
+    } finally {
+        _maintainInflight = false;
     }
 }
 
@@ -1346,12 +1484,18 @@ app.get('/api/telemetry/:matchId', async (req, res) => {
     if (!VALID_PLATFORMS.has(platform)) return res.status(400).json({ error: 'Invalid platform' });
     if (!MATCH_ID_RE.test(matchId)) return res.status(400).json({ error: 'Invalid match id' });
 
-    const telemetryCacheFile = path.join(matchCacheDir, `telemetry_${matchId}.json`);
     const status = await ensureTelemetry(platform, matchId);
     if (status === 'cached' || status === 'downloaded') {
-        const raw = fs.readFileSync(telemetryCacheFile, 'utf8');
         res.setHeader('Content-Type', 'application/json');
-        return res.send(raw);
+        const gz = telemetryGzPath(matchId);
+        if (fs.existsSync(gz)) {
+            // Manda os bytes gzip com Content-Encoding: gzip — o browser descomprime
+            // de forma transparente (res.json() no front funciona igual).
+            res.setHeader('Content-Encoding', 'gzip');
+            return res.send(fs.readFileSync(gz));
+        }
+        // fallback: .json legado (ainda não migrado)
+        return res.send(fs.readFileSync(telemetryRawPath(matchId), 'utf8'));
     }
     if (status === 'no-url') return res.status(404).json({ error: 'Match not cached — load match history first' });
     return res.status(500).json({ error: 'Telemetry fetch failed' });
@@ -1359,5 +1503,8 @@ app.get('/api/telemetry/:matchId', async (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
-    setImmediate(enforceCacheLimit); // checa limite de cache no boot
+    setImmediate(() => enforceCacheLimit(true)); // checa limite de cache no boot
+    // Manutenção de telemetria: baixa as <14d que faltam (nunca apaga match files).
+    setTimeout(() => maintainTelemetryCache('steam'), 8000);          // 8s após boot
+    setInterval(() => maintainTelemetryCache('steam'), 3 * 60 * 60 * 1000); // a cada 3h
 });
