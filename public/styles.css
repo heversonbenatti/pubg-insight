@@ -1350,51 +1350,42 @@ input[type="range"]::-moz-range-thumb {
 
 /* Weapon damage */
 .damage-page {
-  max-width: 1500px;
-  margin: 0 auto;
   padding: 18px 24px 32px;
 }
+/* Esquerda (lab) fixa ocupando metade; direita (lista de armas) rola. */
 .damage-workbench {
   display: grid;
-  grid-template-columns: minmax(220px, 280px) minmax(260px, 340px) minmax(0, 1fr);
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
   align-items: start;
   position: relative;
 }
-.damage-target-column {
+/* Lab sticky abaixo do pi-header (sticky top:0, ~69px de altura) + folga. */
+.damage-lab {
   grid-column: 1;
-  display: flex;
-  flex-direction: column;
+  position: sticky;
+  top: 84px;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  grid-template-rows: auto auto;
   gap: 12px;
-  min-width: 0;
-  position: sticky;
-  top: 24px;
-  z-index: 5;
+  align-items: start;
+  max-height: calc(100vh - 96px);
+  overflow: auto;
 }
-/* Coluna do meio: controls em cima, comparador embaixo. Tudo sticky junto. */
-.damage-middle-column {
-  grid-column: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-width: 0;
-  position: sticky;
-  top: 24px;
-  z-index: 5;
-}
-.damage-weapons-section {
-  grid-column: 3;
-}
+.damage-target-panel { grid-column: 1; grid-row: 1 / span 2; }
+.damage-controls-stack { grid-column: 2; grid-row: 1; }
+.damage-comparator { grid-column: 2; grid-row: 2; }
+.damage-weapons-section { grid-column: 2; }
 .damage-controls-stack,
 .damage-target-panel,
-.damage-selected-card,
 .damage-comparator,
 .damage-weapons-section {
   background: var(--surface);
   border: 1px solid var(--divider);
   border-radius: var(--r-md);
   box-shadow: var(--shadow-1);
-  flex-shrink: 0;
 }
 .damage-controls-stack {
   display: flex;
@@ -1404,6 +1395,12 @@ input[type="range"]::-moz-range-thumb {
   overflow: hidden;
 }
 .damage-controls-stack > * { flex-shrink: 0; }
+/* Helmet e vest lado a lado dentro dos controles. */
+.damage-controls-equip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
 .damage-controls-distance,
 .damage-controls-group {
   min-width: 0;
@@ -1448,40 +1445,6 @@ input[type="range"]::-moz-range-thumb {
   align-items: center;
   padding: 8px 10px 10px;
   overflow: hidden;
-}
-.damage-selected-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-}
-.damage-selected-card img,
-.damage-selected-card-img {
-  width: 54px;
-  height: 32px;
-  object-fit: contain;
-}
-.damage-selected-card .damage-weapon-placeholder {
-  width: 54px;
-  height: 32px;
-  font-size: 11px;
-}
-.damage-selected-card-info {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.damage-selected-card-info strong {
-  font-size: 13px;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.damage-selected-card-info span {
-  color: var(--text-muted);
-  font-family: var(--font-mono);
-  font-size: 10.5px;
 }
 .damage-target-wrap {
   display: flex;
@@ -1606,6 +1569,12 @@ input[type="range"]::-moz-range-thumb {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
 }
+/* Modo comparação: A em accent, B em cool (mesmas cores do compare-duel). */
+.target-damage-marker.dual { color: var(--text); }
+.target-damage-marker.dual rect { stroke-width: 4; }
+.target-damage-marker.dual text { font-size: 24px; }
+.target-damage-marker.dual-a { color: var(--accent); }
+.target-damage-marker.dual-b { color: var(--cool); }
 .target-head { color: oklch(0.74 0.20 72); }
 .target-neck { color: oklch(0.78 0.21 128); }
 .target-upper-chest,
@@ -1735,7 +1704,7 @@ input[type="range"]::-moz-range-thumb {
 }
 .damage-comparator-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
 }
 /* Head-to-head A vs B (duelos de telemetria) */
@@ -2167,14 +2136,25 @@ input[type="range"]::-moz-range-thumb {
     grid-template-columns: 1fr;
     grid-template-rows: none;
   }
-  .damage-target-column,
-  .damage-middle-column,
+  .damage-lab {
+    grid-column: 1;
+    position: static;
+    max-height: none;
+    overflow: visible;
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  }
   .damage-weapons-section {
     grid-column: 1;
     grid-row: auto;
-    position: static;
   }
   .damage-target { height: clamp(380px, 80vw, 560px); }
+}
+
+@media (max-width: 640px) {
+  .damage-lab { grid-template-columns: 1fr; }
+  .damage-target-panel { grid-column: 1; grid-row: auto; }
+  .damage-controls-stack, .damage-comparator { grid-column: 1; }
+  .damage-controls-equip { grid-template-columns: 1fr 1fr; }
 }
 
 @media (max-width: 720px) {

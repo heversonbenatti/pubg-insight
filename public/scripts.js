@@ -166,6 +166,7 @@ function renderHeader(query = '', season = '') {
   if (!h) return;
   h.innerHTML = `
     <a href="#" id="header-logo-link" style="text-decoration:none">${buildLogo(false)}</a>
+    <button id="header-back-player" class="pi-btn ghost" type="button" style="display:none"></button>
     <div style="flex:1">
       <form id="header-search-form" class="pi-search-form">
         <div class="pi-search-input-wrap">
@@ -198,6 +199,7 @@ function renderHeader(query = '', season = '') {
   populateSeasonSelect('header-season-select', season);
   document.getElementById('header-search-form').addEventListener('submit', e => { e.preventDefault(); doSearch(); });
   document.getElementById('header-logo-link').addEventListener('click', e => { e.preventDefault(); showLanding(); });
+  document.getElementById('header-back-player')?.addEventListener('click', () => goBackToPlayer());
   document.getElementById('header-platform-select')?.addEventListener('change', e => changePlatform(e.target.value));
   document.getElementById('btn-weapons')?.addEventListener('click', e => {
     e.preventDefault();
@@ -409,6 +411,7 @@ function showPlayerPage(playerName, seasonId) {
   document.getElementById('leaderboard-page').style.display = 'none';
   document.getElementById('insights-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'flex';
+  setHeaderBackButton(null); // estamos no player → sem botão voltar
   renderPlayerHeader(playerName, seasonId);
   renderModeTabs();
   renderStatsView();
@@ -424,6 +427,7 @@ function showWeaponStatsPage() {
   document.getElementById('insights-page').style.display = 'none';
   document.getElementById('pi-header').style.display = 'flex';
   renderHeader(getQuery(), getCurrentSeason());
+  setHeaderBackButton(currentPlayerName);
   closeDrawer();
   closeAllPopovers();
   const url = new URL(window.location.href);
@@ -524,6 +528,7 @@ async function showLeaderboardPage() {
   document.getElementById('leaderboard-page').style.display = 'block';
   document.getElementById('pi-header').style.display = 'flex';
   renderHeader(getQuery(), getCurrentSeason());
+  setHeaderBackButton(currentPlayerName);
   closeDrawer();
   closeAllPopovers();
 
@@ -763,6 +768,31 @@ function renderPlayerHeader(name, seasonId) {
   document.getElementById('btn-share-player').addEventListener('click', () => copyToClipboard(buildPlayerShareUrl()));
   updateSaveButtonState();
   updateRefreshButtonState();
+}
+
+// Botão "voltar pro jogador" no header (visível em weapons/leaderboard/insights
+// quando há um jogador pesquisado). Centraliza a navegação de volta.
+function setHeaderBackButton(name) {
+  const btn = document.getElementById('header-back-player');
+  if (!btn) return;
+  if (name) {
+    btn.style.display = '';
+    btn.textContent = `← ${name}`;
+  } else {
+    btn.style.display = 'none';
+  }
+}
+function goBackToPlayer() {
+  const name = currentPlayerName;
+  if (!name) { showLanding(); return; }
+  if (allMatches.length) {
+    showPlayerPage(name, getCurrentSeason());
+    const url = new URL(window.location.href);
+    url.searchParams.delete('view');
+    window.history.replaceState({}, '', url.toString());
+  } else {
+    doSearch({ name, seasonId: getCurrentSeason() });
+  }
 }
 
 // ── Refresh unificado (cooldown server-side é a fonte da verdade) ──────────────

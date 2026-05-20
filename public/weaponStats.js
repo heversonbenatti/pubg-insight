@@ -418,13 +418,48 @@ function renderEmptyTarget() {
   return renderTargetInternal(null);
 }
 
-function renderTarget(data, weapon) {
-  return renderTargetInternal({ data, weapon });
+// Posições dos dois marcadores (A/B) por parte do corpo, no modo comparação:
+//  - 'side'   (cabeça/pescoço): dano vai pros lados (A esquerda, B direita)
+//  - 'center' (torso/pelvis): dentro, levemente deslocado pro centro
+//  - 'mirror' (braços/pernas): A onde já fica, B espelhado no outro lado
+const DUAL_LAYOUT = {
+  head: 'side', neck: 'side',
+  upperChest: 'center', chest: 'center', stomach: 'center', pelvis: 'center',
+  upperArm: 'mirror', forearm: 'mirror', hand: 'mirror',
+  thigh: 'mirror', calf: 'mirror', foot: 'mirror',
+};
+function dualPositions(partKey) {
+  const [x, y] = TARGET_MARKERS[partKey];
+  switch (DUAL_LAYOUT[partKey]) {
+    case 'side':   return { a: [x - 96, y], b: [x + 96, y] };
+    case 'center': return { a: [x - 62, y], b: [x + 62, y] };
+    default:       return { a: [x, y], b: [1024 - x, y] }; // mirror em torno do centro (512)
+  }
+}
+
+function renderTarget(data, weapon, compareWeapon = null) {
+  return renderTargetInternal({ data, weapon, compareWeapon });
 }
 
 function renderTargetInternal(ctx) {
   const hasWeapon = !!ctx?.weapon;
+  const dual = !!(ctx?.weapon && ctx?.compareWeapon);
   const markers = BODY_PARTS.map(part => {
+    if (dual) {
+      const { a, b } = dualPositions(part.key);
+      const va = fmtTargetValue(partTargetValue(ctx.data, ctx.weapon, part), state.targetMetric);
+      const vb = fmtTargetValue(partTargetValue(ctx.data, ctx.compareWeapon, part), state.targetMetric);
+      return `<g class="target-damage-marker dual dual-a ${part.css}" data-part="${part.key}" transform="translate(${a[0]} ${a[1]})">
+        <title>${escapeHTML(part.label)} · A</title>
+        <rect x="-40" y="-19" width="80" height="38" rx="19" />
+        <text data-part-damage-a="${part.key}" text-anchor="middle" dominant-baseline="central">${va}</text>
+      </g>
+      <g class="target-damage-marker dual dual-b ${part.css}" data-part="${part.key}" transform="translate(${b[0]} ${b[1]})">
+        <title>${escapeHTML(part.label)} · B</title>
+        <rect x="-40" y="-19" width="80" height="38" rx="19" />
+        <text data-part-damage-b="${part.key}" text-anchor="middle" dominant-baseline="central">${vb}</text>
+      </g>`;
+    }
     const value = hasWeapon ? fmtTargetValue(partTargetValue(ctx.data, ctx.weapon, part), state.targetMetric) : '—';
     const [x, y] = TARGET_MARKERS[part.key];
     return `<g class="target-damage-marker ${part.css}" data-part="${part.key}" transform="translate(${x} ${y})">
@@ -498,12 +533,16 @@ function renderTargetInternal(ctx) {
 
 function updateDistanceDamage(container, data) {
   const weapon = data.weapons.find(w => w.id === state.weaponId) || null;
+  const compareWeapon = data.weapons.find(w => w.id === state.compareWeaponId) || null;
   const distanceLabel = container.querySelector('[data-distance-value]');
   if (distanceLabel) distanceLabel.textContent = `${state.distance}m`;
   for (const part of BODY_PARTS) {
-    const value = container.querySelector(`[data-part-damage="${part.key}"]`);
-    if (!value) continue;
-    value.textContent = weapon ? fmtTargetValue(partTargetValue(data, weapon, part), state.targetMetric) : '—';
+    const single = container.querySelector(`[data-part-damage="${part.key}"]`);
+    if (single) single.textContent = weapon ? fmtTargetValue(partTargetValue(data, weapon, part), state.targetMetric) : '—';
+    const a = container.querySelector(`[data-part-damage-a="${part.key}"]`);
+    if (a) a.textContent = weapon ? fmtTargetValue(partTargetValue(data, weapon, part), state.targetMetric) : '—';
+    const b = container.querySelector(`[data-part-damage-b="${part.key}"]`);
+    if (b) b.textContent = compareWeapon ? fmtTargetValue(partTargetValue(data, compareWeapon, part), state.targetMetric) : '—';
   }
 }
 
@@ -672,50 +711,35 @@ function renderHTML(data, duels) {
 
   return `<div class="damage-page">
     <div class="damage-workbench">
-      <aside class="damage-target-column">
+      <div class="damage-lab">
         <section class="damage-target-panel">
-          ${weapon ? renderTarget(data, weapon) : renderEmptyTarget()}
+          ${weapon ? renderTarget(data, weapon, compareWeapon) : renderEmptyTarget()}
         </section>
 
-        <section class="damage-selected-card">
-          ${weapon ? `
-            ${weaponImage(weapon, 'damage-selected-card-img')}
-            <div class="damage-selected-card-info">
-              <strong>${escapeHTML(weapon.name)}</strong>
-              <span>${weaponGroup(weapon).label} · ${escapeHTML(ammoType(weapon))} · ${weapon.baseDamage} dmg${weapon.rpm ? ` · ${weapon.rpm} rpm` : ''}</span>
-            </div>
-          ` : `
-            <div class="damage-selected-card-info">
-              <strong>No weapon selected</strong>
-              <span>click or drag a weapon below</span>
-            </div>
-          `}
-        </section>
-      </aside>
-
-      <div class="damage-middle-column">
-        <section class="damage-controls-stack">
+        <div class="damage-controls-stack">
           <div class="damage-controls-distance">
             <div class="micro">DISTANCE</div>
             <strong data-distance-value>${state.distance}m</strong>
             <input id="damage-distance" type="range" min="0" max="1000" step="5" value="${state.distance}">
           </div>
 
-          <div class="damage-controls-group">
-            <div class="micro">HELMET</div>
-            <div class="damage-equipment-list">
-              ${data.equipment.helmets.map(item => optionButton(item, 'helmet')).join('')}
+          <div class="damage-controls-equip">
+            <div class="damage-controls-group">
+              <div class="micro">HELMET</div>
+              <div class="damage-equipment-list">
+                ${data.equipment.helmets.filter(it => it.level > 0).map(item => optionButton(item, 'helmet')).join('')}
+              </div>
             </div>
-          </div>
 
-          <div class="damage-controls-group">
-            <div class="micro">VEST</div>
-            <div class="damage-equipment-list">
-              ${data.equipment.vests.map(item => optionButton(item, 'vest')).join('')}
+            <div class="damage-controls-group">
+              <div class="micro">VEST</div>
+              <div class="damage-equipment-list">
+                ${data.equipment.vests.filter(it => it.level > 0).map(item => optionButton(item, 'vest')).join('')}
+              </div>
+              ${brokenToggle('vest')}
             </div>
-            ${brokenToggle('vest')}
           </div>
-        </section>
+        </div>
 
         ${renderComparator(data, weapon, compareWeapon, duels)}
       </div>
@@ -754,15 +778,19 @@ function bind(container, data, duels) {
     state.distance = Number(e.target.value);
     rerender();
   });
+  // Helmet/vest: clicar no nível já ativo desmarca (volta pra 0 = sem armadura).
   container.querySelectorAll('[data-helmet]').forEach(btn => {
     btn.addEventListener('click', () => {
-      state.helmetLevel = Number(btn.dataset.helmet);
+      const lvl = Number(btn.dataset.helmet);
+      state.helmetLevel = state.helmetLevel === lvl ? 0 : lvl;
+      if (state.helmetLevel === 0) state.helmetBroken = false;
       rerender();
     });
   });
   container.querySelectorAll('[data-vest]').forEach(btn => {
     btn.addEventListener('click', () => {
-      state.vestLevel = Number(btn.dataset.vest);
+      const lvl = Number(btn.dataset.vest);
+      state.vestLevel = state.vestLevel === lvl ? 0 : lvl;
       if (state.vestLevel === 0) state.vestBroken = false;
       rerender();
     });
@@ -788,16 +816,22 @@ function bind(container, data, duels) {
       updateDistanceDamage(container, data);
     });
   });
+  // Seleção: 1ª arma → slot A; 2ª → slot B (se vazio); com A e B ocupados,
+  // novos cliques trocam só o A. Clicar numa arma já no slot A/B não duplica.
+  const pickWeapon = id => {
+    if (!id || !data.weapons.some(w => w.id === id)) return;
+    if (id === state.weaponId || id === state.compareWeaponId) return;
+    if (!state.weaponId) state.weaponId = id;
+    else if (!state.compareWeaponId) state.compareWeaponId = id;
+    else state.weaponId = id;
+    rerender();
+  };
   container.querySelectorAll('.damage-weapon-card[data-weapon-id]').forEach(card => {
-    card.addEventListener('click', () => {
-      state.weaponId = card.dataset.weaponId;
-      rerender();
-    });
+    card.addEventListener('click', () => pickWeapon(card.dataset.weaponId));
     card.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        state.weaponId = card.dataset.weaponId;
-        rerender();
+        pickWeapon(card.dataset.weaponId);
       }
     });
     card.addEventListener('dragstart', e => {
