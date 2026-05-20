@@ -726,7 +726,10 @@ function localMatchIdsFor(platform, accountId) {
     return entry.matches
         .slice()
         .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))
-        .map(m => m.id);
+        .map(m => m.id)
+        // Só ids cujo match file ainda existe — partidas >14d apagadas continuam
+        // no índice, mas pedir de novo na API só dá 404. Ignora.
+        .filter(id => fs.existsSync(path.join(matchCacheDir, `${platform}_${id}.json`)));
 }
 
 app.get('/api/player/:playerName/matches', async (req, res) => {
@@ -1375,11 +1378,15 @@ function telemetryCandidateIds(platform, playerName, accountId) {
     const seen = new Set();
     const out = [];
     const add = id => { if (id && MATCH_ID_RE.test(id) && !seen.has(id)) { seen.add(id); out.push(id); } };
+    // matches_list = recentes da API (getMatch baixa se faltar). Sempre inclui.
     const list = readCache(path.join(cacheDir, `matches_list_${platform}_${safeName(playerName)}.json`)) || [];
     for (const id of list) add(id);
+    // Do índice, só inclui ids cujo match file existe (senão é >14d apagado → 404 à toa).
     if (accountId) {
         const index = loadMatchesIndex(platform);
-        for (const m of (index.players[accountId]?.matches || [])) add(m.id);
+        for (const m of (index.players[accountId]?.matches || [])) {
+            if (fs.existsSync(path.join(matchCacheDir, `${platform}_${m.id}.json`))) add(m.id);
+        }
     }
     return out;
 }
