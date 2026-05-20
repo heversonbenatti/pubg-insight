@@ -172,6 +172,19 @@ function writeTelemetryEvents(matchId, dataOrString) {
     fs.writeFileSync(telemetryGzPath(matchId), zlib.gzipSync(json));
     try { if (fs.existsSync(telemetryRawPath(matchId))) fs.unlinkSync(telemetryRawPath(matchId)); } catch {}
 }
+function deleteTelemetryFiles(matchId) {
+    for (const p of [telemetryGzPath(matchId), telemetryRawPath(matchId)]) {
+        try { if (fs.existsSync(p)) fs.unlinkSync(p); } catch {}
+    }
+}
+
+// ── Skip markers ──────────────────────────────────────────────────────────────
+// Partidas não-playable (TDM/arcade/treino/event/custom/mapa sem assets) não são
+// salvas. Um marcador minúsculo (skip_<platform>_<id>) evita re-buscar elas da API
+// toda vez (não dá pra saber o modo sem buscar). Imutável (modo da partida não muda).
+function skipMarkerPath(platform, id) { return path.join(matchCacheDir, `skip_${platform}_${id}`); }
+function hasSkipMarker(platform, id)  { return fs.existsSync(skipMarkerPath(platform, id)); }
+function writeSkipMarker(platform, id) { try { fs.writeFileSync(skipMarkerPath(platform, id), ''); } catch {} }
 
 const SEASONS_TTL      = 24 * 60 * 60 * 1000;   // 24h
 const PLAYERID_TTL     = 24 * 60 * 60 * 1000;   // 24h — playerId is stable
@@ -622,6 +635,7 @@ async function getMatch(platform, matchId) {
     // matchId vem de fontes externas (API e cache); rejeita qualquer coisa que
     // não seja UUID antes de virar nome de arquivo.
     if (!VALID_PLATFORMS.has(platform) || !MATCH_ID_RE.test(matchId)) return null;
+    if (hasSkipMarker(platform, matchId)) return null; // não-playable conhecido → não busca de novo
     const cacheFile = path.join(matchCacheDir, `${platform}_${matchId}.json`);
     const cached = readCache(cacheFile, MATCH_TTL);
     if (cached) return cached;
@@ -632,6 +646,12 @@ async function getMatch(platform, matchId) {
     const promise = (async () => {
         try {
             const r = await pubgGet(`${shardUrl(platform)}/matches/${matchId}`);
+            // Não salva partidas não-playable (TDM/arcade/treino/etc) — só marca skip
+            // pra não re-buscar. Insights e lista nunca usam essas mesmo.
+            if (!isPlayableMatchAttrs(r.data?.data?.attributes)) {
+                writeSkipMarker(platform, matchId);
+                return null;
+            }
             writeCache(cacheFile, r.data);
             indexMatch(platform, r.data);
             // Match novo → invalida cache do global insights (lazy regen no próximo request)
@@ -1437,32 +1457,40 @@ async function backgroundTelemetryFill(platform, accountId, matchIds) {
 
 // ── Manutenção global de telemetria ───────────────────────────────────────────
 // Política (por match file cacheado):
-//   com telemetria (qualquer idade) → mantém
-//   <14d sem telemetria  → baixa; se vier 404 (telemetria já caiu) → apaga o match
-//   >14d sem telemetria  → apaga direto (URL morta, telemetria indisponível)
+//   não-playable (TDM/arcade/treino/etc) → apaga match + telemetria + skip marker
+//   playable com telemetria (qualquer idade) → mantém
+//   playable <14d sem telemetria  → baixa; 404 (telemetria caiu) → apaga o match
+//   playable >14d sem telemetria  → apaga direto (URL morta)
 //   idade desconhecida sem telemetria → mantém (não dá pra confirmar)
-// Apagar no 404/>14d também elimina o retry infinito de 404. Roda no boot e a
-// cada 3h. Download em batch (CDN, sem rate limit).
+// Apagar no 404/>14d/não-playable também elimina o retry infinito de 404. Roda no
+// boot e a cada 3h. Download em batch (CDN, sem rate limit).
 const TELEMETRY_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
 let _maintainInflight = false;
 async function maintainTelemetryCache(platform = 'steam') {
     if (_maintainInflight) return;
     _maintainInflight = true;
     const now = Date.now();
-    let kept = 0, deletedOld = 0, deletedGone = 0, downloaded = 0;
+    let kept = 0, deletedOld = 0, deletedGone = 0, deletedNonPlayable = 0, downloaded = 0;
     const toDownload = [];
     try {
         const re = new RegExp(`^${platform}_[a-f0-9-]{36}\\.json$`, 'i');
         const files = fs.readdirSync(matchCacheDir).filter(f => re.test(f));
         for (const f of files) {
             const id = f.slice(platform.length + 1, -5);
-            if (telemetryExists(id)) { kept++; continue; }
-            let createdAt = null;
+            let attrs = null;
             try {
-                const d = JSON.parse(fs.readFileSync(path.join(matchCacheDir, f), 'utf8'));
-                createdAt = d?.data?.attributes?.createdAt;
+                attrs = JSON.parse(fs.readFileSync(path.join(matchCacheDir, f), 'utf8'))?.data?.attributes;
             } catch {}
-            const ts = createdAt ? new Date(createdAt).getTime() : NaN;
+            // Não-playable → apaga tudo e marca skip (nunca usado em insights/lista).
+            if (attrs && !isPlayableMatchAttrs(attrs)) {
+                deleteMatchFile(platform, id);
+                deleteTelemetryFiles(id);
+                writeSkipMarker(platform, id);
+                deletedNonPlayable++;
+                continue;
+            }
+            if (telemetryExists(id)) { kept++; continue; }
+            const ts = attrs?.createdAt ? new Date(attrs.createdAt).getTime() : NaN;
             if (!Number.isFinite(ts)) { kept++; continue; }   // idade desconhecida → mantém (seguro)
             if (now - ts > TELEMETRY_MAX_AGE_MS) {
                 if (deleteMatchFile(platform, id)) deletedOld++; // >14d s/ tel → apaga
@@ -1470,7 +1498,7 @@ async function maintainTelemetryCache(platform = 'steam') {
                 toDownload.push(id);                            // <14d s/ tel → tenta baixar
             }
         }
-        console.log(`[maintain] ${files.length} matches | c/ tel: ${kept} | apagados >14d: ${deletedOld} | a baixar <14d: ${toDownload.length}`);
+        console.log(`[maintain] ${files.length} matches | c/ tel: ${kept} | não-playable apagados: ${deletedNonPlayable} | apagados >14d: ${deletedOld} | a baixar <14d: ${toDownload.length}`);
 
         // Download em batch: CDN sem rate limit, N downloads em paralelo.
         const CONCURRENCY = 8;
@@ -1492,8 +1520,8 @@ async function maintainTelemetryCache(platform = 'steam') {
             }
         }
         await Promise.all(Array.from({ length: CONCURRENCY }, worker));
-        if (downloaded || deletedOld || deletedGone) markGlobalInsightsDirty();
-        console.log(`[maintain] concluído: +${downloaded} telemetrias | apagados ${deletedOld + deletedGone} (s/ telemetria)`);
+        if (downloaded || deletedOld || deletedGone || deletedNonPlayable) markGlobalInsightsDirty();
+        console.log(`[maintain] concluído: +${downloaded} telemetrias | apagados: ${deletedOld + deletedGone} s/ telemetria, ${deletedNonPlayable} não-playable`);
     } catch (e) {
         console.error('[maintain] erro:', e.message);
     } finally {
