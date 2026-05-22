@@ -1,7 +1,7 @@
 import { showModal } from './modal.js';
 import { translateMapName, isPlayableMatch } from './utils.js';
 import { renderWeaponStatsPage } from './weaponStats.js';
-import { renderInsightsPage } from './insights.js';
+import { renderInsightsPage, renderInsightsLoading } from './insights.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SVG Icons (inline, 24×24 viewBox)
@@ -439,7 +439,10 @@ function showWeaponStatsPage() {
   renderWeaponStatsPage(document.getElementById('weapon-stats-page'));
 }
 
-function showInsightsPage(playerName) {
+// `defer: true` mostra só a tela "Gerando insights…" (sem fetch) — usado pra dar
+// feedback imediato no clique em Insights enquanto o refresh ainda roda. Sem
+// defer, busca e renderiza os insights (cache-first).
+function showInsightsPage(playerName, { defer = false } = {}) {
   if (!playerName) { toast('Procure um jogador primeiro'); return; }
   document.getElementById('landing-wrap').style.display = 'none';
   document.getElementById('loading-state').style.display = 'none';
@@ -459,22 +462,27 @@ function showInsightsPage(playerName) {
   url.searchParams.set('p', playerName);
   url.searchParams.set('platform', currentPlatform);
   window.history.replaceState({}, '', url.toString());
+
+  const onBack = () => {
+    // Se já temos os dados do player carregados, só troca de página; senão refaz a busca.
+    if (currentPlayerName === playerName && allMatches.length) {
+      showPlayerPage(playerName, getCurrentSeason());
+      const url = new URL(window.location.href);
+      url.searchParams.delete('view');
+      window.history.replaceState({}, '', url.toString());
+    } else {
+      doSearch({ name: playerName, seasonId: getCurrentSeason() });
+    }
+  };
+
+  const container = document.getElementById('insights-page');
+  if (defer) { renderInsightsLoading(container, { playerName, onBack }); return; }
   // View puro: cache-first. O refresh (e a invalidação do cache de insights) é
   // feito antes por refreshAll() quando você clica em Insights com cooldown livre.
-  renderInsightsPage(document.getElementById('insights-page'), {
+  renderInsightsPage(container, {
     playerName,
     platform: currentPlatform,
-    onBack: () => {
-      // Se já temos os dados do player carregados, só troca de página; senão refaz a busca.
-      if (currentPlayerName === playerName && allMatches.length) {
-        showPlayerPage(playerName, getCurrentSeason());
-        const url = new URL(window.location.href);
-        url.searchParams.delete('view');
-        window.history.replaceState({}, '', url.toString());
-      } else {
-        doSearch({ name: playerName, seasonId: getCurrentSeason() });
-      }
-    },
+    onBack,
   });
 }
 
@@ -844,6 +852,12 @@ async function refreshAll(name, { gotoInsights = false } = {}) {
   if (_refreshing) return;
   _refreshing = true;
   updateRefreshButtonState();
+
+  // Insights pode levar até ~1min (o refresh baixa telemetria + recomputa). Navega
+  // pra tela "Gerando insights…" JÁ no clique, antes de qualquer await, pra dar
+  // feedback imediato e evitar cliques repetidos achando que não respondeu.
+  if (gotoInsights) showInsightsPage(name, { defer: true });
+
   const season = getCurrentSeason();
   let resp = null;
   try {
@@ -862,10 +876,16 @@ async function refreshAll(name, { gotoInsights = false } = {}) {
   }
   if (resp && typeof resp.availableInMs === 'number') setRefreshCooldownFromServer(resp.availableInMs);
 
-  // Recarrega os dados (cache-first, agora frescos). doSearch baixa as partidas
-  // novas via /matches; depois, se for o caso, abre os insights (recomputados).
-  await doSearch({ name, seasonId: season });
-  if (gotoInsights) showInsightsPage(name);
+  if (gotoInsights) {
+    // Recarrega os dados do player em segundo plano (pro botão "← Back"), SEM
+    // trocar a view — continuamos na tela de insights — depois renderiza os
+    // insights frescos por cima do loading.
+    await doSearch({ name, seasonId: season, silent: true });
+    showInsightsPage(name);
+  } else {
+    // Recarrega e mostra a página do player (cache-first, agora fresco).
+    await doSearch({ name, seasonId: season });
+  }
 }
 
 function renderModeTabs() {
@@ -1408,8 +1428,12 @@ async function doSearch(opts = {}) {
   recentSearches = [name, ...recentSearches.filter(n => n !== name)].slice(0, 6);
   try { localStorage.setItem('pi_recents', JSON.stringify(recentSearches)); } catch(e) {}
 
-  showLoading();
-  renderHeader(name, seasonId);
+  // `silent`: só recarrega o estado do player (pro botão "← Back" dos insights),
+  // sem trocar a view nem mexer na URL — quem chamou já está mostrando outra tela.
+  if (!opts.silent) {
+    showLoading();
+    renderHeader(name, seasonId);
+  }
 
   try {
     // Todos cache-first. O refresh real é só via refreshAll()/endpoint /refresh.
@@ -1423,7 +1447,10 @@ async function doSearch(opts = {}) {
     const matchesData = await matchesRes.json();
     const rankedData = await rankedRes.json().catch(() => ({}));
 
-    if (!statsData.stats) { alert('No stats available for this player'); showLanding(); return; }
+    if (!statsData.stats) {
+      if (!opts.silent) { alert('No stats available for this player'); showLanding(); }
+      return;
+    }
 
     // Cooldown do botão Atualizar vem do servidor (fonte da verdade).
     if (typeof statsData.refreshAvailableInMs === 'number') {
@@ -1445,24 +1472,25 @@ async function doSearch(opts = {}) {
     activeMode = getBestMode(fppStats, tppStats);
     activeStatsView = 'normal';
 
-    showPlayerPage(name, seasonId);
+    if (!opts.silent) {
+      showPlayerPage(name, seasonId);
 
-    // Reflect search in URL (without reloading)
-    const url = new URL(window.location.href);
-    url.searchParams.delete('view');
-    url.searchParams.set('p', name);
-    if (seasonId) url.searchParams.set('s', seasonId);
-    if (!opts.matchId) url.searchParams.delete('m');
-    window.history.replaceState({}, '', url.toString());
+      // Reflect search in URL (without reloading)
+      const url = new URL(window.location.href);
+      url.searchParams.delete('view');
+      url.searchParams.set('p', name);
+      if (seasonId) url.searchParams.set('s', seasonId);
+      if (!opts.matchId) url.searchParams.delete('m');
+      window.history.replaceState({}, '', url.toString());
 
-    if (opts.matchId) {
-      const match = allMatches.find(m => m.data.id === opts.matchId);
-      if (match) openDrawer(match);
+      if (opts.matchId) {
+        const match = allMatches.find(m => m.data.id === opts.matchId);
+        if (match) openDrawer(match);
+      }
     }
   } catch (err) {
     console.error(err);
-    alert('Failed to load player data.');
-    showLanding();
+    if (!opts.silent) { alert('Failed to load player data.'); showLanding(); }
   }
 }
 

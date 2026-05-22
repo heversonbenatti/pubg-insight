@@ -5,10 +5,10 @@ import path from 'path';
 import crypto from 'crypto';
 import zlib from 'zlib';
 import { fileURLToPath } from 'url';
-import { spawn } from 'node:child_process';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import compression from 'compression';
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -136,8 +136,15 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
-app.use(express.static('public'));
-app.use('/pubg-api-assets', express.static('pubg-api-assets'));
+// gzip de respostas (JSON da API + JS/CSS estáticos). Pula o que já vem com
+// Content-Encoding (telemetria, que é servida pré-gzipada). Ganho ~10x em JSON.
+app.use(compression());
+
+// Estáticos com cache no browser. Tiles e imagens são imutáveis (conteúdo fixo
+// por mapa); JS/CSS/JSON revalidam mais rápido. maxAge corta re-downloads.
+const staticOpts = { maxAge: '7d' };
+app.use(express.static('public', staticOpts));
+app.use('/pubg-api-assets', express.static('pubg-api-assets', { maxAge: '30d', immutable: true }));
 
 // Cache em disco fora do static root — não deve vazar publicamente (IDs/match
 // histórico de jogadores). Arquivos sob `cache/` nunca são servidos diretamente.
@@ -327,10 +334,12 @@ function readLeaderboardCache(cacheFile, shard, season, gameMode) {
     return cached;
 }
 
-async function fetchLeaderboard(shard, season, gameMode) {
+async function fetchLeaderboard(shard, season, gameMode, force = false) {
     const cacheFile = leaderboardCacheFile(shard, season, gameMode);
-    const cached = readLeaderboardCache(cacheFile, shard, season, gameMode);
-    if (cached) return cached;
+    if (!force) {
+        const cached = readLeaderboardCache(cacheFile, shard, season, gameMode);
+        if (cached) return cached;
+    }
 
     const r = await pubgGet(`https://api.pubg.com/shards/${shard}/leaderboards/${season}/${gameMode}`);
     const result = {
@@ -354,10 +363,12 @@ function readLeaderboardModesCache(cacheFile, shard, season) {
     return cached;
 }
 
-async function fetchAvailableLeaderboardModes(shard, season) {
+async function fetchAvailableLeaderboardModes(shard, season, force = false) {
     const cacheFile = leaderboardModesCacheFile(shard, season);
-    const cached = readLeaderboardModesCache(cacheFile, shard, season);
-    if (cached) return cached;
+    if (!force) {
+        const cached = readLeaderboardModesCache(cacheFile, shard, season);
+        if (cached) return cached;
+    }
 
     const groups = new Map();
     const unavailable = [];
@@ -365,7 +376,7 @@ async function fetchAvailableLeaderboardModes(shard, season) {
 
     for (const mode of LEADERBOARD_MODE_OPTIONS) {
         try {
-            const leaderboard = await fetchLeaderboard(shard, season, mode.value);
+            const leaderboard = await fetchLeaderboard(shard, season, mode.value, force);
             if (!leaderboard.players.length) {
                 unavailable.push(mode.value);
                 continue;
@@ -691,14 +702,33 @@ function loadMatchesIndex(platform) {
     return data;
 }
 
-function saveMatchesIndex(platform) {
+// O índice é grande (centenas de MB). Escrever síncrono a cada match novo
+// (JSON.stringify + writeFileSync) travava o event loop por segundos em rajadas
+// (ex: /matches ou /refresh baixando dezenas de matches). Agora a escrita é
+// DEBOUNCED: a cópia em memória (matchesIndexCache) é sempre a fonte da verdade
+// pros reads; o disco é só persistência, sincronizado no máximo 1x a cada 5s.
+const MATCHES_INDEX_FLUSH_MS = 5000;
+const _indexFlushTimers = new Map();   // platform → timeout
+
+function flushMatchesIndex(platform) {
+    const t = _indexFlushTimers.get(platform);
+    if (t) { clearTimeout(t); _indexFlushTimers.delete(platform); }
     const entry = matchesIndexCache.get(platform);
-    if (!entry) return;
+    if (!entry || !entry._pending) return;
     const file = matchesIndexFile(platform);
     try {
         fs.writeFileSync(file, JSON.stringify(entry.data), 'utf8');
-        entry.mtimeMs = fs.statSync(file).mtimeMs;
+        entry.mtimeMs = fs.statSync(file).mtimeMs;  // pra loadMatchesIndex não re-parsear nosso próprio write
+        entry._pending = false;
     } catch (e) { console.error('matches index write failed:', e.message); }
+}
+
+function saveMatchesIndex(platform) {
+    const entry = matchesIndexCache.get(platform);
+    if (!entry) return;
+    entry._pending = true;
+    if (_indexFlushTimers.has(platform)) return;   // já agendado
+    _indexFlushTimers.set(platform, setTimeout(() => flushMatchesIndex(platform), MATCHES_INDEX_FLUSH_MS));
 }
 
 // Extrai todos os participants do match data (formato JSON:API da PUBG).
@@ -942,11 +972,10 @@ function isPlayableMatchAttrs(a) {
 const INSIGHTS_GLOBAL_FILE = path.join(__dirname, 'scripts', 'output', 'insights_global.json');
 let _globalCache = null;             // { mtimeMs, data }
 // Começa false: no boot o insights_global.json já reflete o cache atual.
-// Só vira true quando getMatch() baixa um match realmente novo.
+// Vira true quando getMatch() baixa um match novo — sinaliza que o dataset está
+// desatualizado. NÃO dispara regen automática (decisão: regen é manual, via
+// `npm run insights:build`). O flag só aparece em meta.dirty pra UI/diagnóstico.
 let _globalDirty = false;
-let _regenInflight = null;            // Promise da regen em background atual
-let _lastRegenMs = 0;
-const REGEN_THROTTLE_MS = 60 * 1000;  // mínimo 1min entre regens
 
 // loadGlobalInsights só usa mtime pra invalidar cache em memória. NÃO depende
 // de _globalDirty — esse flag é só pra disparar regen, não pra reload do JSON.
@@ -966,60 +995,11 @@ function loadGlobalInsights() {
     }
 }
 
-// Marca dirty (chamado quando match novo cacheado). Não regenera sincronamente.
+// Marca dirty (chamado quando match novo cacheado). Apenas sinaliza que o
+// dataset global está atrás do cache; a regeneração é MANUAL (`npm run
+// insights:build`) — não há mais regen automática em background.
 function markGlobalInsightsDirty() {
     _globalDirty = true;
-}
-
-// Spawna `node scripts/build-insights.js` em background. Idempotente:
-// - só roda se _globalDirty=true (do contrário, não tem nada novo pra processar)
-// - throttle 60s entre starts pra evitar thrash em rajadas de matches
-// - mutex via _regenInflight (1 regen por vez)
-//
-// IMPORTANTE: limpa _globalDirty no INÍCIO. Se um match novo entrar durante a
-// regen, getMatch() vai marcar dirty de novo e a próxima call dispara nova
-// regen. Se falhar, restaura dirty pra tentar de novo.
-function maybeRegenerateGlobalInBackground() {
-    if (_regenInflight) return _regenInflight;
-    if (!_globalDirty) return null;
-    const sinceLast = Date.now() - _lastRegenMs;
-    if (sinceLast < REGEN_THROTTLE_MS) return null;
-    _lastRegenMs = Date.now();
-    _globalDirty = false; // limpa antes — match novo durante regen re-marca
-
-    let child;
-    try {
-        child = spawn(process.execPath, ['--max-old-space-size=8192', path.join('scripts', 'build-insights.js')], {
-            cwd: __dirname,
-            stdio: ['ignore', 'pipe', 'pipe'],
-            detached: false,
-        });
-    } catch (e) {
-        console.error('[insights] spawn failed:', e.message);
-        _globalDirty = true; // restaura — não conseguimos rodar
-        return null;
-    }
-
-    console.log('[insights] background regen started');
-    _regenInflight = new Promise(resolve => {
-        let out = '';
-        child.stdout?.on('data', d => { out += d.toString(); });
-        child.stderr?.on('data', d => { out += d.toString(); });
-        child.on('exit', code => {
-            console.log(`[insights] background regen exited code=${code} (out tail: ${out.split('\n').slice(-2).join(' | ').slice(0, 200)})`);
-            _regenInflight = null;
-            if (code !== 0) _globalDirty = true; // falhou → tentar de novo
-            // sucesso: dirty fica como estava (false, ou true se match novo entrou durante)
-            // mtime mudou no disco → loadGlobalInsights recarrega naturalmente
-        });
-        child.on('error', err => {
-            console.error('[insights] background regen error:', err.message);
-            _regenInflight = null;
-            _globalDirty = true; // restaura
-        });
-        resolve(null);
-    });
-    return _regenInflight;
 }
 
 // Percentile (interpolação linear nos quartis pré-calculados)
@@ -1273,9 +1253,6 @@ app.get('/api/insights/player/:playerName', async (req, res) => {
     if (!VALID_PLATFORMS.has(platform)) return res.status(400).json({ error: 'Invalid platform' });
     if (!PLAYER_NAME_RE.test(playerName)) return res.status(400).json({ error: 'Invalid player name' });
 
-    // Dispara regen do global em background se dirty (não bloqueia)
-    if (_globalDirty) maybeRegenerateGlobalInBackground();
-
     const global = loadGlobalInsights();
     const distributions = global?.globalAverages?.distributions || {};
 
@@ -1297,7 +1274,6 @@ app.get('/api/insights/player/:playerName', async (req, res) => {
                 generatedAt: result.generatedAt,
                 ...result.meta,
                 globalGeneratedAt: global?.generatedAt,
-                globalRegenerating: !!_regenInflight,
                 globalDirty: _globalDirty,
                 matchesProcessed: global?.matchesProcessed,
                 totalPlayers: global?.totalPlayers,
@@ -1311,7 +1287,6 @@ app.get('/api/insights/player/:playerName', async (req, res) => {
 });
 
 app.get('/api/insights/weapons', (_req, res) => {
-    if (_globalDirty) maybeRegenerateGlobalInBackground();
     const global = loadGlobalInsights();
     if (!global) return res.status(503).json({ error: 'Insights not yet generated. Run: npm run insights:build' });
     const weapons = Object.entries(global.byWeapon)
@@ -1324,14 +1299,12 @@ app.get('/api/insights/weapons', (_req, res) => {
             generatedAt: global.generatedAt,
             matchesProcessed: global.matchesProcessed,
             telemetriesProcessed: global.telemetriesProcessed,
-            regenerating: !!_regenInflight,
             dirty: _globalDirty,
         },
     });
 });
 
 app.get('/api/insights/summary', (_req, res) => {
-    if (_globalDirty) maybeRegenerateGlobalInBackground();
     const global = loadGlobalInsights();
     if (!global) return res.status(503).json({ error: 'Insights not yet generated. Run: npm run insights:build' });
 
@@ -1344,7 +1317,6 @@ app.get('/api/insights/summary', (_req, res) => {
             telemetriesProcessed: global.telemetriesProcessed,
             totalPlayers: global.totalPlayers,
             eligiblePlayers: global.eligiblePlayers,
-            regenerating: !!_regenInflight,
             dirty: _globalDirty,
         },
     });
@@ -1552,6 +1524,65 @@ app.get('/api/telemetry/:matchId', async (req, res) => {
     return res.status(500).json({ error: 'Telemetry fetch failed' });
 });
 
+// ── Pré-cache (warm) dos leaderboards ranked ──────────────────────────────────
+// Mantém os boards das regiões PC sempre quentes no cache (TTL 2h). Sem isso,
+// cada visitante que troca de servidor dispara uma chamada à PUBG API (10 req/min)
+// — vários usuários vendo várias regiões queimavam a key. Com o warm, o board já
+// está cacheado antes de alguém pedir. fetchAvailableLeaderboardModes é cache-first
+// e já aquece TODOS os modos do shard (descobre+dedup), então 1 call por shard basta.
+const PC_LEADERBOARD_SHARDS = [
+    'pc-as', 'pc-eu', 'pc-jp', 'pc-krjp', 'pc-kakao', 'pc-na', 'pc-oc', 'pc-ru', 'pc-sa', 'pc-sea',
+];
+
+async function getCurrentRankedSeasonId(platform = 'steam') {
+    const cacheFile = path.join(cacheDir, `seasons_${platform}.json`);
+    let seasons = readCache(cacheFile, SEASONS_TTL);
+    if (!seasons) {
+        try {
+            const r = await pubgGet(`${shardUrl(platform)}/seasons`);
+            seasons = r.data.data;
+            writeCache(cacheFile, seasons);
+        } catch (e) { console.error('[leaderboard-warm] seasons fetch falhou:', e.message); return null; }
+    }
+    return (seasons || []).find(s => s.attributes?.isCurrentSeason)?.id || null;
+}
+
+// Intervalo entre warms de shards: espalha os 10 shards ao longo de 1 TTL, de modo
+// que cada shard seja renovado ~1× a cada 2h (≈12min por shard com 10 shards).
+const WARM_SHARD_INTERVAL_MS = Math.floor(LEADERBOARD_TTL / PC_LEADERBOARD_SHARDS.length);
+
+let _warmInflight = false;
+let _warmIndex = 0;
+// Aquece UM shard por tick (rotação), forçando o refresh. Antes, warmLeaderboards()
+// disparava os 10 shards × até 6 modos (~60 calls) numa rajada só — estourava o
+// rate limit (10 req/min) no boot e a cada 2h, starvando as buscas reais. Agora 1
+// shard por tick a cada ~12min: ~6 calls por vez (bem abaixo de 10/min), cada shard
+// renovado 1× por TTL. `force` ignora o cache-first pra realmente renovar no horário.
+async function warmNextLeaderboardShard() {
+    if (_warmInflight) return;
+    _warmInflight = true;
+    const shard = PC_LEADERBOARD_SHARDS[_warmIndex % PC_LEADERBOARD_SHARDS.length];
+    _warmIndex = (_warmIndex + 1) % PC_LEADERBOARD_SHARDS.length;
+    try {
+        const season = await getCurrentRankedSeasonId('steam'); // pc-* shards compartilham a season do PC
+        if (!season) { console.warn('[leaderboard-warm] sem season atual — pulando'); return; }
+        await fetchAvailableLeaderboardModes(shard, season, true); // force: renova mesmo dentro do TTL
+        console.log(`[leaderboard-warm] ${shard} quente (season ${season})`);
+    } catch (e) {
+        console.error(`[leaderboard-warm] ${shard}:`, e.message);
+    } finally { _warmInflight = false; }
+}
+
+// Flush síncrono do índice de matches pendente — chamado no shutdown pra não
+// perder entradas que ainda estavam no buffer do debounce.
+function flushAllMatchesIndexes() {
+    for (const platform of matchesIndexCache.keys()) flushMatchesIndex(platform);
+}
+for (const sig of ['SIGINT', 'SIGTERM']) {
+    process.on(sig, () => { flushAllMatchesIndexes(); process.exit(0); });
+}
+process.on('beforeExit', flushAllMatchesIndexes);
+
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     setImmediate(() => enforceCacheLimit(true)); // checa limite de cache no boot
@@ -1559,12 +1590,10 @@ app.listen(PORT, '0.0.0.0', () => {
     setTimeout(() => maintainTelemetryCache('steam'), 8000);          // 8s após boot
     setInterval(() => maintainTelemetryCache('steam'), 3 * 60 * 60 * 1000); // a cada 3h
 
-    // Auto-regen do insights global: quando estiver dirty E o server estiver
-    // "ocioso" (sem download de telemetria rolando e sem regen em andamento),
-    // regenera sozinho — não precisa abrir a página de insights pra atualizar.
-    setInterval(() => {
-        if (_globalDirty && !_regenInflight && !_maintainInflight && _bgTelemetry.size === 0) {
-            maybeRegenerateGlobalInBackground();
-        }
-    }, 60 * 1000);
+    // Warm dos leaderboards: 1 shard por vez (rotação), começando 20s após o boot
+    // e avançando a cada ~12min. Espalha as chamadas pra não estourar o rate limit.
+    setTimeout(warmNextLeaderboardShard, 20000);
+    setInterval(warmNextLeaderboardShard, WARM_SHARD_INTERVAL_MS);
+
+    // Insights global NÃO regenera mais sozinho — só via `npm run insights:build`.
 });

@@ -187,10 +187,10 @@ function renderLoadingState(playerName) {
     </div>
     <div class="ins-calculating">
       <div class="ins-spinner"></div>
-      <div class="ins-calculating-title">Calculando insights…</div>
+      <div class="ins-calculating-title">Gerando insights…</div>
       <div class="ins-calculating-sub">
         Varrendo todos os matches cacheados do jogador e cruzando com telemetria detalhada quando disponível.
-        Geralmente leva 1-3 segundos.
+        Pode levar até um minuto.
       </div>
     </div>
   </div>`;
@@ -198,6 +198,17 @@ function renderLoadingState(playerName) {
 
 function backButton(playerName) {
   return `<button class="ins-back-btn pi-btn ghost" type="button">← Back to ${escapeHtml(playerName)}</button>`;
+}
+
+// Mostra só a tela "Gerando insights…" (sem fetch). Usado pra dar feedback
+// imediato no clique em Insights, enquanto o refresh (que pode baixar telemetria
+// por até ~1min) ainda roda. Depois renderInsightsPage() substitui pelo resultado.
+export function renderInsightsLoading(container, { playerName, onBack } = {}) {
+  if (!container) return;
+  if (typeof onBack === 'function') {
+    container.onclick = (e) => { if (e.target.closest('.ins-back-btn')) onBack(); };
+  }
+  container.innerHTML = renderLoadingState(playerName);
 }
 
 export async function renderInsightsPage(container, { playerName, platform = 'steam', onBack } = {}) {
